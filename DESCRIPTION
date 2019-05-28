@@ -1,0 +1,14 @@
+Package: miraculix
+Version: 0.5
+Title: Statistical Functions for Animal Breeding
+Author: Malena Erbe[aut, cre] <merbe@gwdg.de>, Martin Schlather[aut, cre] <schlather@math.uni-mannheim.de>, Florian Skene [aut], Imran S. Haque [ctb]
+Maintainer: "Malena Erbe", "Martin Schlather" <schlather@math.uni-mannheim.de>
+LinkingTo: RandomFieldsUtils
+Depends: R (>= 3.0), RandomFieldsUtils (>= 0.5.2)
+Imports: parallel, spam, methods
+Suggests: pedigree, synbreedData
+Description: miraculix provides several fast functions for the analyses in genetics, in particular the calculation of the relationship matrix and other fast algorithms to calculate efficiently this vector and matrix that contain only the values 0,1,2.
+License: GPL ( >= 3)
+URL: http://ms.math.uni-mannheim.de/de/publications/software/miraculix
+NeedsCompilation: yes
+Packaged: 2019-02-16 11:09:40 UTC; schlather

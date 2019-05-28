@@ -1,0 +1,49 @@
+
+##exportPattern("^[^\\.]")
+export("asremlGinv", "finalCov","genZuchtwert", "GmatrixData", "Gmatrix",
+       "multSplit", "SpecificLines", 
+       ##
+       "vector012matrix", "matrixvector012",
+       ##
+       Shuffle, TwoBit, ThreeBit, Hamming2, Hamming3, AutoCoding,
+       NoSNPcoding,
+       ##
+       "relM", "getMT", "MTdot", "dotMT", "as.genomicmatrix",
+       ##
+       "windower", "scanning",
+       #
+       "codeHaplo", "decodeHaplo",
+       "haplo2geno", "codeGeno", "decodeGeno", "copyGeno",
+       "zeroNthGeno",
+       "createSNPmatrix","fillSNPmatrix",
+       "relationshipMatrix", "vectorGeno", "genoVector", "allele_freq", 
+       "solveRelMat", "SNPeffect", "crossprodx",
+       ##     "unlock", "dolocking",
+      
+       "codeOrigins", "decodeOrigins", "computeSNPS", "compute",
+       "init_parallelcompute"
+       )
+useDynLib(miraculix, .registration = TRUE, .fixes = "C_")
+
+import("parallel")
+importFrom('RandomFieldsUtils', Print, RFoptions, solvex)
+import("grDevices")
+import("graphics")
+import("stats")
+import("methods")
+import("utils")
+import("spam")
+
+
+S3method(summary, scanning)
+S3method(print, scanning)
+S3method(plot, scanning)
+
+S3method(summary, scan.statistics)
+S3method(print, scan.statistics)
+S3method(plot, scan.statistics)
+
+S3method(str, genomicmatrix)
+S3method(print, genomicmatrix)
+S3method(as, genomicmatrix)
+S3method(as.matrix, genomicmatrix)
