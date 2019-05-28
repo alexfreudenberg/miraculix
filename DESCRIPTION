@@ -1,5 +1,5 @@
 Package: miraculix
-Version: 0.5
+Version: 0.6
 Title: Statistical Functions for Animal Breeding
 Author: Malena Erbe[aut, cre] <merbe@gwdg.de>, Martin Schlather[aut, cre] <schlather@math.uni-mannheim.de>, Florian Skene [aut], Imran S. Haque [ctb]
 Maintainer: "Malena Erbe", "Martin Schlather" <schlather@math.uni-mannheim.de>
