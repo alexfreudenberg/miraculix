@@ -4,7 +4,7 @@
  Martin Schlather, schlather@math.uni-mannheim.de
 
 
- Copyright (C) 2018 -- 2018  Martin Schlather
+ Copyright (C) 2018 -- 2019  Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -23,9 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "AutoMiraculix.h"
 
-const char *RELSHIP_METH_NAME[nr_relship_meth] = {
+const char // muss in separater Zeile sein
+// nachfolgende Zeile eingerueckt um 0 oder 2 Zeichen
+*SNPCODING_NAME[nr_snpcoding] = {
   "Shuffle", "TwoBit", "ThreeBit", "Hamming2", "Hamming3", "NoSNPcoding",
-  "AutoCoding", "Haplo"};
-
-
+  "NoSNPcodingR", "AutoCoding", "Haplo"},
   
+*WHAT_NAMES[LAST_WHAT + 1] = {"haplo vector", "geno matrix"};

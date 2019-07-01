@@ -4,7 +4,7 @@
  Martin Schlather, schlather@math.uni-mannheim.de
 
 
- Copyright (C) 2018 -- 2018  Martin Schlather
+ Copyright (C) 2018 -- 2019  Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -22,9 +22,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 
-#include "Miraculix_aux.h"
-#include "miraculix.h"
 #include <R.h>
+#include "miraculix.h"
+#include "MX.h"
+#include <Basic_utils.h>
+#include "error.h"
+#include <zzz_RandomFieldsUtils.h>
 
 
 bool debug = false;
@@ -54,7 +57,7 @@ bool debug = false;
     for (j=i; j<len; j++) {						\
        double freq_j = freq[j];						\
       mass += freq_j;							\
-      long int laenge = perSNP ? j-i+1 : pos[j] - pos_i + 1;		\
+      Long laenge = perSNP ? j-i+1 : pos[j] - pos_i + 1;		\
       if (laenge < min) {						\
 	continue;							\
       }									\
@@ -68,19 +71,6 @@ bool debug = false;
     for ( ; i<len; i++) if (freq[i] < 0) break;				\
   }					
 
-		
-
-SEXP scan(SEXP positions, SEXP length, SEXP freq, 
-	  SEXP minscan,  SEXP maxscan, SEXP threshold, SEXP nthres,
-	  SEXP PER_SNP,
-	  SEXP above_threshold, SEXP Maximum) {
-  scanC(INTEGER(positions), INTEGER(length), REAL(freq), 
-	INTEGER(minscan),  INTEGER(maxscan), REAL(threshold),
-	INTEGER(nthres),
-	INTEGER(PER_SNP),
-	INTEGER(above_threshold), REAL(Maximum));
-  return R_NilValue;
-}
   
 void scanC(int *positions, int *length, double  *freq, int *minscan,
 	   int *maxscan, double *threshold, int *nthres, int *PER_SNP,
@@ -101,6 +91,19 @@ void scanC(int *positions, int *length, double  *freq, int *minscan,
   if (toomanyintervals) above_threshold[0] = -1;
 }
 
+		
+
+SEXP scan(SEXP positions, SEXP length, SEXP freq, 
+	  SEXP minscan,  SEXP maxscan, SEXP threshold, SEXP nthres,
+	  SEXP PER_SNP,
+	  SEXP above_threshold, SEXP Maximum) {
+  scanC(INTEGER(positions), INTEGER(length), REAL(freq), 
+	INTEGER(minscan),  INTEGER(maxscan), REAL(threshold),
+	INTEGER(nthres),
+	INTEGER(PER_SNP),
+	INTEGER(above_threshold), REAL(Maximum));
+  return R_NilValue;
+}
 
 SEXP collect_scan(int *positions, int *length, double  *freq, int *minscan,
 		  int *maxscan, double *threshold, int *nthres,
@@ -210,7 +213,8 @@ SEXP collect_scan2(int *positions, int *length, double  *freq, int *minscan,
   *maximum = maxi;
   SEXP Res;
   PROTECT(Res = allocMatrix(INTSXP, 3, n));
-  MEMCOPY(INTEGER(Res), res, 3 * n * sizeof(int));
+
+  if (n>0) MEMCOPY(INTEGER(Res), res, 3 * n * sizeof(int));
  
   // int m; for(m=0; m<n; m++) print("n=%d %d %d %d\n", n, INTEGER(Res)[3 *m ], INTEGER(Res)[3 *m +1], INTEGER(Res)[3 *m + 2]);
   UNPROTECT(1);
@@ -236,17 +240,6 @@ SEXP collect_scan2(SEXP positions, SEXP length, SEXP freq,
 			REAL(maximum));
  }
 
-  
-SEXP sumscan(SEXP positions, SEXP length, SEXP freq, 
-	     SEXP minscan,  SEXP maxscan, SEXP threshold, SEXP nthres,
-	     SEXP PER_SNP,
-	     SEXP above_threshold, SEXP Maximum) {
-  sumscanC(INTEGER(positions), INTEGER(length), REAL(freq), 
-	  INTEGER(minscan), INTEGER(maxscan), REAL(threshold), INTEGER(nthres),
-	  INTEGER(PER_SNP),
-	  INTEGER(above_threshold), REAL(Maximum));
-  return R_NilValue;
-}
 void sumscanC(int *positions, int *length, double  *freq, 
 	     int *minscan,  int *maxscan, double *threshold, int *nthres,
 	     int *PER_SNP,
@@ -269,7 +262,16 @@ void sumscanC(int *positions, int *length, double  *freq,
      , {});
     *maximum = res;
 }
+							
   
+SEXP sumscan(SEXP positions, SEXP length, SEXP freq, 
+	     SEXP minscan,  SEXP maxscan, SEXP threshold, SEXP nthres,
+	     SEXP PER_SNP,
+	     SEXP above_threshold, SEXP Maximum) {
+  sumscanC(INTEGER(positions), INTEGER(length), REAL(freq), 
+	  INTEGER(minscan), INTEGER(maxscan), REAL(threshold), INTEGER(nthres),
+	  INTEGER(PER_SNP),
+	  INTEGER(above_threshold), REAL(Maximum));
+  return R_NilValue;
+}
 
-  							
-  

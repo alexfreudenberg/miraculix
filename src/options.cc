@@ -4,7 +4,7 @@
 
  library for simulation of random fields 
 
- Copyright (C) 2001 -- 2016 Martin Schlather, 
+ Copyright (C) 2018 -- 2019 Martin Schlather, 
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
+#define PseudoSSE 1     // in case IntrinsicBase does not return anything better
 
 #include <R.h>
 #include <Rinternals.h>
@@ -32,13 +33,32 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 
 // ACHTUNG: Reihenfolge nicht aendern!
-#include "Miraculix_aux.h"
+#include <Basic_utils.h>
+#include "error.h"
+#include <zzz_RandomFieldsUtils.h>
 #include "miraculix.h"
+#include "MX.h"
 #include "options.h"
 //#include "def.h"
 #include "xport_import.h"
 #include "AutoMiraculix.h"
+#include "IntrinsicsBase.h"
 #include "intrinsics.h"
+#include "kleinkram.h"
+
+
+
+snpcoding getAutoCodingIntern() {
+  return
+#if defined SSSE3
+    Shuffle
+#elif defined SSE2
+    Hamming2
+#else
+    ThreeBit
+#endif
+    ;  
+}
 
  
 CALL1(void, getErrorString, errorstring_type, errorstring)
@@ -46,51 +66,51 @@ CALL1(void, setErrorLoc, errorloc_type, errorloc)
 
 
 
-const char * prefixlist[prefixN] = 
-  {"relationshipmatrix"};
+const char * prefixlist[prefixN] = {"genetics"};
 
 
-// IMPORTANT: all names of general must be at least 3 letters long !!!
-const char *relationship[relationshipN] = 
-  {"digits", "relship_method", "centered", "normalized", "per_snp",
-   "returnsigma"};
+// IMPORTANT: all names of general must have at least 3 letters !!!
+const char *genetics[geneticsN] = 
+  {"digits", "snpcoding", "centered", "normalized", "returnsigma"};
 
   
 
-int PL=C_PRINTLEVEL,
-  CORES = INITCORES; // err
 globalparam GLOBAL = {
-relationship_START
+genetics_START
 };
 utilsparam *GLOBAL_UTILS;
 
 
-const char **all[prefixN] = {relationship};
-int allN[prefixN] = {relationshipN};
+const char **all[prefixN] = {genetics};
+int allN[prefixN] = {geneticsN};
  
 
-void setparameter(int i, int j, SEXP el, char name[200], 
-		  bool VARIABLE_IS_NOT_USED isList, int local) {
+void setparameter(Rint i, Rint j, SEXP el, char name[200], 
+		  bool VARIABLE_IS_NOT_USED isList, Rint local) {
 #ifdef DO_PARALLEL
   if (local != isGLOBAL) ERR1("Options specific to RandomFieldsUtils, here '%.50s', can be set only via 'RFoptions' outside any parallel code.", name);
 #endif  
   globalparam *options = &GLOBAL; 
   switch(i) {
-  case 0: {// relationship
-    relationship_param *gp;
-    gp = &(options->relationship);
+  case 0: {// genetics
+    genetics_param *gp;
+    gp = &(options->genetics);
     switch(j) {
     case 0: gp->digits = NUM; break;
     case 1: {
-      int m = TYPEOF(el) != STRSXP ? POS0NUM
-	: GetName(el, name, RELSHIP_METH_NAME, last_usr_meth + 1, gp->method);
+      Rint m = TYPEOF(el) != STRSXP ? POS0NUM
+	: GetName(el, name, SNPCODING_NAME, last_usr_meth + 1, gp->method);
 #if not defined SSE2 and not defined AVX
-      if (m == Shuffle || m == Hamming2)
-	ERR("'Shuffle' and 'Hamming2' are not available on that machine. Consider recompilation of the package with -avx or -msse2 or similar.\n");
+      if (m == Hamming2) {
+	PrintSystem();
+ 	ERR("In particular, 'Hamming2' is not available under the current compilation.");
+      }
 #endif
 #if not defined SSSE3 
-      if (m == Hamming3)
-	ERR("'hamming3' is not available on that machine. Consider recompilation of the package with -msse3 or similar.\n");
+      if (m == Hamming3 || m == Shuffle) {
+	PrintSystem();
+	ERR("In particular, 'Hamming3' and 'Shuffle' are not available under the current compilation.");
+      }
 #endif
       gp->method = m;
       break;
@@ -108,7 +128,7 @@ void setparameter(int i, int j, SEXP el, char name[200],
 	  gp->ncentered = 0;
 	}
       } else {
-	int len = length(el);
+	Uint len = length(el);
 	gp->ncentered = len;
 	FREE(gp->pcentered);
 	gp->pcentered = (double*) MALLOC(len * sizeof(double));
@@ -124,8 +144,7 @@ void setparameter(int i, int j, SEXP el, char name[200],
 	gp->normalized = false;
       }
       break;
-    case 4: gp->per_snp = LOGI; break;
-    case 5 : gp->returnsigma = LOGI; break;
+    case 4 : gp->returnsigma = LOGI; break;
     default: BUG; 
     }
   }
@@ -136,14 +155,14 @@ void setparameter(int i, int j, SEXP el, char name[200],
 
 
 #define PLoffset -10
-  void finalparameter(int VARIABLE_IS_NOT_USED local) {
+  void finalparameter(Rint VARIABLE_IS_NOT_USED local) {
   PL = GLOBAL_UTILS->basic.Cprintlevel - PLoffset;
   CORES = GLOBAL_UTILS->basic.cores;
 }
 
 
-void getparameter(SEXP sublist, int i, int VARIABLE_IS_NOT_USED local) {
-  int k;
+void getparameter(SEXP sublist, Rint i, Rint VARIABLE_IS_NOT_USED local) {
+  Uint k;
 #ifdef DO_PARALLEL
   //  if (local != isGLOBAL) ERR("Options specific to RandomFieldsUtils can be obtained only on a global level and outside any parallel code.");
 #endif  
@@ -151,13 +170,12 @@ void getparameter(SEXP sublist, int i, int VARIABLE_IS_NOT_USED local) {
  switch(i) {
   case 0 : {
     k = 0;
-    relationship_param *p = &(options->relationship);
+    genetics_param *p = &(options->genetics);
     ADD(ScalarReal(p->digits));
     //    ADD(ScalarString(mkChar(RELSHIP_METH_NAME[p->method])));
     ADD(ScalarInteger(p->method));
     ADD(ExtendedBooleanUsr(p->centered));    
     ADD(ScalarLogical(p->normalized));
-    ADD(ScalarLogical(p->per_snp));
     ADD(ScalarLogical(p->returnsigma));
   }
     break;
@@ -166,19 +184,43 @@ void getparameter(SEXP sublist, int i, int VARIABLE_IS_NOT_USED local) {
 }
 
 
+
+
+void PrintSystem() {
+  PRINTF("\nThe following instruction options are used:\nparallel computing: %s\nfloating point double precision: %s\nSIMD: %s\n",
+#if defined DO_PARALLEL
+	 "yes"
+#else
+	 "no"
+#endif
+	 ,	 
+#if defined DO_FLOAT
+	 "no"
+#else
+	 "yes"
+#endif
+	 ,
+#if defined AVX2
+  "AVX2"
+#elif defined SSSE3
+  "SSSE3"
+#elif defined SSE2
+  "SSE2"
+#else
+  "none.\nNote that without any SIMD option the calculations become slow.\nConsider recompiling the package with appropriate flags e.g.,\n\
+  install.packages(\"miraculix\", configure.args=\"CXX_FLAGS=-march=native\")\n\
+  install.packages(\"miraculix\", configure.args=\"CXX_FLAGS=-maxv\")"
+#endif
+	 );
+}
+
+
+
 void attachmiraculix() {
   includeXport();
   Ext_getUtilsParam(&GLOBAL_UTILS);
   GLOBAL_UTILS->solve.max_chol = 8192;
   GLOBAL_UTILS->solve.max_svd = 6555;  
-/*
-  spam.min.n = as.integer(400) # 400
-  spam.tol = 1e-8
-  spam.min.p = 0.8 # 0.8
-  spam.n = as.integer(1:500)
-  spam.factor = as.integer(4294967)# prime, so that n * factor is still integer
-  silent = T RUE
-*/
 
   finalparameter(isGLOBAL);
   Ext_attachRFoptions(prefixlist, prefixN, all, allN,
@@ -186,8 +228,22 @@ void attachmiraculix() {
 		      NULL, -10, false);
 
   finalparameter(isGLOBAL);
+  
+  Information = install("information");
+  Method = install("method");
+  Coding = install("coding");
+
+  assert(BytesPerUnit == sizeof(Uint));
+  assert(sizeof(int) == sizeof(Uint));
+  assert(sizeof(int) == 4);
+  assert(sizeof(uint64_t) == sizeof(double));
+  assert(sizeof(uint64_t) == 8);
 }
 
+void attachmiraculixInter() {
+  attachmiraculix();
+  PrintSystem();
+}  
 
 
 void detachmiraculix() {
@@ -197,3 +253,64 @@ void detachmiraculix() {
 void RelaxUnknownRFoption(int *RELAX) { 
   Ext_relaxUnknownRFoption((bool) *RELAX); 
 }
+
+
+SEXP hasSSE2() {
+  SEXP Ans;
+  PROTECT(Ans = allocVector(LGLSXP, 1));
+  LOGICAL(Ans)[0] =
+#if defined SSE2
+    TRUE // OK
+#else
+    FALSE // OK
+#endif
+    ;
+  UNPROTECT(1);
+  return Ans;
+}
+
+
+SEXP hasSSSE3() {
+  SEXP Ans;
+  PROTECT(Ans = allocVector(LGLSXP, 1));
+  LOGICAL(Ans)[0] =
+#if defined SSSE3
+    TRUE // OK
+#else
+    FALSE // OK
+#endif
+    ;
+  UNPROTECT(1);
+  return Ans;
+}
+
+
+SEXP hasAVX() {
+  SEXP Ans;
+  PROTECT(Ans = allocVector(LGLSXP, 1));
+  LOGICAL(Ans)[0] =
+#if defined AVX
+    TRUE // OK
+#else
+    FALSE // OK
+#endif
+    ;
+  UNPROTECT(1);
+  return Ans;
+}
+
+
+SEXP hasAVX2() {
+  SEXP Ans;
+  PROTECT(Ans = allocVector(LGLSXP, 1));
+  LOGICAL(Ans)[0] =
+#if defined AVX2
+    TRUE // OK
+#else
+    FALSE // OK
+#endif
+    ;
+  UNPROTECT(1);
+  return Ans;
+}
+

@@ -1,9 +1,18 @@
 # This file has been created automatically by 'rfGenerateConstants'
 
 
- ## from  src/AutoMiraculix.h
- AutoMiraculix_H 	<- as.integer(1)
+ ## from  ../../RandomFieldsUtils/RandomFieldsUtils/src/AutoRandomFieldsUtils.h
 
+ MAXUNITS 	<- as.integer(4)
+ MAXCHAR 	<- as.integer(18)
+ RFOPTIONS 	<- "RFoptions"
+ isGLOBAL 	<- as.integer(NA)
+
+
+
+ ## from  src/AutoMiraculix.h
+
+ AutoMiraculix_H 	<- as.integer(1)
 
  Shuffle 	<- as.integer(0)
  TwoBit 	<- as.integer(1)
@@ -11,65 +20,56 @@
  Hamming2 	<- as.integer(3)
  Hamming3 	<- as.integer(4)
  NoSNPcoding 	<- as.integer(5)
- AutoCoding 	<- as.integer(6)
- Haplo 	<- as.integer(7)
-
+ NoSNPcodingR 	<- as.integer(6)
+ AutoCoding 	<- as.integer(7)
+ Haplo 	<- as.integer(8)
 
 
  last_usr_meth 	<- as.integer(AutoCoding)
- nr_relship_meth 	<- as.integer((Haplo+1))
-
-
-
+ nr_snpcoding 	<- as.integer((Haplo+1))
 
  HAPLO 	<- as.integer(0)
- GENO 	<- as.integer(1)
- GENOMATRIX 	<- as.integer(2)
 
-
-
- INFO_INFO 	<- as.integer(0)
- INFO_P 	<- as.integer(1)
- INFO_CODING 	<- as.integer(2)
- INFO_LAST 	<- as.integer(INFO_CODING)
+ GENOMATRIX 	<- as.integer(1)
+ LAST_WHAT 	<- as.integer(1)
 
  WHAT 	<- as.integer(0)
  SNPS 	<- as.integer(1)
  INDIVIDUALS 	<- as.integer(2)
  ADDR0 	<- as.integer(3)
  ADDR1 	<- as.integer(4)
- ADDR2 	<- as.integer(5)
- ADDR3 	<- as.integer(6)
- MEM 	<- as.integer(7)
- SNPxIND 	<- as.integer(8)
- INFO_BLOCKS 	<- as.integer(9)
- INFO_BITS 	<- as.integer(10)
- INFO_BITSPERBLOCK 	<- as.integer(11)
- SNPSPERCOMPRESSED 	<- as.integer(12)
- INFO_HEADER 	<- as.integer(13)
- INFO_DOUBLEINDIV 	<- as.integer(14)
- INFO_LEADINGCOL 	<- as.integer(15)
- INFO_INFO_LAST 	<- as.integer(INFO_LEADINGCOL)
+ ALIGNADDR0 	<- as.integer(5)
+ ALIGNADDR1 	<- as.integer(6)
+ SUMGENO 	<- as.integer(7)
+ SUMGENO_E9 	<- as.integer(8)
 
- INFO_P_PPT 	<- as.integer(0)
- INFO_P_SUMPQ 	<- as.integer(1)
- INFO_P_SUMP 	<- as.integer(2)
- INFO_P_P 	<- as.integer(3)
+ SNPxIND 	<- as.integer(10)
+ BITSPERCODE 	<- as.integer(12)
+ BYTESPERBLOCK 	<- as.integer(13)
+ CODESPERBLOCK 	<- as.integer(14)
+ HEADER 	<- as.integer(15)
+ DOUBLEINDIV 	<- as.integer(16)
+ LEADINGCOL 	<- as.integer(17)
+ MEMinUNITS0 	<- as.integer(18)
 
+ MEMinUNITS1 	<- as.integer(19)
+ ALIGNEDUNITS0 	<- as.integer(20)
+ ALIGNEDUNITS1 	<- as.integer(21)
+
+ INFO_LAST 	<- as.integer(ALIGNEDUNITS1)
+
+ GENOMICMATRIX 	<- "genomicmatrix"
+ HAPLOMATRIX 	<- "haplomatrix"
+ ORIGINVECTOR 	<- "origindata"
 
 
 
  ## from  src/AutoMiraculix.cc
 
-
-RELSHIP_METH_NAME <- 
-  c("Shuffle", "TwoBit", "ThreeBit", "Hamming2", "Hamming3", "NoSNPcoding",
-  "AutoCoding", "Haplo")
+ SNPCODING_NAME <-
+c( "Shuffle","TwoBit","ThreeBit","Hamming2","Hamming3","NoSNPcoding","NoSNPcodingR","AutoCoding","Haplo" )
 
 
-
-
-
-
-
+ WHAT_NAMES <-
+c( "haplo vector","geno matrix" )
 

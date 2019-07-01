@@ -3,7 +3,7 @@
  Martin Schlather, schlather@math.uni-mannheim.de
 
 
- Copyright (C) 2018 -- 2018  Martin Schlather
+ Copyright (C) 2018 -- 2019  Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -53,7 +53,7 @@ SEXP vector012matrixXX(SEXP vector, SEXP matrix) {
   for(int i=0; i<n; i++)			\
     if (v[i] == 1) idx1[n1++] = i;		\
     else if (v[i] == 2) idx2[n2++] = i;		\
-    else if (v[i] != 0) {err=1; goto ErrorHandling;}
+  //  else if (v[i] != 0) {err=1; goto ErrorHandling;}
       
   if (c < 999999) {
     switch (TYPEOF(vector)) {

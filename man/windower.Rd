@@ -56,22 +56,30 @@ windower(data, length=20000, step=length/2, start=0, n.min=0, na.rm=TRUE,
 }
 
 \examples{ %        library(miraculix)
-% data <- read.table("~/svn/miraculix/miraculix/inst/rawdata/Fst_Goe_Berlin_chr_1.bed"); GoeGenes <- data[1:28682, ]; save(file="~/svn/miraculix/miraculix/data/GoeGenes.rda", GoeGenes, compress=TRUE) # OK
+loci <- 10000
+pos <- sort(sample(10^4:10^6, loci))
+pos2 <- pos + 1
+freq <- runif(loci)^5
+data <- data.frame(V1=rep(1, loci), V2=pos, V3=pos2,  V4=freq)
 
-data(GoeGenes)
-win.mean <- windower(GoeGenes, n.min=25)
+
+win.mean <- windower(data, n.min=25)
 head(win.mean)
-win.var <- windower(GoeGenes, n.min=25, what="var")
-head(win.var)
-win.sd <- windower(GoeGenes, n.min=25, what="sd")
-head(win.sd)
-win.min <- windower(GoeGenes, n.min=0, what="min")
-head(win.min)
-win.max <- windower(GoeGenes, n.min=0, what="max")
-head(win.max)
-win.median <- windower(GoeGenes, n.min=0, what="median")
-head(win.median)
 
+win.var <- windower(data, n.min=25, what="var")
+head(win.var)
+
+win.sd <- windower(data, n.min=25, what="sd")
+head(win.sd)
+
+win.min <- windower(data, n.min=0, what="min")
+head(win.min)
+
+win.max <- windower(data, n.min=0, what="max")
+head(win.max)
+
+win.median <- windower(data, n.min=0, what="median")
+head(win.median)
 }
 
 \keyword{htest}

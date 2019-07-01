@@ -4,7 +4,7 @@
  Martin Schlather, schlather@math.uni-mannheim.de
 
 
- Copyright (C) 2018 -- 2018  Martin Schlather
+ Copyright (C) 2018 -- 2019  Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,25 +25,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 #include <R.h>
-#include "Miraculix_aux.h"
+#include <General_utils.h>
 #include "miraculix.h"
 #include "xport_import.h"
+#include "MX.h"
 
-SEXP windower_mean(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
-		   SEXP data, SEXP Lendata, SEXP N) {
-  SEXP res;
-  PROTECT(res=allocMatrix(REALSXP, 4,  INTEGER(N)[0]));
-  windower_meanC(INTEGER(Init), INTEGER(Length), INTEGER(Step),
-		INTEGER(start), INTEGER(ende), REAL(data), INTEGER(Lendata),
-		REAL(res), INTEGER(N));
-  UNPROTECT(1);
-  return res;
-}
+
 
 
 void windower_meanC(int *Init, int *Length, int* Step, int *start, int *ende,
 		   double *data, int *Lendata, double *res, int *N){
-  long int is, ie, j, win_n, k,
+  Long is, ie, j, win_n, k,
     win_ende = *Init + *Length,
     win_start = *Init,
     step = *Step, 
@@ -73,20 +65,21 @@ void windower_meanC(int *Init, int *Length, int* Step, int *start, int *ende,
 }
   
 
-SEXP windower_min(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
+SEXP windower_mean(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
 		   SEXP data, SEXP Lendata, SEXP N) {
   SEXP res;
   PROTECT(res=allocMatrix(REALSXP, 4,  INTEGER(N)[0]));
-  windower_minC(INTEGER(Init), INTEGER(Length), INTEGER(Step),
+  windower_meanC(INTEGER(Init), INTEGER(Length), INTEGER(Step),
 		INTEGER(start), INTEGER(ende), REAL(data), INTEGER(Lendata),
 		REAL(res), INTEGER(N));
   UNPROTECT(1);
   return res;
 }
 
+
 void windower_minC(int *Init, int *Length, int* Step, int *start, int *ende,
 		   double *data, int *Lendata, double *res, int *N){
-  long int is, ie, j, win_n, k,
+  Long is, ie, j, win_n, k,
     win_ende = *Init + *Length,
     win_start = *Init,
     step = *Step, 
@@ -122,20 +115,20 @@ void windower_minC(int *Init, int *Length, int* Step, int *start, int *ende,
   }
 }
   
-
-SEXP windower_max(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
+SEXP windower_min(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
 		   SEXP data, SEXP Lendata, SEXP N) {
   SEXP res;
   PROTECT(res=allocMatrix(REALSXP, 4,  INTEGER(N)[0]));
-  windower_maxC(INTEGER(Init), INTEGER(Length), INTEGER(Step),
+  windower_minC(INTEGER(Init), INTEGER(Length), INTEGER(Step),
 		INTEGER(start), INTEGER(ende), REAL(data), INTEGER(Lendata),
 		REAL(res), INTEGER(N));
   UNPROTECT(1);
   return res;
 }
+
 void windower_maxC(int *Init, int *Length, int* Step, int *start, int *ende,
 		   double *data, int *Lendata, double *res, int *N){
-  long int is, ie, j, win_n, k,
+  Long is, ie, j, win_n, k,
     win_ende = *Init + *Length,
     win_start = *Init,
     step = *Step, 
@@ -173,11 +166,11 @@ void windower_maxC(int *Init, int *Length, int* Step, int *start, int *ende,
 
 
 
-SEXP windower_median(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
+SEXP windower_max(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
 		   SEXP data, SEXP Lendata, SEXP N) {
   SEXP res;
   PROTECT(res=allocMatrix(REALSXP, 4,  INTEGER(N)[0]));
-  windower_medianC(INTEGER(Init), INTEGER(Length), INTEGER(Step),
+  windower_maxC(INTEGER(Init), INTEGER(Length), INTEGER(Step),
 		INTEGER(start), INTEGER(ende), REAL(data), INTEGER(Lendata),
 		REAL(res), INTEGER(N));
   UNPROTECT(1);
@@ -186,7 +179,7 @@ SEXP windower_median(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
 
 void windower_medianC(int *Init, int *Length, int* Step, int *start, int *ende,
 		   double *data, int *Lendata, double *res, int *N){
-  long int is, ie, j, win_n, k,
+  Long is, ie, j, win_n, k,
     win_ende = *Init + *Length,
     win_start = *Init,
     step = *Step, 
@@ -218,3 +211,25 @@ void windower_medianC(int *Init, int *Length, int* Step, int *start, int *ende,
   FREE(pos);
 }
 
+SEXP windower_median(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
+		   SEXP data, SEXP Lendata, SEXP N) {
+  SEXP res;
+  PROTECT(res=allocMatrix(REALSXP, 4,  INTEGER(N)[0]));
+  windower_medianC(INTEGER(Init), INTEGER(Length), INTEGER(Step),
+		INTEGER(start), INTEGER(ende), REAL(data), INTEGER(Lendata),
+		REAL(res), INTEGER(N));
+  UNPROTECT(1);
+  return res;
+}
+
+SEXP windower(SEXP what, SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
+	      SEXP data, SEXP Lendata, SEXP N) {
+  switch(INTEGER(what)[0]) {
+  case 1 : return windower_mean(Init, Length, Step, start, ende, data, Lendata, N);
+  case 4 : return windower_min(Init, Length, Step, start, ende, data, Lendata, N);
+  case 5 : return windower_max(Init, Length, Step, start, ende, data, Lendata, N);    
+  case 6 : return windower_median(Init, Length, Step, start, ende, data, Lendata, N);
+  default : BUG;
+  }
+  return R_NilValue;
+}

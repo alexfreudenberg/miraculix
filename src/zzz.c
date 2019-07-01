@@ -2,7 +2,7 @@
  Authors 
  Martin Schlather, schlather@math.uni-mannheim.de
 
- Copyright (C) 2017 -- 2017 Martin Schlather
+ Copyright (C) 2017 -- 2019 Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -55,12 +55,14 @@ static R_FortranMethodDef fortranMethods[] = {
 };
 			    
 #define CDEF(name, n, type) {#name, (DL_FUNC) &name, n, type}
-/*static R_NativePrimitiveArgType
-char2int7[] = { CHARSXP, CHARSXP, INTSXP, INTSXP, INTSXP, INTSXP, INTSXP,
-	      INTSXP, INTSXP}; 
-*/
+//static R_NativePrimitiveArgType
+//int1[] = { INTSXP };
+//char2int7[] = { CHARSXP, CHARSXP, INTSXP, INTSXP, INTSXP, INTSXP, INTSXP,
+//	      INTSXP, INTSXP}; 
+
 static const R_CMethodDef cMethods[]  = {
   CDEF(attachmiraculix, 0, none),
+  CDEF(attachmiraculixInter, 0, none),
   CDEF(detachmiraculix, 0, none),
   {NULL, NULL, 0, none}
 };
@@ -73,42 +75,36 @@ static R_CallMethodDef callMethods[]  = {
   CALLDEF(collect_scan, 10),
   CALLDEF(collect_scan2, 13),
   
-  CALLDEF(windower_mean, 8),
-  CALLDEF(windower_min, 8),
-  CALLDEF(windower_max, 8),
-  CALLDEF(windower_median, 8),
+  CALLDEF(windower, 9),
 
   CALLDEF(vector012matrix, 2),
   CALLDEF(matrixvector012, 2),
-
-  CALLDEF(sse_check, 0),
-  CALLDEF(matrix_codingH, 1),
-  CALLDEF(matrixH_get, 1),
+  CALLDEF(matrix_coding, 1),
+  CALLDEF(matrix_get, 1),
   CALLDEF(matrix_mult, 1),
+  
 
-  CALLDEF(file_coding, 1),
+  CALLDEF(getAutoCoding, 0),
+  CALLDEF(hasSSE2, 0),
+  CALLDEF(hasSSSE3, 0),
+  CALLDEF(hasAVX, 0),
+  CALLDEF(hasAVX2, 0),
+
   CALLDEF(file_get, 1),
   CALLDEF(file_dot, 2),
   CALLDEF(dot_file, 2),
-  CALLDEF(matrix_get, 1),
-  CALLDEF(matrix_coding, 1),
-  CALLDEF(MmPsqIndividualsParallel, 1),
-  CALLDEF(getRelmatrixIndividuals, 2),
-  CALLDEF(MmPsqSNPs, 3),
-  CALLDEF(getRelmatrixSNP, 2),
   
   CALLDEF(codeOrigins, 1),
   CALLDEF(decodeOrigins, 2),
-  CALLDEF(codeHaplo, 1),
-  CALLDEF(codeHaplo2, 2),
-  CALLDEF(decodeHaplo, 1),
+  CALLDEF(codeHaplo, 3),
+  CALLDEF(decodeHaplo, 5),
   CALLDEF(haplo2geno, 1),
-  CALLDEF(codeGeno, 1),
   CALLDEF(copyGeno, 1),
   CALLDEF(zeroNthGeno, 2),
-  CALLDEF(decodeGeno, 1),
-  CALLDEF(decodeNthGeno, 2),
-  CALLDEF(relationshipMatrix, 1),
+  CALLDEF(get_matrix_N, 2),
+  CALLDEF(rhaplomatrix, 3),
+  CALLDEF(rhaplomatrixPart2, 4),
+
   CALLDEF(createSNPmatrix, 2),
   CALLDEF(fillSNPmatrix, 3),
   CALLDEF(vectorGeno, 2),
@@ -123,9 +119,7 @@ static R_CallMethodDef callMethods[]  = {
   CALLDEF(solveRelMat, 5),
   CALLDEF(substract_centered, 1),
   CALLDEF(get_centered, 0),
-  CALLDEF( init_parallelcompute, 0),
   
-  CALLDEF(failure, 1),
   //  CALLDEF(),
  //  CALLDEF(codeSNPs, 2),
   {NULL, NULL, 0}

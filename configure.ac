@@ -1,3 +1,4 @@
+
 AC_INIT([miraculix], 0.6)
 
 USE_FLAGS=true

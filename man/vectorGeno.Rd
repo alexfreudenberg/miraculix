@@ -11,18 +11,25 @@ SNP matrix.
 \command{genoVector} does it from the right.
 }
 \usage{
-vectorGeno(V, SNPxIndiv, do.centering=FALSE)
+vectorGeno(V, SNPxIndiv, do.centering=FALSE, decode=TRUE)
 genoVector(SNPxIndiv, V, do.centering=FALSE)
 }
 \arguments{
   \item{SNPxIndiv}{a compressed SNP (genotype) vector or matrix
- obtained from  \command{codeGeno}. Uncoded SNP matrix is also possible.}
+    obtained from \command{genomicmatrix}. Uncoded SNP matrix is also
+    possible.} 
+  
+  \item{do.centering}{not programmed yet.}
 
- \item{V}{numerical vector}
+  \item{decode}{Logical. This option only applies when
+    \code{\link{RFoptions}()$genetics$snpcoding == Shuffle}.
+    If \code{TRUE} the matrix is  decoded and
+    standard matrix multiplication performed afterwards. This is faster than
+    to operate on the coded version (\code{decode}=FALSE), but takes
+    (considerably) more memory.
+  }
 
- \item{do.centering}{not programmed yet.
-   %see \command{\link{decodeGeno} }
- }
+  \item{V}{numerical vector}
 }
 
 
@@ -43,25 +50,26 @@ genoVector(SNPxIndiv, V, do.centering=FALSE)
 
 \examples{ %   library(miraculix)
 require(RandomFieldsUtils)
+set.seed(0)
 
 indiv <- 1 + sample(500, 1)
 snps <- indiv * 2^sample(7, 1)
 snps <- indiv * 100
 M <- matrix(ncol=indiv, sample(0:2, indiv * snps, replace=TRUE))
-print(system.time(CM <- codeGeno(M)))
+print(system.time(CM <- genomicmatrix(M)))
 
 
 ## V %*% G
 Vl <- runif(snps)
-print(system.time(VM1 <- vectorGeno(Vl, CM))) ## slower than standard
+print(system.time(VM1 <- vectorGeno(Vl, CM))) # 1.2x slower than '%*%'
 print(system.time(VM <- as.vector(Vl \%*\% M)))
-stopifnot(all.equal(VM, VM1))
+stopifnot(all.equal(as.double(VM), as.double(VM1)))
 
 ## G %*% V
 Vr <- runif(indiv)
-print(system.time(MV1 <- genoVector(CM, Vr))) ## faster than standard
+print(system.time(MV1 <- genoVector(CM, Vr))) ## 4x faster than '%*%'
 print(system.time(MV <- as.vector(M \%*\% Vr)))
-stopifnot(all.equal(MV, MV1))
+stopifnot(all.equal(as.double(MV), as.double(MV1)))
 }
 
 \keyword{misc}

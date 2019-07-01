@@ -1,5 +1,6 @@
+
 #!/bin/bash
-USE_FLAGS=true
+USE_FLAGS=false #true
 
 if $USE_FLAGS ; then
   MIRACULIX_CXXFLAGS="-mtune=generic -mavx -O2 $CXX_FLAGS"
@@ -10,4 +11,5 @@ fi
 echo Using custom CXXFLAGS: $MIRACULIX_CXXFLAGS
 
 sed -e "s|@MIRACULIX_CXXFLAGS@|$MIRACULIX_CXXFLAGS|" \
-  src/Makevars.in > src/Makevars.win
+    src/Makevars.in > src/Makevars.win
+

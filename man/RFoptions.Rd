@@ -1,5 +1,12 @@
 \name{RFoptions}
 \alias{RFoptions}
+\alias{Shuffle}
+\alias{TwoBit}
+\alias{ThreeBit}
+\alias{Hamming2}
+\alias{Hamming3}
+\alias{AutoCoding}
+\alias{NoSNPcoding}
 \title{Setting control arguments}
 \description{
  \command{\link{RFoptions}} sets and returns control arguments for the analysis
@@ -8,7 +15,7 @@
  definition of \code{RFoptions(..., no.readonly = TRUE)}.
 
  \command{\link{RFoptions}} should not be used within parallelizing R
- commands such as \command{\link[parallel]{mcmapply}}
+ commands such as \command{\link[parallel]{mclapply}}
 }
 %\usage{
 % RFoptions(..., no.readonly = TRUE)
@@ -86,6 +93,7 @@
     }
 
     \item{per_snp}{logical. For internal benchmarking only.
+      
       If \code{TRUE} then a division by SNP is made on R level before
       calculations are done in parallel.
       If  \code{FALSE} then a division by individuals is made on R level before
@@ -93,20 +101,22 @@
 
       All calculations are essentially C-based.
  
-      Default : \code{NA}
+      Default : \code{FALSE}
       
     }
 
-     \item{relship_method}{string.
+     \item{snpcoding}{integer.
       Possible values are
       \describe{
 	\item{\code{Shuffle}}{two bit mini hash table}
 	\item{\code{Twobit}}{two bit hash table}
 	\item{\code{Threebit}}{three bit hash table}
-	\item{\code{Hamming2}}{method usedin PLINK}
- 	\item{\code{Hamming3}}{method usedin PLINK}\
-	\item{\code{AutoCoding}}{method chosen by the programme}
-	\item{\code{NoSNPcoding}}{no coding}
+	\item{\code{Hamming2}}{method used in PLINK}
+ 	\item{\code{Hamming3}}{method used in PLINK}\
+	\item{\code{AutoCoding}}{method chosen by the programme itself}
+	\item{\code{NoSNPcoding}}{no coding, i.e. 32 bit integer}
+	\item{\code{NoSNPcodingR}}{no coding, i.e. 32 bit integer, R
+code. Only for testing purposes.}
       }
       Default : \code{"shuffle"}
     }

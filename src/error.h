@@ -1,12 +1,10 @@
 
-
-
 /*
  Authors 
  Martin Schlather, schlather@math.uni-mannheim.de
 
 
- Copyright (C) 2015 Martin Schlather
+ Copyright (C) 2015 -- 2019 Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -28,8 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define miraculix_error_H 1
 
 #include <General_utils.h>
-
-//extern int ERRORMODELNUMBER;
 
 #ifdef DO_PARALLEL
 #define LOCAL_MSG char MSG[LENERRMSG]

@@ -1,14 +1,14 @@
 Package: miraculix
-Version: 0.6
-Title: Statistical Functions for Animal Breeding
-Author: Malena Erbe[aut, cre] <merbe@gwdg.de>, Martin Schlather[aut, cre] <schlather@math.uni-mannheim.de>, Florian Skene [aut], Imran S. Haque [ctb]
-Maintainer: "Malena Erbe", "Martin Schlather" <schlather@math.uni-mannheim.de>
+Version: 0.8.4
+Title: Algebraic and Statistical Functions for Genetics
+Author: Malena Erbe [aut, cre], Martin Schlather [aut, cre], Florian Skene [aut], Alexander Freudenberg [ctr]
+Description: This is a collection fast tools (SIMD and OMP) needed in genetics, for instance, the calculation of the genetic relationship matrix. In particular, it is used in the breeding planning programme MoBPS at <https://github.com/tpook92/MoBPS>. It also contains the scanning approach by Kabluchko and Spodarev (2009), <doi:10.1239/aap/1240319575>.
+Maintainer: Martin Schlather <schlather@math.uni-mannheim.de>
 LinkingTo: RandomFieldsUtils
-Depends: R (>= 3.0), RandomFieldsUtils (>= 0.5.2)
-Imports: parallel, spam, methods
-Suggests: pedigree, synbreedData
-Description: miraculix provides several fast functions for the analyses in genetics, in particular the calculation of the relationship matrix and other fast algorithms to calculate efficiently this vector and matrix that contain only the values 0,1,2.
+Depends: R (>= 3.0), RandomFieldsUtils (>= 0.5.3)
+Imports: methods, graphics
+Suggests:
 License: GPL ( >= 3)
 URL: http://ms.math.uni-mannheim.de/de/publications/software/miraculix
 NeedsCompilation: yes
-Packaged: 2019-02-16 11:09:40 UTC; schlather
+Packaged: 2019-06-23 15:52:42 UTC; schlather

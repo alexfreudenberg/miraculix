@@ -3,7 +3,7 @@
  Martin Schlather, schlather@math.uni-mannheim.de
 
 
- Copyright (C) 2018 -- 2018  Martin Schlather
+ Copyright (C) 2018 -- 2019  Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -32,13 +32,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifdef __cplusplus
 extern "C" {
 #endif 
-  //  void testint(int *a, int*b, int*N, int*add);
-  //  void testdouble(double *a, double*b, int*N, int*add);
 
  // general
   SEXP RFoptions(SEXP options);
   void RelaxUnknownRFoption(int *relax);
 
+  void attachmiraculixInter();
   void attachmiraculix();
   void detachmiraculix();
  
@@ -69,55 +68,42 @@ extern "C" {
 
 
   // windower
-  SEXP windower_mean(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
+  SEXP windower(SEXP Init, SEXP, SEXP Length, SEXP Step, SEXP start, SEXP ende,
 		     SEXP data, SEXP Lendata, SEXP N);
-  SEXP windower_min(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
-		    SEXP data, SEXP Lendata, SEXP N);
-  SEXP windower_max(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
-		    SEXP data, SEXP Lendata, SEXP N);
-  SEXP windower_median(SEXP Init, SEXP Length, SEXP Step, SEXP start, SEXP ende,
-		       SEXP data, SEXP Lendata, SEXP N);
+
 
   // Verwandtschaft
   SEXP vector012matrix(SEXP vector, SEXP matrix);
   SEXP matrixvector012(SEXP vector, SEXP matrix);
 
-  
-  // Hamming for SSE2 and SSSE3
-  SEXP sse_check();
-  SEXP matrixH_get(SEXP M);  
-  SEXP matrix_codingH(SEXP MT2);
-  SEXP matrix_mult(SEXP M);
+  SEXP getAutoCoding();
+  SEXP hasSSE2();
+  SEXP hasSSSE3();
+  SEXP hasAVX2();
+  SEXP hasAVX();
 
   
-  // large table coding with 2 or 3 bits
   SEXP matrix_coding(SEXP M) ;  //
-  SEXP file_coding(SEXP file);
-  SEXP MmPsqSNPs(SEXP SNPxIndiv, SEXP compressed_start, SEXP compressed_end);
-  SEXP MmPsqIndividualsParallel(SEXP z);
-  SEXP getRelmatrixIndividuals(SEXP z, SEXP SNPxIndiv);
-  SEXP getRelmatrixSNP(SEXP z, SEXP SNPxIndiv);
+  SEXP matrix_get(SEXP M);  
+  SEXP matrix_mult(SEXP M);
+
   SEXP file_get(SEXP file);
   SEXP file_dot(SEXP file, SEXP g);
   SEXP dot_file(SEXP file, SEXP g);
-  SEXP matrix_get(SEXP M);  
   
   SEXP codeOrigins(SEXP M);
   SEXP decodeOrigins(SEXP M, SEXP line);
 
   // shot table coding
   SEXP fillSNPmatrix(SEXP Z, SEXP Idx, SEXP V) ;
-  SEXP createSNPmatrix(SEXP SNPS, SEXP Individuals) ;  
-  SEXP relationshipMatrix(SEXP CGM) ;
-  SEXP decodeGeno(SEXP CM);
-  SEXP decodeNthGeno(SEXP CM, SEXP NN);
-  SEXP decodeHaplo(SEXP CM) ;
+  SEXP createSNPmatrix(SEXP SNPSs, SEXP Individuals) ;  
+  SEXP get_matrix_N(SEXP CM, SEXP NN);
+  SEXP decodeHaplo(SEXP CM, SEXP, SEXP, SEXP, SEXP) ;
   SEXP haplo2geno(SEXP Haplo);
-  SEXP codeGeno(SEXP G) ;
   SEXP zeroNthGeno(SEXP CM, SEXP NN);
   SEXP copyGeno(SEXP CM);
-  SEXP codeHaplo(SEXP M) ;// 2 x Haplo - Matrix, as vector gespeichert
-  SEXP codeHaplo2(SEXP M1, SEXP M2);
+  SEXP codeHaplo(SEXP M, SEXP IndivPerCol, SEXP DoubledIndiv) ;// 2 x Haplo - Matrix, as vector gespeichert
+  //  SEXP codeHaplo2(SEXP M1, SEXP M2, SEXP);
   SEXP vectorGeno(SEXP V, SEXP Z);
   SEXP genoVector(SEXP Z, SEXP V);
   SEXP unlock(SEXP X);
@@ -132,10 +118,9 @@ extern "C" {
   SEXP solveRelMat(SEXP R, SEXP tau, SEXP vec, SEXP b, SEXP destroy);
   SEXP substract_centered(SEXP SnpXindiv);
   SEXP get_centered();
+  SEXP rhaplomatrix(SEXP freq, SEXP freq2,  SEXP indiv);
+  SEXP rhaplomatrixPart2(SEXP freq, SEXP freq2, SEXP indiv, SEXP Code);
   
-  SEXP failure(SEXP file);
-
-  SEXP init_parallelcompute();
 
 #ifdef __cplusplus
 }

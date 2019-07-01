@@ -31,12 +31,16 @@ scan.statistics(file, tuningUnits, alpha=c(0.05, 0.01), repet=1000,
                 old.def=FALSE,
                 max.intervals = length(alpha) * 100000,
                 max.basepair.distance = 50000,
-                exclude.negative.at.boundary = TRUE)
+                exclude.negative.at.boundary = TRUE,
+                pos, freq)
 }
 \arguments{
   \item{pos, freq}{alternatively to the \code{file} name, two vectors,
     \code{pos} and \code{freq} might be given.}
-  \item{file}{filename, e.g. \dQuote{datachr20.txt}.
+  \item{file}{filename or list. %, e.g. \dQuote{datachr20.txt}.
+    The rda file must contain the variables \code{pos}, \code{freq},
+    \code{colname}, and \code{n}. Or it is a list with the same named elements.
+    
     If the extension of the filename is \sQuote{bed}, the behaviour of the
                  programme is different, see the details
   }
@@ -236,14 +240,14 @@ scan.statistics(file, tuningUnits, alpha=c(0.05, 0.01), repet=1000,
 }
 
 \examples{ %   library(miraculix)
-%s <- scan.statistics("~/svn/miraculix/miraculix/inst/rawdata/scan/datachr20.txt", tuningUnits=0.65); 
-%freq <- s$orig.freq ; pos <- s$pos; colname <- s$colname; n <- s$n
-%save(file="~/svn/miraculix/miraculix/data/datachr20.rda", freq, pos, colname, n, compress=TRUE) # OK
+n <- 25
+loci <- 9000
+pos <- sort(sample(25000:15000000, loci))
+freq <- rpois(loci, lambda=0.3) / n
 
-file <- paste0(find.package("miraculix")[1], "/data/datachr20.rda")
 alpha <- c(0.1, 0.05, 0.01)
-s <- scan.statistics(file, repet=100, tuningUnits=0.65, alpha=alpha)
-Print(s)
+s <- scan.statistics(n=n, pos=pos, freq=freq, repet=100, tuningUnits=0.65, alpha=alpha)
+str(s)
 }
 
 \keyword{htest}

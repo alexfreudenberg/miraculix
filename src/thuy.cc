@@ -4,7 +4,7 @@
 
  library for simulation of random fields 
 
- Copyright (C) 2012 -- 2014 Martin Schlather, 
+ Copyright (C) 2012 -- 2019 Martin Schlather, 
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,7 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#include "Miraculix_aux.h"
+#include <Basic_utils.h>
 
 
 void intEV(int* x, int* z, int* Len, int *K, int *sumsq, int *n,

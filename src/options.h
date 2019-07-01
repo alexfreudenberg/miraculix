@@ -1,12 +1,10 @@
 
-
-
 /*
  Authors 
  Martin Schlather, schlather@math.uni-mannheim.de
 
 
- Copyright (C) 2016 Martin Schlather
+ Copyright (C) 2016 -- 2019 Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -29,38 +27,42 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <Rinternals.h>
 #include <Basic_utils.h>
+#include "AutoMiraculix.h"
 
-#define relationshipN 6
-typedef struct relationship_param {
-  bool normalized, returnsigma, per_snp;
+#define geneticsN 5
+typedef struct genetics_param {
+  bool normalized, returnsigma;
   usr_bool centered;
   double digits;
-  int method;
+  Rint method;
   // internal:
   double *pcentered;
-  int ncentered;
-} relationship_param;
+  Rint ncentered;
+} genetics_param;
 
-#define relationship_START {			\
-    true, false, false,				\
+#define genetics_START {			\
+    true, false,				\
       True,					\
       3.0,					\
-      Shuffle,					\
+      (int) getAutoCodingIntern(),			\
       NULL, 0 /* internal */			\
 }
 
 
 typedef struct globalparam {
-  relationship_param relationship;
+  genetics_param genetics;
 } globalparam;
 extern globalparam GLOBAL;
 
 #define prefixN 1
 extern const char * prefixlist[prefixN], **all[prefixN];
-extern int allN[prefixN];
-void setparameter(int i, int j, SEXP el, char name[200], bool isList, int local);
+extern Rint allN[prefixN];
+void setparameter(Rint i, Rint j, SEXP el, char name[200], bool isList, Rint local);
 void getRFoptions(SEXP *sublist);
-void finalparameter(int local);
+void finalparameter(Rint local);
 
+void PrintSystem();
 
+snpcoding getAutoCodingIntern();
+  
 #endif

@@ -1,10 +1,25 @@
+## Authors 
+## Martin Schlather, schlather@math.uni-mannheim.de
+##
+##
+## Copyright (C) 2017 -- 2019 Martin Schlather
+##
+## This program is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public License
+## as published by the Free Software Foundation; either version 3
+## of the License, or (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.  
 
-# Authors
-# 
-# Martin Schlather, schlather@math.uni-mannheim.de
-# Copyright (C) 2013 -- 2014  Martin Schlather
-#
-# This is proprietary software. All rights belong to the authors.
+
+
 
 windower <- function(data, length=20000, step=length/2, start=0,
                      n.min=0, na.rm=TRUE,
@@ -31,8 +46,9 @@ windower <- function(data, length=20000, step=length/2, start=0,
 
   n <- as.integer(ceiling((Ende[length(Ende)] - start) / step))
 
-  fctn <- get(paste("C_windower", what, sep="_"))
-  win <- .Call(fctn,
+  whatnr <- which(what == as.character(as.list(args(windower))$what[-1]))
+  
+  win <- .Call(C_windower, whatnr,
                as.integer(start), as.integer(length), as.integer(step),
                Start, Ende, as.double(data[, 4]), nrow(data), n)
 

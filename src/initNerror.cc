@@ -5,7 +5,7 @@
 
  library for simulation of random fields -- init part and error messages
 
- Copyright (C) 2001 -- 2015 Martin Schlather
+ Copyright (C) 2001 -- 2019 Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -29,13 +29,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  
 #include <string.h>
 #include "error.h"
-
-#ifdef DO_PARALLEL
-#else  // not DO_PARALLEL
-char ERRMSG[LENERRMSG], MSG[LENERRMSG], BUG_MSG[LENMSG], MSG2[LENERRMSG];
-errorloc_type ERROR_LOC;
-errorstring_type ERRORSTRING;
-#endif
 
 
 char ERRMSG[LENERRMSG], MSG[LENERRMSG], BUG_MSG[LENMSG], MSG2[LENERRMSG];

@@ -3,7 +3,7 @@
 ## Martin Schlather, schlather@math.uni-mannheim.de
 ##
 ##
-## Copyright (C) 2017 Martin Schlather
+## Copyright (C) 2017 -- 2019 Martin Schlather
 ##
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License
@@ -22,12 +22,12 @@
 
 .onLoad <- function(lib, pkg) {
   ## DESCRIPTION MUSS RandomFieldsUtils EINGEFUEGT SEIN
-  .C("attachmiraculix")
+  if (interactive()) .C("attachmiraculixInter") else .C("attachmiraculix");
   RFoptions(solve_method=c("cholesky", "cholesky"), max_chol=10^5)
 }
 
 .onAttach <- function (lib, pkg) {
-#  packageStartupMessage("This is miraculix Version: 0.5");
+#  packageStartupMessage("This is miraculix Version: 0.8.4");
 }
 
 .onDetach <- function(lib) {

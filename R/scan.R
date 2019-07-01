@@ -1,10 +1,24 @@
 
-# Authors
-# 
-# Martin Schlather, schlather@math.uni-mannheim.de
-# Copyright (C) 2013 -- 2014  Martin Schlather
-#
-# This is proprietary software. All rights belong to the authors.
+## Authors 
+## Martin Schlather, schlather@math.uni-mannheim.de
+##
+##
+## Copyright (C) 2017 -- 2019 Martin Schlather
+##
+## This program is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public License
+## as published by the Free Software Foundation; either version 3
+## of the License, or (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.  
+
 summary.scanning <- function(object, ...) {
   if (length(object$significant.areas) == 0 ||
        length(object$significant.areas) == 0 ) return(NULL)
@@ -25,7 +39,7 @@ print.scanning <- function(x, ...) {
 }
 
 plot.scanning <- function(x, ..., lwd=3, col=1:8) {
-  plot(x$pos, x$freq, pch=".")
+  graphics::plot(x$pos, x$freq, pch=".")
   if (length(x$pos) > 50000) {
     w <- windower(data=data.frame("-", x$pos, x$pos + 1, x$freq), length=5000)
     points(0.5*(w[,1] + w[,2]), w[,3], col="lightblue", pch=20, cex=0.5)
@@ -77,13 +91,14 @@ scanning <- function(pos, freq, file, tuningUnits, alpha = 0.1,
 
   verbose <- RFoptions(GETOPTIONS="basic")$verbose
   
-  if (!missing(file)) {
+  if (missing(file)) {
+    if (missing(colname)) colname <- "HeterAB"
+  } else {
     ext <- strsplit(file, "\\.")[[1]]
     ext <- ext[length(ext)]
     if (ext == "rda") {
       load (file)
-    }
-    else {
+    } else {
       if (missing(colname)) {
         colname <- if (ext=="bed") c(pos=3, freq=4, n=5)
         else "HeterAB"
@@ -132,7 +147,7 @@ scanning <- function(pos, freq, file, tuningUnits, alpha = 0.1,
 
   N <- length(pos)
   Nalpha <- if (is.null.threshold <- is.null(threshold))
-    length(alpha) else length(threshold)
+              length(alpha) else length(threshold)
   
   stopifnot(all(abs(pos - round(pos)) < 1e-8))
   freq <- as.double(freq)
@@ -141,14 +156,7 @@ scanning <- function(pos, freq, file, tuningUnits, alpha = 0.1,
   minscans <- as.integer(minscans)
   maxscans <- as.integer(maxscans)
 
-  if (sumscan) {
-    scanfct <- C_sumscan
-    n.above.threshold <- Nalpha * N
-  } else {
-    scanfct <- C_scan
-    n.above.threshold <- Nalpha
-  }
-
+ 
   if (missing(n)) n <- round(1 / min(freq[freq != 0])) ##
   if (length(n) == 1 && !all(abs(n * freq - round(n * freq)) < 1e-8)) {
     msg <- paste("Frequencies are not multiples of 1/n.",
@@ -219,11 +227,18 @@ scanning <- function(pos, freq, file, tuningUnits, alpha = 0.1,
       cat("threshold by Kabluchko & Spodarev:", KabluchkoSpodarev, "\n")
   }
 
-  above.threshold <- integer(n.above.threshold)
+  above.threshold <- integer(if (sumscan) Nalpha * N else Nalpha)
+  
   maximum <- double(1)
   if (old.def) {
-    .Call(scanfct, pos, N, freq, minscans, maxscans, threshold, Nalpha, perSNP,
-          above.threshold, maximum)
+    if (sumscan) 
+      .Call(C_sumscan,
+            pos, N, freq, minscans, maxscans, threshold, Nalpha, perSNP,
+            above.threshold, maximum)
+    else
+      .Call(C_scan,
+            pos, N, freq, minscans, maxscans, threshold, Nalpha, perSNP,
+            above.threshold, maximum)
   } else {
     signif.areas <-
       .Call(C_collect_scan2,  pos, N, freq, minscans, maxscans,
@@ -349,14 +364,14 @@ plot.scan.statistics <- function(x, ..., pch="|", col=2:8) {
   ylim <- if (hasArg("ylim")) list(...)$ylim else range(alpha, x$orig.freq)
   colname <- x$colname
   if (is.numeric(colname)) colname <- paste("column", colname["freq"])
-  plot(x$pos, x$orig.freq, pch=pch, cex=0.75, ylim=ylim, main=x$file,
+  graphics::plot(x$pos, x$orig.freq, pch=pch, cex=0.75, ylim=ylim, main=x$file,
        xlab="positions", ylab=colname, col="black")
   if (x$sumscan) {
     above <- t(x$above.threshold)
     maxi <- apply(above, 1, max)
     txt <- paste("mx.cnts=", paste(maxi[1], collapse=","), "  ", sep="")
     above <- t(above / maxi)
-       matplot(x$pos, above, type="l", add=TRUE, col=col);
+    graphics::matplot(x$pos, above, type="l", add=TRUE, col=col);
     for (i in 1:Nalpha) {
       cur <- col[(i-1) %% length(col) + 1]
       points(x$pos, alpha[i] * (above[, i] > 0), col=cur, pch=20, cex=0.65) 
@@ -396,37 +411,46 @@ scan.statistics <-
            old.def=FALSE,
            max.intervals = length(alpha) * 100000,
            max.basepair.distance = 50000,
-           exclude.negative.at.boundary = TRUE) {
+           exclude.negative.at.boundary = TRUE,
+           pos, freq) {
   if (!perSNP) stop("not programmed yet") ## simu muss auf pktprozessen beruhen
   if (formula) stop("Kabluchko-Spodarev formulae not programmed yet")
   if (1/min(alpha) > repet)
     stop("value of 'repet' too small to identify the 'alpha' level(s)")
 
-  ext <- strsplit(file, "\\.")[[1]]
-  ext <- ext[length(ext)]
-  if (ext == "rda") {
-    load (file)
-  }
-  else {
-    if (missing(colname)) {
-      colname <- if (ext=="bed")  c(pos=3, freq=4, n=5)
-      else "HeterAB"
-    }
-    if (is.character(colname)) {
-      z <- read.table(file)[c("Pos", colname)]
-      freq <- z[[colname]]
-      pos <- z$Pos
+  if (hasArg("file")) {
+    if (hasArg("pos") || hasArg("freq") || hasArg("colname") || hasArg("n"))
+      stop("either the file name or 'pos', 'freq', 'colname', 'n' must be given.")
+    if (is.character(file)) {
+      ext <- strsplit(file, "\\.")[[1]]
+      ext <- ext[length(ext)]
+      if (ext == "rda") {
+        load (file)
+      }
+      else {
+        if (missing(colname)) {
+          colname <- if (ext=="bed")  c(pos=3, freq=4, n=5) else "HeterAB"
+        }
+        if (is.character(colname)) {
+          z <- read.table(file)[c("Pos", colname)]
+          freq <- z[[colname]]
+          pos <- z$Pos
+        } else {
+          stopifnot(is.numeric(colname))
+          stopifnot(missing(n))
+          z <- as.matrix(read.table(file)[colname])
+          pos <- z[, which(colname["pos"] == colname)]
+          if (ext=="bed") {
+            freq <- 1 - z[, which(colname["freq"] == colname)]
+          } else freq <- z[, which(colname["freq"] == colname)]
+          n <- z[, which(colname["n"] == colname)]  
+        }
+        rm("z")
+      }
     } else {
-      stopifnot(is.numeric(colname))
-      stopifnot(missing(n))
-      z <- as.matrix(read.table(file)[colname])
-      pos <- z[, which(colname["pos"] == colname)]
-      if (ext=="bed") {
-        freq <- 1 - z[, which(colname["freq"] == colname)]
-      } else freq <- z[, which(colname["freq"] == colname)]
-      n <- z[, which(colname["n"] == colname)]  
+      for (i in c('pos', 'freq', 'colname', 'n' ))
+        assign(i, file[[i]])
     }
-    rm("z")
   }
 
   coarsening <- as.integer(coarsening)
@@ -454,9 +478,10 @@ scan.statistics <-
   ylim <- range(freq, alpha)
  
   maxima <- probab <- NULL
-  filename <- paste(file, ".max.rda", sep="")
-  if (debug && file.exists(filename)) load (filename) else
-  if (is.null(formula) || !formula) {
+  if (debug && hasArg("file") &&
+      file.exists(filename <- paste(file, ".max.rda", sep="")))
+    load (filename)
+  else if (is.null(formula) || !formula) {
     probab <- sum(freq) / N ## sum(n * freq) / (N * n) // counts
     maxima <- double(repet)
     for (i in 1:repet) {
@@ -467,7 +492,7 @@ scan.statistics <-
         ret.simu[, i] <- simufreq
         stopifnot(!any(is.na(ret.simu[,i])))
       }
-      maxima[i] <-
+       maxima[i] <-
         scanning(pos, simufreq, tuningUnits=tuningUnits,
                  minscans=minscans, maxscans=maxscans,
                  sumscan=FALSE, perSNP=perSNP,
@@ -478,22 +503,28 @@ scan.statistics <-
                  exclude.negative.at.boundary = exclude.negative.at.boundary
                  )$maximum      
       if (debug == 2) {
-        plot(pos, simufreq, pch=".", ylim=ylim, main=file, sub=i)
+        graphics::plot(pos, simufreq, pch=".", ylim=ylim,
+                       main= if (hasArg("file")) file,
+                       sub=i)
         readline(paste(sum(simufreq), "press return"))
       }
     }
     maxima <- sort(maxima)
     threshold <- as.double(maxima[ceiling((1-alpha) * repet)])
-    if (debug) {save (file=filename, maxima, threshold); return()}
+    if (debug && hasArg("file")) {
+      save (file=filename, maxima, threshold); return()
+    }
   }
-     
-  res <-
+
+   res <-
     scanning(pos, freq, tuningUnits=tuningUnits,
              minscans=minscans, maxscans=maxscans,
              sumscan=sumscan, perSNP=perSNP,
-             alpha=alpha, colname=colname, 
-             threshold = if (is.null(formula) || !formula) threshold else NULL,
-             n=n, collect=TRUE,
+             alpha=alpha,
+             colname=colname, 
+             threshold = if (is.null(formula) || !formula) threshold else NULL,#
+             n=n,
+             collect=TRUE,
              old.def = old.def,
              max.intervals = max.intervals,
              max.basepair.distance = max.basepair.distance,
@@ -507,10 +538,10 @@ scan.statistics <-
                           formatC(p, digits=4), ")", sep="")
   }
 
-  res <- c(res, list(file = file,
+  res <- c(res, list(file = if (hasArg("file")) file else NULL,
                      orig.freq = freq,
                      maxima = maxima, repet = repet,
-                     colname = colname,
+                     colname = if (missing(colname)) NULL else colname ,
                      if (return.simu) ret.simu = ret.simu))
   class(res) <- "scan.statistics"
 

@@ -3,7 +3,7 @@
  Martin Schlather, schlather@math.uni-mannheim.de
 
 
- Copyright (C) 2015 Martin Schlather
+ Copyright (C) 2015 -- 2019 Martin Schlather
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -38,6 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
   CALL(solvePosDef);				\
   CALL(scalarX);				\
   CALL(ToIntI)				
+  //  CALL(scalarInt);			       
   
 #ifdef CALL
 #undef CALL
@@ -52,10 +53,11 @@ extern utilsparam* GLOBAL_UTILS;
 // #define ToReal(X) (TYPEOF(X) == REALSXP ? REAL(X) : Ext_ToRealI(X, ToFalse))
 //#define ToRealX(X, ) (TYPEOF(X) == REALSXP ? REAL(X) : Ext_ToRealI(X, ToFalse))
 
-extern bool ToFalse[1];
+// extern bool ToFalse[1];
 // #define ToInt(X) Ext_ToIntI(X, ToFalse, false) -- nicht verwenden, da
 // parallele Aufrufe !!
 //#define ToIntX(X,C) Ext_ToIntI(X, C, false)
+
 
 #define ToInt(X)				\
   bool create##X = true;			\
@@ -65,8 +67,24 @@ extern bool ToFalse[1];
   bool create##X = C;							\
   Uint *X##int = create##X ? (Uint*) Ext_ToIntI(X, &create##X, false) : NULL;
 
+
 #define FREEint(X) if (create##X) FREE(X##int)
 
+/*
 
+int *XToIntI(SEXP X, bool *create, bool round);
+
+#define ToInt(X)				\
+  bool create##X = true;			\
+  Uint *X##int = (Uint*) XToIntI(X, &create##X, false)
+
+#define CondToInt(C,X)							\
+  bool create##X = C;							\
+  Uint *X##int = create##X ? (Uint*) XToIntI(X, &create##X, false) : NULL;
+
+
+#define FREEint(X) if (create##X) {BUG; FREE(X##int)}
+
+*/
 
 #endif

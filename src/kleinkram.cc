@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 #define SCALAR(A,B,C) Ext_scalarX(A,B,C, SCALAR_AVX)
+//#define SCALARINT(A,B,C) Ext_scalarInt(A,B,C, SCALAR_BASE)
 #define LINEAR(A,B,C,D) Ext_linearX(A,B,C,D,6)
 
 
@@ -321,11 +322,30 @@ void matmulttransposed(double *A, double *B, double *c, int m, int l, int n) {
 }
 
 
+/*
+void matmulttransposedInt(int *A, int *B, int *c, int m, int l, int n) {
+// multiplying t(A) and B with dim(A)=(m,l) and dim(B)=(m,n),
+// saving result in C
+#ifdef DO_PARALLEL
+#pragma omp parallel for num_threads(CORES) 
+#endif
+  for (int i=0; i<l; i++) {    
+    int *C = c + i,
+      *Aim = A + i * m;
+    for (int j=0; j<n; j++) C[j * l] = SCALARINT(Aim, B + j * m, m);
+  }
+}
+
+*/
+
+
+
+
+
 
 void matmult_2ndtransp(double *a, double *B, double *c, int l, int m, int n) {
 // multiplying A and t(B) with dim(A)=(l, m) and dim(B)=(n, m),
 // saving result in C
-  int msq = m  * m;
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(CORES) if (l * m * n > 1000)
 #endif
@@ -335,7 +355,27 @@ void matmult_2ndtransp(double *a, double *B, double *c, int l, int m, int n) {
     for (int j=0; j<n; j++) {
        double dummy = 0.0,
 	 *Bj = B + j;
-       for (int k=0; k<msq; k+=m) dummy += A[k] * Bj[k];
+       for (int k=0; k<m; k++) dummy += A[k * l] * Bj[k * n];
+       C[j*l] = dummy;
+    }
+  }
+}
+
+
+void matmult_2ndtransp(double *a, double *B, double *c, int l, int m) {
+// multiplying A and t(B) with dim(A)=(l, m) and dim(B)=(n, m),
+// saving result in C
+  int lm = l  * m;
+#ifdef DO_PARALLEL
+#pragma omp parallel for num_threads(CORES) if (l * m * l > 1000)
+#endif
+  for (int i=0; i<l; i++) {
+    double *C = c + i,
+      *A = a + i;
+    for (int j=0; j<l; j++) {
+       double dummy = 0.0,
+	 *Bj = B + j;
+       for (int k=0; k<lm; k+=l) dummy += A[k] * Bj[k];
        C[j*l] = dummy;
     }
   }
@@ -923,8 +963,10 @@ SEXP ExtendedBooleanUsr(usr_bool x) {
 
 
 int Match(char *name, name_type List, int n) {
-  // == -1 if no matching name is found
-  // == -2 if multiple matching names are found, without one matching exactly
+  // == NOMATCHING, -1, if no matching function is found
+  // == MULTIPLEMATCHING,-2, if multiple matching fctns are found,  
+  // if more than one match exactly, the last one is taken (enables overwriting 
+  // standard functions)
   unsigned int ln;
   int Nr;
   Nr=0;
@@ -1011,7 +1053,7 @@ void GetName(SEXP el, char *name, const char * List[], int n,
 
   if (TYPEOF(el) == NILSXP) goto ErrorHandling;
   if (len_el > maxlen_ans) 
-    RFERROR2("option '%.50s' is too long. Maximum length is %d.", name, maxlen_ans);
+    RFERROR2("option '%.50s' is too lengthy. Maximum length is %d.", name, maxlen_ans);
 
   if (TYPEOF(el) == STRSXP) {    
     for (k=0; k<len_el; k++) {
@@ -1147,7 +1189,7 @@ int addressbits(void VARIABLE_IS_NOT_USED *addr) {
 #ifndef RANDOMFIELDS_DEBUGGING  
   return 0;
 #else
-  double x = (long int) addr,
+  double x = (Long) addr,
     cut = 1e9;
   x = x - TRUNC(x / cut) * cut;
   return (int) x;
@@ -1159,4 +1201,3 @@ int addressbits(void VARIABLE_IS_NOT_USED *addr) {
 
 
  */
-
