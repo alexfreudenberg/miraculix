@@ -138,7 +138,7 @@ typedef union addr_Uint{
 #define ADDADRESS(WHICH, WHERE)	{					\
     addr_Uint addalign;							\
     addalign.a = (uintptr_t) WHICH;					\
-    assert(sizeof(uintptr_t)/BytesPerUnit == 2);			\
+    assert(sizeof(uintptr_t)/BytesPerUnit >= 0);			\
     for (Uint addr=0; addr<sizeof(uintptr_t)/BytesPerUnit; addr++)	\
       info[WHERE + addr] = addalign.u[addr];				\
   }
