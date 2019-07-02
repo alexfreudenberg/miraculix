@@ -137,7 +137,9 @@ typedef union uni128 {
 #define BytesPerBlock 4L
 
 #else
-#error "no machine version recognized (1)"
+#warning "no machine version recognized (1)"
+#define BlockType0 Uint
+#define BytesPerBlock 4L
 #endif
 
 
@@ -199,7 +201,7 @@ typedef uni ALIGNED BlockUnitType;
 // nothing to do
 
 #else 
-#error "no machine version recognized (2)"
+#warning "no machine version recognized (2)"
 #endif
 
 // needed for immitations of sse/ssse3 functions
@@ -390,7 +392,7 @@ BlockType set_epi32(Uint X);
 // nothing to do
 
 #else 
-#error "no machine version recognized (3)"
+#warning "no machine version recognized (3)"
 #endif
 
 
