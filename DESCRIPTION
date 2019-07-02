@@ -1,5 +1,5 @@
 Package: miraculix
-Version: 0.8.4
+Version: 0.9.0
 Title: Algebraic and Statistical Functions for Genetics
 Author: Malena Erbe [aut, cre], Martin Schlather [aut, cre], Florian Skene [aut], Alexander Freudenberg [ctr]
 Description: This is a collection fast tools (SIMD and OMP) needed in genetics, for instance, the calculation of the genetic relationship matrix. In particular, it is used in the breeding planning programme MoBPS at <https://github.com/tpook92/MoBPS>. It also contains the scanning approach by Kabluchko and Spodarev (2009), <doi:10.1239/aap/1240319575>.
