@@ -1,11 +1,11 @@
 
 #!/bin/bash
-USE_FLAGS=false #true
 
-if $USE_FLAGS ; then
-  MIRACULIX_CXXFLAGS="-mtune=generic -mavx -O2 $CXX_FLAGS"
+
+if test "x$MIRACULIX_USE_CXX_FLAGS" = xtrue ; then
+  MIRACULIX_CXXFLAGS="-march=native -mavx -O2 $MIRACULIX_CXX_FLAGS"
 else
-  MIRACULIX_CXXFLAGS="$CXX_FLAGS"
+  MIRACULIX_CXXFLAGS="-O2"
 fi
 
 
