@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define miraculix_MX_H 1
 
 
-#define SCHLATHERS_MACHINE 1
+// 1
 
 //#include "miraculix.h"
 //#include "AutoMiraculix.h"
@@ -110,11 +110,15 @@ Uint *GetInfo(SEXP M);
 #define BitsPerByte 8L
 #define BytesPerDouble 8L
 #define BytesPerUnit 4L // R unit (int) !
+#define MaxUnitsPerAddress 2L
+#define UnitsPerAddress (1L + (sizeof(Uint *) - 1L) / BytesPerUnit)
 
 typedef union addr_Uint{
-  uintptr_t a;
-  Uint u[sizeof(uintptr_t) / BytesPerUnit];
+  Rint * a;
+  Uint u[UnitsPerAddress];
+  uint8_t bbbb_CXXb[2 * sizeof(Uint*)]; // nur zum testen
 } addr_Uint;
+
 
 
 #define ALIGN_HAPLO 0
@@ -129,22 +133,21 @@ typedef union addr_Uint{
 #define ALIGN_23 ALIGN_CODED
 #define ALIGN_SSE ALIGN_CODED
 
-#define algn_general(X, bytesperblock)  ((1L + (uintptr_t) (((uintptr_t) X - 1L) / bytesperblock)) * bytesperblock)
+#define algn_general(X, bytesperblock)  ((1L + (uintptr_t) (((uintptr_t) X - 1L) / bytesperblock)) * bytesperblock) // ok!!
 
 
 
 
 	  
-#define ADDADRESS(WHICH, WHERE)	{					\
+#define ADDADDRESS(WHICH, WHERE)	{				\
     addr_Uint addalign;							\
-    addalign.a = (uintptr_t) WHICH;					\
-    assert(sizeof(uintptr_t)/BytesPerUnit >= 0);			\
-    for (Uint addr=0; addr<sizeof(uintptr_t)/BytesPerUnit; addr++)	\
+    addalign.a = WHICH;							\
+    for (Uint addr=0; addr<UnitsPerAddress; addr++)			\
       info[WHERE + addr] = addalign.u[addr];				\
   }
 
 
-uintptr_t GetAdress(Uint *info, Uint where);
+Rint* GetAddress(Uint *info, Uint where);
 
 
 Uint Inti(SEXP X, Uint i);

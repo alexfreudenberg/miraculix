@@ -460,7 +460,9 @@ SEXP decodeHaplo(SEXP CM, SEXP Indiv,
   for (Uint i=0; i<currentIndiv; i++) {
     Uint *cm = code + units * (IndivGiven ? I[i] - 1 : i),
       *M = MM + i * indivIncr;
+#if defined SCHLATHERS_MACHINE
     Uint snp = 0;
+#endif    
     for (Uint j=0; j<fullBlocks; j++) {
       Uint
 	*C = cm + j * UnitsPerBlock,
@@ -473,7 +475,9 @@ SEXP decodeHaplo(SEXP CM, SEXP Indiv,
 	  // ordering important !!! as mm2 might be overwritten by mm!!
 	  *mm2 = (C[k] & shiftP1) > 0;
 	  if (set1) *mm = (C[k] & shift) > 0;
+#if defined SCHLATHERS_MACHINE
 	  assert(delta == 0 || GetHaploX(cm, snp++) == *mm + 2 * *mm2);
+#endif    
 	}
       }
     }

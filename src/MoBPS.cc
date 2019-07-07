@@ -80,9 +80,6 @@ void InitMoBPS() {
   
   assert(BytesPerBlock == sizeof(BlockType0));
  
-  if (sizeof(uintptr_t) > 4 * BytesPerUnit)
-    ERR("address cannot be stored. Please contract author.");
- 
   BlockType Einsen;
   SET32(Einsen, 0xFFFFFFFF);
   BlockUnitType *BME = (BlockUnitType*) BitMaskEnd;
@@ -153,9 +150,8 @@ SEXP decodeOrigins(SEXP M, SEXP Line) {
 
 SEXP codeOrigins(SEXP M) {
   assert_MoBPS();
-  Uint ncol = ncols(M),
-    nrow = nrows(M);
-  assert(ncol == 4);
+  Uint nrow = nrows(M);
+  assert(ncols(M) == 4);
   
   SEXP Ans;
   PROTECT(Ans = allocVector(INTSXP, nrow));

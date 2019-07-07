@@ -55,6 +55,7 @@ SEXP get_centered() {
   double *ans = REAL(Ans);
   MEMCOPY(ans, centered, sizeof(double) * len);
   UNPROTECT(1);
+  assert(asfas);
   return Ans;
 }
 
@@ -943,13 +944,10 @@ SEXP copyGeno(SEXP CM) {
   Uint
     *from = DoAlign(CM, ALIGN_HAPLO, method),
     *to = DoAlign(Code, ALIGN_HAPLO, method),
-    *info2 = GetInfo(Code);
-  uintptr_t addr1 = GetAdress(info, ALIGNADDR0),
-    addr2 = GetAdress(info2, ALIGNADDR0);
+    *info2 = GetInfo(Code),
+    *addr1 = (Uint*) GetAddress(info, ALIGNADDR0),
+    *addr2 = (Uint*) GetAddress(info2, ALIGNADDR0);
   Ulong mem = MemInUnits(info);
-  Long
-    lag1 = addr1 - (uintptr_t) CM,
-    lag2 = addr2 - (uintptr_t) Code;
 
   assert(INFO_LAST== 21 && HEADER == 15); // minicheck ob sich die liste
   // geaendert hat, ohne hier zu korriegieren.
@@ -961,10 +959,14 @@ SEXP copyGeno(SEXP CM) {
   //printf("lag1 = %ld %ld %lu %lu\n", lag1, lag2, mem, BytesPerUnit);
 
   if (mem != MemInUnits(info2)) BUG;
+
+  intptr_t
+    lag1 = (intptr_t) addr1 - (intptr_t) CM,
+    lag2 = (intptr_t) addr2 - (intptr_t) Code;
   if (lag1 > 100 || lag1 < 0 || lag2 > 100 || lag2 < 0)
     ERR("Alignment problem -- pls contact maintainer.");
   //  if (lag1 - lag2 ) ERR("Memory was disclocated. Copying is not possible.");
-  if ((uintptr_t) from != addr1 || (uintptr_t) to != addr2)
+  if (from != addr1 || to != addr2)
     ERR("Alignment problems. Pls contact maintainer.");
   
   MEMCOPY(to, from, mem * BytesPerUnit);
@@ -1148,22 +1150,22 @@ Uint *AlignBase(SEXP CM, Uint nr, Uint bytesperblock, bool test) {
   
   if (test && info[BYTESPERBLOCK] != bytesperblock)
     ERR("currently, data exchange between different kinds of machines (AVX2/SSE) is not possible");
-  uintptr_t address = (uintptr_t) INTEGER(CM);
-  Uint *algnaddress = (Uint *) algn_general(INTEGER(CM), bytesperblock);
-  addr_Uint au;
-  for (Uint i=0; i<sizeof(uintptr_t) / BytesPerUnit; i++)
-    au.u[i] = info[ADDR0 + i];
-  if (au.a == address) {
-    assert((uintptr_t) algnaddress % bytesperblock == 0);
+  Uint *address = (Uint *) INTEGER(CM),
+    *algnaddress = (Uint *) algn_general(INTEGER(CM), bytesperblock),
+    *infoaddress = (Uint*) GetAddress(info, ADDR0);
+  
+  if (infoaddress == address) {
+    assert(algnaddress % bytesperblock == 0);
     return algnaddress;
-  } else if (au.a % BytesPerUnit == address % BytesPerUnit) {
+  } else if ((uintptr_t) infoaddress % BytesPerUnit ==
+	     (uintptr_t) address % BytesPerUnit) {
 #ifdef SCHLATHERS_MACHINE
     if (do_warn_changeOK) {
-      PRINTF("Address has changed in a coded object (%d) by 'gc' or disk saving. But luckily got same modulus (%lu %lu)).\n", info[WHAT], (uintptr_t) au.a % (1024 * 1024), address % (1024 * 1024));
+      PRINTF("Address has changed in a coded object (%d) by 'gc' or disk saving. But luckily got same modulus (%lu %lu)).\n", info[WHAT], (uintptr_t) infoaddress % (1024 * 1024), (uintptr_t) address % (1024 * 1024));
       do_warn_changeOK = debugging;
     }
 #endif    
-    assert((uintptr_t) algnaddress % bytesperblock == 0);
+    assert(algnaddress % bytesperblock == 0);
     return algnaddress;
   }
   
@@ -1181,7 +1183,9 @@ Uint *AlignBase(SEXP CM, Uint nr, Uint bytesperblock, bool test) {
     ERR("Coded SNP matrix has been stored elsewhere or has been internally moved by R; in these cases set 'RFoptions(cores=1)'");
 #endif  
 
-  if (au.a % bytesperblock == address % bytesperblock) return algnaddress;
+  if ((uintptr_t) infoaddress % bytesperblock ==
+      (uintptr_t) address % bytesperblock)
+    return algnaddress;
   Ulong mem = MemInUnits(info),
     alignedmemU = AlignedInUnits(info);
   assert(mem <= alignedmemU);
@@ -1192,7 +1196,7 @@ Uint *AlignBase(SEXP CM, Uint nr, Uint bytesperblock, bool test) {
     Memory[nr] = (Uint*) CALLOC(nMem[nr], BytesPerUnit);
   }
   Uint *algnMem = (Uint *) algn_general(Memory[nr], bytesperblock);
-  assert((uintptr_t) algnMem % bytesperblock == 0);
+  assert(algnMem % bytesperblock == 0);
   
   MEMCOPY(algnMem, algnaddress, mem * BytesPerUnit);
   return algnMem;

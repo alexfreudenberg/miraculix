@@ -167,7 +167,7 @@ int GetName(SEXP el, char *name, const char * List[], int n,
 double scalar(double *A, double *B, int N);
 double ownround(double x);
 
-#define Mod(ZZ, modulus) ((ZZ) - FLOOR((ZZ) / (modulus)) * (modulus))
+#define Mod(Z, modulus) ((Z) - FLOOR((Z) / (modulus)) * (modulus))
 double lonmod(double x, double modulus); 
 
 /*

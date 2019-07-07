@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <R.h>
 #include <Rinternals.h>
-#include <inttypes.h> // uintptr_t
+#include <inttypes.h> 
 //#include <Rdefines.h>
 #include "AutoMiraculix.h"
 #include "MX.h"
@@ -72,7 +72,7 @@ void ReUseAsX(SEXP Code, snpcoding method,
   info[BYTESPERBLOCK] = bytesPerBlock;
   info[SUMGENO] = info[SUMGENO_E9] = 0;
   StoreMemInUnits(memInUnits);
-  ADDADRESS(algn_general(INTEGER(Code), bytesPerBlock), ALIGNADDR0); 
+  ADDADDRESS((Rint*) algn_general(INTEGER(Code), bytesPerBlock), ALIGNADDR0); 
 
   PROTECT(Class = allocVector(STRSXP, 1));
   SET_STRING_ELT(Class, 0, mkChar(haplo ? HAPLOMATRIX : GENOMICMATRIX));
@@ -115,7 +115,7 @@ SEXP CreateEmptyCodeVectorALL(Uint snps, Uint individuals,
   for (Uint i=0; i<=INFO_LAST; i++) info[i] = NA_INTEGER;
   
   StoreAlignedInUnits(alignedMem);
-  ADDADRESS(INTEGER(Code), ADDR0);
+  ADDADDRESS(INTEGER(Code), ADDR0);
   setAttrib(Code, Information, Info); // install("information")
   setAttrib(Code, Method, method); // install("method")
 
@@ -171,9 +171,9 @@ Uint Inti(SEXP X, Uint i) {
 }
 
 
-uintptr_t GetAdress(Uint *info, Uint where) {
-  addr_Uint addalign;						       
-  for (Uint addr=0; addr<sizeof(uintptr_t)/BytesPerUnit; addr++)      
+Rint * GetAddress(Uint *info, Uint where) {
+  addr_Uint addalign;
+  for (Uint addr=0; addr<UnitsPerAddress; addr++)      
     addalign.u[addr] = info[where + addr];
-  return addalign.a;						       
+  return addalign.a;
 }

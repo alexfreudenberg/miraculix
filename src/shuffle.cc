@@ -126,7 +126,7 @@ void showblock(BlockType0 X, Uint blocks) {
 void showblock(Uint *X, Uint snps, Uint individuals) { 
   for (Uint i=0; i<individuals; i++) {
 #ifdef SCHLATHERS_MACHINE    
-    PRINTF("%ld\n", (uintptr_t) (X + i * Blocks(snps) * UnitsPerBlock));
+    // PRINTF("%ld\n", (uint ptr_t) (X + i * Blocks(snps) * UnitsPerBlock));
 #endif 
     showblock(X + i * Blocks(snps) * UnitsPerBlock, snps);
   }
@@ -143,10 +143,6 @@ void InitShuffle() {
 #else
   assert(BytesPerBlock == sizeof(BlockType0));
   if (!shuffleNotInit ) BUG;
- 
-  if (sizeof(uintptr_t) > 4 * BytesPerUnit)
-    ERR("address cannot be stored. Please contract author.");
-
  
 //                   0  1  2  3  4  5  6  7   8  9 10 11 12 13 14 15
 //#define andshuffle 0, 1, 4, 0, 1, 2, 5, 0,  4, 5, 8, 0, 0, 0, 0, 0

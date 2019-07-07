@@ -27,7 +27,7 @@
 }
 
 .onAttach <- function (lib, pkg) {
-#  packageStartupMessage("This is miraculix Version: 0.8.4");
+#  packageStartupMessage("This is miraculix Version: 0.8.7");
 }
 
 .onDetach <- function(lib) {

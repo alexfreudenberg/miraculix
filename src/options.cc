@@ -233,11 +233,19 @@ void attachmiraculix() {
   Method = install("method");
   Coding = install("coding");
 
-  assert(BytesPerUnit == sizeof(Uint));
-  assert(sizeof(int) == sizeof(Uint));
-  assert(sizeof(int) == 4);
-  assert(sizeof(uint64_t) == sizeof(double));
-  assert(sizeof(uint64_t) == 8);
+  if (BytesPerUnit != sizeof(Uint))
+    ERR1("The programme relies on the assumption that an unsigned integer has %d Bytes.", BytesPerUnit);
+  
+  if (sizeof(int) != sizeof(Uint))
+    ERR2("The programme relies on the assumption that a signed integer is as long as an unsigned integer. Found %d and %d bytes respectively.", sizeof(int), sizeof(Uint));
+  
+  if (sizeof(uint64_t) != sizeof(double))
+    ERR2("The programme relies on the assumption that an 'uint64_t' has the size of a 'double'. Found %d and %d bytes respectively.", sizeof(uint64_t), sizeof(double));
+  
+  if (sizeof(uint64_t) != 8) ERR1("The programme relies on the assumption that an 'uint64_t' has 8 Bytes. Found %d bytes.", sizeof(uint64_t));
+  
+  if (sizeof(void*) > MaxUnitsPerAddress * BytesPerUnit)
+    ERR2("The programme relies on the assumption that an 'void*' has at most %d Bytes. Found %d bytes.", MaxUnitsPerAddress * BytesPerUnit, sizeof(void*));
 }
 
 void attachmiraculixInter() {
