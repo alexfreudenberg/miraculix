@@ -1,5 +1,5 @@
 
-AC_INIT([miraculix], 0.6)
+AC_INIT([miraculix], 0.8)
 
 USE_FLAGS=true
 

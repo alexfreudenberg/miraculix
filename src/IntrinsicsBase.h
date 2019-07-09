@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef miraculix_IntrinsicsBase_H
 #define miraculix_IntrinsicsBase_H 1
 
-#if not defined _WIN32
+//#if not defined _WIN32
 
 #if defined __AVX2__
 #define AVX2 1
@@ -51,7 +51,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SSE 1
 #endif
 
-#endif // not WIN32
+//#endif // not WIN32
 
 
 #if defined __MMX__ 
