@@ -1,7 +1,8 @@
 
 AC_INIT([miraculix], 0.8)
 
-USE_FLAGS=true
+dnl USE_FLAGS=false
+
 
 if "${R_HOME}/bin/R" CMD config CXX11 > /dev/null ; then
   MIRACULIX_CXX=`"${R_HOME}/bin/R" CMD config CXX11`
@@ -11,45 +12,26 @@ else
   MIRACULIX_CXX=`"${R_HOME}/bin/R" CMD config CXX`
 fi
 
-if test "x$TARGET" = "x" ; then
-  case `basename $MIRACULIX_CXX` in
+case `basename $MIRACULIX_CXX` in
   g++ | clang++ )
-    if uname -m | grep  -iq sparc ; then
-      echo Since this is a sparc processor we set TARGET=default
-      TARGET=default
-    else
-      TARGET=native
-    fi
-    ;;
+      KNOWN_COMPILER=true
+      ;;
   *)
-    echo unknown compiler: $MIRACULIX_CXX therefore we set TARGET=default
-    TARGET=default
+    echo Unknown compiler: $MIRACULIX_CXX, no compiler flags used
+    	KNOWN_COMPILER=false
     ;;
-  esac
-fi
+esac
 
-if test "x$MIRACULIX_TARGET" != "x" ; then
-  TARGET=$MIRACULIX_TARGET
-fi
-
-if test $USE_FLAGS = false ; then
-  TARGET=default
-fi
-
-echo Using target: $TARGET 
-echo Using further args: $@
-
-
-if test $TARGET = native ; then
+if test KNOWN_COMPILER ; then
+if test $USE_FLAGS = true ; then
   CXX_FLAGS="-O2 -march=native $CXX_FLAGS"
-elif test $TARGET = default ; then
-  CXX_FLAGS="$CXX_FLAGS"
-elif test $TARGET = empty ; then
-  echo No compiler flags used
+else
+  CXX_FLAGS="-mavx $CXX_FLAGS"
+fi
+else
+	CXX_FLAGS=""
 fi
 
-
-echo Config in `pwd`
 echo Config: using CXX_FLAGS=$CXX_FLAGS
 
 MIRACULIX_CXXFLAGS=$CXX_FLAGS

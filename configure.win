@@ -5,7 +5,7 @@
 if test "x$MIRACULIX_USE_CXX_FLAGS" = xtrue ; then
   MIRACULIX_CXXFLAGS="-march=native -mavx -O2 $MIRACULIX_CXX_FLAGS"
 else
-  MIRACULIX_CXXFLAGS="-O2"
+  MIRACULIX_CXXFLAGS="-O2 -msse2"
 fi
 
 
