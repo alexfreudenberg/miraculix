@@ -12,25 +12,19 @@ else
   MIRACULIX_CXX=`"${R_HOME}/bin/R" CMD config CXX`
 fi
 
+
 case `basename $MIRACULIX_CXX` in
   g++ | clang++ )
-      KNOWN_COMPILER=true
-      ;;
-  *)
-    echo Unknown compiler: $MIRACULIX_CXX, no compiler flags used
-    	KNOWN_COMPILER=false
-    ;;
-esac
-
-if test KNOWN_COMPILER ; then
 if test $USE_FLAGS = true ; then
   CXX_FLAGS="-O2 -march=native $CXX_FLAGS"
 else
   CXX_FLAGS="-mavx $CXX_FLAGS"
 fi
-else
-	CXX_FLAGS=""
-fi
+;;
+  *)
+echo Unknown compiler: $MIRACULIX_CXX, no compiler flags used
+    ;;
+esac
 
 echo Config: using CXX_FLAGS=$CXX_FLAGS
 
@@ -39,3 +33,4 @@ MIRACULIX_CXXFLAGS=$CXX_FLAGS
 AC_SUBST(MIRACULIX_CXXFLAGS)
 AC_CONFIG_FILES([src/Makevars])
 AC_OUTPUT
+
