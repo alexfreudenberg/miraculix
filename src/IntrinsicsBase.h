@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //#if not defined _WIN32
 
 #if defined __AVX2__
-#define AVX2 1
+//#define AVX2 1
 #endif
 #if defined __AVX__
 #define AVX 1

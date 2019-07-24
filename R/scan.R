@@ -90,7 +90,7 @@ scanning <- function(pos, freq, file, tuningUnits, alpha = 0.1,
   stopifnot(xor(missing(pos) && missing(freq), missing(file)))
 
   verbose <- RFoptions(GETOPTIONS="basic")$verbose
-  
+    
   if (missing(file)) {
     if (missing(colname)) colname <- "HeterAB"
   } else {
@@ -240,6 +240,14 @@ scanning <- function(pos, freq, file, tuningUnits, alpha = 0.1,
             pos, N, freq, minscans, maxscans, threshold, Nalpha, perSNP,
             above.threshold, maximum)
   } else {
+    Print(C_collect_scan2,  pos, N, freq, minscans, maxscans,
+            threshold, Nalpha,
+            perSNP, as.integer(max.intervals),
+            as.integer(max.basepair.distance),
+            as.integer(exclude.negative.at.boundary),
+            above.threshold, maximum)
+    print(pos[8900:9000])
+    
     signif.areas <-
       .Call(C_collect_scan2,  pos, N, freq, minscans, maxscans,
             threshold, Nalpha,

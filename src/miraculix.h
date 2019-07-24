@@ -35,10 +35,9 @@ extern "C" {
 
  // general
   SEXP RFoptions(SEXP options);
-  void RelaxUnknownRFoption(int *relax);
 
-  void attachmiraculixInter();
-  void attachmiraculix();
+  SEXP loadmiraculix();
+  SEXP attachmiraculix();
   void detachmiraculix();
  
   // scan

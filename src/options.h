@@ -61,8 +61,6 @@ void setparameter(Rint i, Rint j, SEXP el, char name[200], bool isList, Rint loc
 void getRFoptions(SEXP *sublist);
 void finalparameter(Rint local);
 
-void PrintSystem();
-
 snpcoding getAutoCodingIntern();
   
 #endif

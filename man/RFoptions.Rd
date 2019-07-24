@@ -146,7 +146,7 @@ code. Only for testing purposes.}
 
 
 \examples{% library(adoption)
-RFoptions()
+%RFoptions()
 }
 
 \keyword{models}

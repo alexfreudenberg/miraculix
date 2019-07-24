@@ -58,6 +58,8 @@
 }
  
 \examples{
+
+if (FALSE) {
   set.seed(0)
   indiv <- 5
   loci <- 4
@@ -70,7 +72,7 @@
   print(as.matrix(GM, indiv=2:4, sets=1))
   stopifnot(sum(abs(as.matrix(GM) - M)) == 0)
 }
-
+}
 
 \keyword{classes}
 \keyword{print}

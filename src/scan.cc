@@ -35,7 +35,7 @@ bool debug = false;
 #define START 0
 #define END 1
 #define LEVEL 2
-#define IDX(N) 3 * N
+#define IDX(N) (3 * (N))
 #define DELETED 0
 
 #define COLLECT(exclude_negative, DO, Check)				\
@@ -166,7 +166,7 @@ SEXP collect_scan(SEXP positions, SEXP length, SEXP freq,
 
   
 
-SEXP collect_scan2(int *positions, int *length, double  *freq, int *minscan,
+SEXP Xcollect_scan2(int *positions, int *length, double  *freq, int *minscan,
 		   int *maxscan, double *threshold, int *nthres,
 		   int *PER_SNP, 
 		   int max_intervals, int max_basepair_dist,
@@ -215,12 +215,117 @@ SEXP collect_scan2(int *positions, int *length, double  *freq, int *minscan,
   PROTECT(Res = allocMatrix(INTSXP, 3, n));
 
   if (n>0) MEMCOPY(INTEGER(Res), res, 3 * n * sizeof(int));
+  FREE(res);
  
   // int m; for(m=0; m<n; m++) print("n=%d %d %d %d\n", n, INTEGER(Res)[3 *m ], INTEGER(Res)[3 *m +1], INTEGER(Res)[3 *m + 2]);
   UNPROTECT(1);
 
   return Res;
 }
+
+  
+
+SEXP collect_scan2(int *positions, int *length, double  *freq, int *minscan,
+		   int *maxscan, double *threshold, int *nthres,
+		   int *PER_SNP, 
+		   int max_intervals, int max_basepair_dist,
+		   bool exclude_negative,
+		   // additonal return values
+		   int *above_threshold, double *maximum) {
+  int n = 0, k,
+    threemaxI = 3 * max_intervals,
+    *res = (int*) MALLOC(sizeof(int) * threemaxI),
+    *a = res;
+  double maxi = -1e-40;
+  bool not_exclude = !exclude_negative;
+
+  for (k=0; k<*nthres; above_threshold[k++] = 0);
+
+
+  int i, j,								
+    nthr = *nthres,							
+    len = *length,							
+    *pos = positions,							
+    min = *minscan,							
+    max = *maxscan,							
+    perSNP = *PER_SNP							
+    ;									
+  double mass;								
+									
+  /* // printf("Len=%d %d %d perSNP=%d\n", len, min, max, perSNP);*/	
+  for (i = 0 ; i<len; i++) {
+    //continue; printf("xxx");
+     //
+    if (i % 100 ==0) printf("i=%d %d\n", i, len);
+    //    printf("i=%d %d\n", i, len);
+    if (exclude_negative) for ( ; i<len; i++) if (freq[i] >= 0) break;
+    if (i >= len) break;
+    
+    int pos_i = pos[i];							
+    mass = 0.0;								
+    for (j=i; j<len; j++) {
+      //continue; printf("xxx");
+      //  if (j > 8935) printf("j=%d\n", j);
+      // j = 8937
+      double freq_j = freq[j];						
+      mass += freq_j;							
+      Long laenge = perSNP ? j-i+1 : pos[j] - pos_i + 1;		
+      if (laenge < min) {						
+	continue;							
+      }									
+      if (max > 0 && laenge > max) {			
+        if (debug) { PRINTF("break %d %d\n", max, (int) laenge);}	
+	break;								
+      }									
+      
+      if (j > i && pos[j] > pos[j-1] + max_basepair_dist) break;	
+      if (mass >= threshold[0] && (not_exclude || freq_j>=0.0)) {	
+	if (mass > maxi) maxi = mass;				
+	int m;							
+	int d=1;							
+	a[START] = pos_i;						
+	a[END] = pos[j];						
+	while (nthr>d && mass >= threshold[d]) d++;			
+	a[LEVEL] = d; /* R referencing starting with 1 */		
+	bool del = false;						
+	for (m=0; m<n; ) {						
+	  int idxm = IDX(m++);
+	  assert(idxm + LEVEL < threemaxI && idxm + END < threemaxI);
+	  if (res[idxm + LEVEL] > a[LEVEL] ||			
+	      res[idxm + END] <  pos_i) continue;			
+	  if (res[idxm + END] < a[END]) res[idxm + END] = a[END];	
+	  if (res[idxm + LEVEL] == a[LEVEL]) {del=true; break;}	
+	}								
+	if (!del) {							
+	  for (k=0; k<d; above_threshold[k++]++);			
+	  n++;							
+	  if (n >= max_intervals) {					
+	    ERR("too many intervals found; analysis stopped.");	
+	  }								
+	  a += 3;							
+	}								
+      }
+    }									
+    								
+    for ( ; i<len; i++) if (freq[i] < 0) break;				
+  }			
+
+  	 
+  
+  *maximum = maxi;
+  SEXP Res;
+  PROTECT(Res = allocMatrix(INTSXP, 3, n));
+
+  if (n>0) MEMCOPY(INTEGER(Res), res, 3 * n * sizeof(int));
+  FREE(res);
+ 
+  // int m; for(m=0; m<n; m++) print("n=%d %d %d %d\n", n, INTEGER(Res)[3 *m ], INTEGER(Res)[3 *m +1], INTEGER(Res)[3 *m + 2]);
+  UNPROTECT(1);
+
+  return Res;
+}
+
+
 
 
 

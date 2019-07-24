@@ -104,10 +104,10 @@ SEXP CreateEmptyCodeVectorALL(Uint snps, Uint individuals,
       BUG;
     }
     PROTECT(Code = allocVector(INTSXP, alignedMem)); 
-  }
+    Uint* A = (Uint*) INTEGER(Code);
+    for (Ulong k=0; k<alignedMem; A[k++] = 0);
+   }
  
-  Uint* A = (Uint*) INTEGER(Code);
-  for (Ulong k=0; k<alignedMem; A[k++] = 0.0);
   
   PROTECT(method = allocVector(INTSXP, 1));
   PROTECT(Info = allocVector(INTSXP, INFO_LAST + 1));

@@ -1685,19 +1685,25 @@ else
   MIRACULIX_CXX=`"${R_HOME}/bin/R" CMD config CXX`
 fi
 
-
 case `basename $MIRACULIX_CXX` in
   g++ | clang++ )
+      KNOWN_COMPILER=true
+      ;;
+  *)
+    echo Unknown compiler: $MIRACULIX_CXX, no compiler flags used
+    	KNOWN_COMPILER=false
+    ;;
+esac
+
+if test KNOWN_COMPILER ; then
 if test $USE_FLAGS = true ; then
   CXX_FLAGS="-O2 -march=native $CXX_FLAGS"
 else
   CXX_FLAGS="-mavx $CXX_FLAGS"
 fi
-;;
-  *)
-echo Unknown compiler: $MIRACULIX_CXX, no compiler flags used
-    ;;
-esac
+else
+	CXX_FLAGS=""
+fi
 
 echo Config: using CXX_FLAGS=$CXX_FLAGS
 
@@ -2860,5 +2866,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
 

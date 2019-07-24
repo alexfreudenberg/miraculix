@@ -46,16 +46,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 INLINER
 
 #define repetSSE2 10L
-#define atonceSSE2 3L
+#define atonceSSE2 (3L * repetSSE2)
 #define atonce_SSE3 4L
 
 Uint CodesPerBlockH() { return CodesPerBlock; }
 Ulong UnitsPerIndivH(Uint snps, Uint method) {
   Uint
-    f = method == Hamming2 ? repetSSE2 * atonceSSE2 : atonce_SSE3, // wechsel 64 bit auf 128; 3 bzw 4
+    atonce = method == Hamming2 ? atonceSSE2 : atonce_SSE3, // wechsel 64 bit auf 128; 3 bzw 4
     //                                       auf ein Mal; sse2: 10x wiederholt
-    //minmem = (1L + (snps - 1L) / (2 * f)) * (2 * f),
-    Xblocks = (1L + (snps - 1L) / (f * CodesPerBlock)) * f;
+    //minmem = (1L + (snps - 1L) / (2 * atonce)) * (2 * atonce),
+    Xblocks = (1L + (snps - 1L) / (atonce * CodesPerBlock)) * atonce;
   return UnitsPerBlock * Xblocks;
 }
 
@@ -78,7 +78,7 @@ Uint rev_coding1[16] = {0, 0, 0, 0,  0, 1, 0, 0,  0, 0, 2, 0,  0, 0, 0, 0},
 
 
 #define  MatrixCoding(start_snp, cur_snps, start_individual, cur_indiv, FROM) \
-  bool hamming2 = method == Hamming2;					\
+bool hamming2 = method == Hamming2;				   \
   Ulong memPerMatrix = UnitsPerIndivH(snps, method) * individuals, \
 		 blocksPerMatrix =  memPerMatrix / UnitsPerBlock;	\
   Uint  blocks = blocksPerMatrix / individuals, /* NICHT Blocks(snps) !! */ \
@@ -313,9 +313,8 @@ void matrix_multH2(BlockType0 *M, BlockType0 *M_T, Uint individuals, Uint snps,
   // outer for-loop represents rows of M (only within partition, if > 1 cores
   // inner for-loop represents columns of M^T starting at diagonal element
   Uint
-    f = repetSSE2 * atonceSSE2, // 10 * 3  
-    Xblocks = (1L + (snps - 1L) / (f * CodesPerBlock)) * f,
-    loops = Xblocks / f;
+    Xblocks = UnitsPerIndivH(snps, Hamming2) / UnitsPerBlock,
+    loops = Xblocks / atonceSSE2;
   BlockType m1, m2, m4, m8;
   uint64_t OOO1 = INT64_C(0x0001000100010001);
 
@@ -323,8 +322,6 @@ void matrix_multH2(BlockType0 *M, BlockType0 *M_T, Uint individuals, Uint snps,
   SET8(m2, 0x33);
   SET8(m4, 0x0f);
   SET16(m8,0x00ff);
-
-  //printf("size of block %d\n", sizeof(BlockType));
 
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(CORES) schedule(dynamic, 20)
@@ -396,8 +393,8 @@ void matrix_multH3(BlockType0 *M, BlockType0 *M_T, Uint individuals, Uint snps,
 #else
   // M*M^T:    
   Uint
-    Xblocks = (1L + (snps - 1L) / (atonce_SSE3 * CodesPerBlock)) * atonce_SSE3,
-    loops = 1 + (Xblocks -1) / atonce_SSE3;
+    Xblocks =  UnitsPerIndivH(snps, Hamming3) / UnitsPerBlock,
+    loops = Xblocks / atonce_SSE3;
   
   const unsigned _LUT[] = {0x02010100, 0x03020201, 0x03020201, 0x04030302};
   BlockType LUT, mask, zero;
@@ -406,10 +403,7 @@ void matrix_multH3(BlockType0 *M, BlockType0 *M_T, Uint individuals, Uint snps,
   LOADU(LUT, (BlockType0 *) _LUT); // _mm_set_epi32(,,,)
   SET8(mask, 0x0F);
   ZERO(zero);
-  
-  uni128  intermed;
-  ZERO(intermed VI);
-   
+
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(CORES) schedule(dynamic, 20)
 #endif
@@ -417,10 +411,11 @@ void matrix_multH3(BlockType0 *M, BlockType0 *M_T, Uint individuals, Uint snps,
     BlockType
       *mpp = M + i * blocks;
      for (Uint j = i; j<individuals; j++) {
-      Uint tot = 0;
+     uint64_t tot = 0;
       BlockType *mptr = mpp,
 	*m_tpp = M_T + j * blocks;
       for (Uint k = 0; k < loops; k++) {    // '/4' hinzugefuegt
+	uni128  intermed;
 	BlockType v0, lo, count0, count1, L1, L2;
 #define COUNT(count0)						\
 	LOADU(L1, mptr);mptr++;					\

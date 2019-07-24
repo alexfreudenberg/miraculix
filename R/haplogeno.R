@@ -168,7 +168,8 @@ genomicmatrix <- function(snps, individuals, file.type,
                 AlignedUnits1 = as.integer(mem / 1e9)
                 )
       ##print(info)
-      stopifnot(length(info) == MEMinUNITS1 + 1)
+      Print(length(info), INFO_LAST)
+      stopifnot(length(info) == INFO_LAST + 1)
       storage.mode(info) <- "integer"
       attr(snps, "information") <- info
       ##attr(snps, "coding") =  as.character(NULL)
@@ -261,7 +262,7 @@ genomicmatrix <- function(snps, individuals, file.type,
       AlignedUnits0 = NA,
       AlignedUnits1 = NA
    )
-  stopifnot(length(info) == MEMinUNITS1 + 1)
+  stopifnot(length(info) == INFO_LAST + 1)
   storage.mode(info) <- "integer"
   attr(object, "information") <- info
   attr(object, "coding") <-  as.character(coding)

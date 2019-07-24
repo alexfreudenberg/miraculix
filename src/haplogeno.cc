@@ -55,7 +55,6 @@ SEXP get_centered() {
   double *ans = REAL(Ans);
   MEMCOPY(ans, centered, sizeof(double) * len);
   UNPROTECT(1);
-  assert(asfas);
   return Ans;
 }
 
@@ -1155,7 +1154,7 @@ Uint *AlignBase(SEXP CM, Uint nr, Uint bytesperblock, bool test) {
     *infoaddress = (Uint*) GetAddress(info, ADDR0);
   
   if (infoaddress == address) {
-    assert(algnaddress % bytesperblock == 0);
+    assert((uintptr_t) algnaddress % bytesperblock == 0);
     return algnaddress;
   } else if ((uintptr_t) infoaddress % BytesPerUnit ==
 	     (uintptr_t) address % BytesPerUnit) {
@@ -1165,7 +1164,7 @@ Uint *AlignBase(SEXP CM, Uint nr, Uint bytesperblock, bool test) {
       do_warn_changeOK = debugging;
     }
 #endif    
-    assert(algnaddress % bytesperblock == 0);
+    assert((uintptr_t) algnaddress % bytesperblock == 0);
     return algnaddress;
   }
   
@@ -1196,7 +1195,7 @@ Uint *AlignBase(SEXP CM, Uint nr, Uint bytesperblock, bool test) {
     Memory[nr] = (Uint*) CALLOC(nMem[nr], BytesPerUnit);
   }
   Uint *algnMem = (Uint *) algn_general(Memory[nr], bytesperblock);
-  assert(algnMem % bytesperblock == 0);
+  assert((uintptr_t) algnMem % bytesperblock == 0);
   
   MEMCOPY(algnMem, algnaddress, mem * BytesPerUnit);
   return algnMem;

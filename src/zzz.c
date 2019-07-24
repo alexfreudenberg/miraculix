@@ -61,8 +61,6 @@ static R_FortranMethodDef fortranMethods[] = {
 //	      INTSXP, INTSXP}; 
 
 static const R_CMethodDef cMethods[]  = {
-  CDEF(attachmiraculix, 0, none),
-  CDEF(attachmiraculixInter, 0, none),
   CDEF(detachmiraculix, 0, none),
   {NULL, NULL, 0, none}
 };
@@ -70,6 +68,9 @@ static const R_CMethodDef cMethods[]  = {
 #define CALLDEF(name, n) {#name, (DL_FUNC) &name, n}
 static R_CallMethodDef callMethods[]  = {
   // in die respectiven C-Dateien muss adoption.h eingebunden sein
+  CALLDEF(loadmiraculix, 0),
+  CALLDEF(attachmiraculix, 0),
+  
   CALLDEF(scan, 10),
   CALLDEF(sumscan, 10),
   CALLDEF(collect_scan, 10),

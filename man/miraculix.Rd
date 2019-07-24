@@ -111,11 +111,13 @@
 % }
 
 \examples{
+if (FALSE) {
 indiv <- 5
 snps <- indiv * 10
 M <- matrix(ncol=indiv, sample(0:2, indiv * snps, replace=TRUE))
 print(M)
 print(relationshipMatrix(M))
+}
 }
 
 \keyword{manip}

@@ -132,6 +132,7 @@ for (storageMode in c("integer", "double")) {# reported speed based on "integer"
 \me
 
 \examples{ %   library(miraculix)
+if (FALSE) {
 require(RandomFieldsUtils)
 set.seed(0)
 snpcodes <- c(TwoBit, ThreeBit)
@@ -177,7 +178,7 @@ print(system.time({r <- solve(R + diag(indiv) * tau, vec);
                    y <- as.vector(R \%*\% r + beta)}))
 stopifnot(all.equal(S$rest, r))
 stopifnot(all.equal(S$yhat, y))
-
+}
 
 }
 

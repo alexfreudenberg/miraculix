@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //#define SCALARINT(A,B,C) Ext_scalarInt(A,B,C, SCALAR_BASE)
 #define LINEAR(A,B,C,D) Ext_linearX(A,B,C,D,6)
 
+// void xxx() {  solvePosDefSp(NULL, 0, 0, NULL, 0, NULL, NULL, NULL); }
 
 void strcopyN(char *dest, const char *src, int n) {
   if (n > 1) {

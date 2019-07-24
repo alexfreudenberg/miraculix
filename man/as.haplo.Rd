@@ -33,6 +33,7 @@ haplomatrix(M, IndividualsPerColumn=TRUE, DoubledIndividuals=TRUE)
 }
 
 \examples{
+if (FALSE) {
   set.seed(0)
   snps <- 100
   cols <- 2
@@ -40,6 +41,7 @@ haplomatrix(M, IndividualsPerColumn=TRUE, DoubledIndividuals=TRUE)
   Print(M)
   (GM <- haplomatrix(M))
   stopifnot(all(as.matrix(GM) == M))
+}
 }
 
 %library(gtools); keywords()

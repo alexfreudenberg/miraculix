@@ -68,6 +68,7 @@
 }
  
 \examples{
+if (FALSE) {
 set.seed(0)
 snps <- 100
 indiv <- 10
@@ -77,7 +78,7 @@ print(GM)
 str(GM)
 stopifnot(all(as.matrix(GM) == M))
 }
-
+}
 
 \keyword{classes}
 \keyword{print}

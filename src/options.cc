@@ -33,6 +33,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 
 // ACHTUNG: Reihenfolge nicht aendern!
+#include "IntrinsicsBase.h"
+#include "intrinsics.h"
 #include <Basic_utils.h>
 #include "error.h"
 #include <zzz_RandomFieldsUtils.h>
@@ -40,11 +42,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "MX.h"
 #include "options.h"
 //#include "def.h"
-#include "xport_import.h"
 #include "AutoMiraculix.h"
-#include "IntrinsicsBase.h"
-#include "intrinsics.h"
 #include "kleinkram.h"
+#include "xport_import.h"
 
 
 
@@ -84,6 +84,15 @@ utilsparam *GLOBAL_UTILS;
 const char **all[prefixN] = {genetics};
 int allN[prefixN] = {geneticsN};
  
+#define AVX2_USED true
+#define AVX_USED true
+#define SSSE3_USED true
+
+void PrintSystem() {
+#ifdef AttachMessage
+  PRINTF(AttachMessage(PKG,false));
+#endif
+}
 
 void setparameter(Rint i, Rint j, SEXP el, char name[200], 
 		  bool VARIABLE_IS_NOT_USED isList, Rint local) {
@@ -112,6 +121,7 @@ void setparameter(Rint i, Rint j, SEXP el, char name[200],
 	ERR("In particular, 'Hamming3' and 'Shuffle' are not available under the current compilation.");
       }
 #endif
+      if (m > last_usr_meth) ERR("given snp coding not allowed");
       gp->method = m;
       break;
     }
@@ -186,37 +196,9 @@ void getparameter(SEXP sublist, Rint i, Rint VARIABLE_IS_NOT_USED local) {
 
 
 
-void PrintSystem() {
-  PRINTF("\nThe following instruction options are used:\nparallel computing: %s\nfloating point double precision: %s\nSIMD: %s\n",
-#if defined DO_PARALLEL
-	 "yes"
-#else
-	 "no"
-#endif
-	 ,	 
-#if defined DO_FLOAT
-	 "no"
-#else
-	 "yes"
-#endif
-	 ,
-#if defined AVX2
-  "AVX2"
-#elif defined SSSE3
-  "SSSE3"
-#elif defined SSE2
-  "SSE2"
-#else
-  "none.\nNote that without any SIMD option the calculations become slow.\nConsider recompiling the package with appropriate flags e.g.,\n\
-  install.packages(\"miraculix\", configure.args=\"CXX_FLAGS=-march=native\")\n\
-  install.packages(\"miraculix\", configure.args=\"CXX_FLAGS=-maxv\")"
-#endif
-	 );
-}
 
 
-
-void attachmiraculix() {
+SEXP loadmiraculix() {
   includeXport();
   Ext_getUtilsParam(&GLOBAL_UTILS);
   GLOBAL_UTILS->solve.max_chol = 8192;
@@ -246,33 +228,77 @@ void attachmiraculix() {
   
   if (sizeof(void*) > MaxUnitsPerAddress * BytesPerUnit)
     ERR2("The programme relies on the assumption that an 'void*' has at most %d Bytes. Found %d bytes.", MaxUnitsPerAddress * BytesPerUnit, sizeof(void*));
+  return R_NilValue;
 }
 
-void attachmiraculixInter() {
-  attachmiraculix();
-  PrintSystem();
-}  
 
+SEXP attachmiraculix() {
+#ifdef SCHLATHERS_MACHINE
+  PRINTF("floating point double precision: %s\n",
+#if defined DO_FLOAT
+	 "no"
+#else
+	 "yes"
+	 );
+#endif
+#endif
+
+#ifdef ReturnAttachMessage
+  ReturnAttachMessage(miraculix, true);
+#else
+  return R_NilValue;
+#endif
+}
 
 void detachmiraculix() {
   Ext_detachRFoptions(prefixlist, prefixN);
 }
 
-void RelaxUnknownRFoption(int *RELAX) { 
-  Ext_relaxUnknownRFoption((bool) *RELAX); 
-}
+
+#ifndef HAS_PARALLEL
+#ifdef DO_PARALLEL
+#define HAS_PARALLEL true
+#else
+#define HAS_PARALLEL false
+#endif
+#if defined AVX2
+#define HAS_AVX2 true
+#else
+#define HAS_AVX2 false
+#endif
+#if defined AVX
+#define HAS_AVX true
+#else
+#define HAS_AVX false
+#endif
+#if defined SSSE3
+#define HAS_SSSE3 true
+#else
+#define HAS_SSSE3 false
+#endif
+#if defined SSE2
+#define HAS_SSE2 true
+#else
+#define HAS_SSE2 false
+#endif
+#if defined SSE
+#define HAS_SSE true
+#else
+#define HAS_SSE false
+#endif
+#if defined MMX
+#define HAS_MMX true
+#else
+#define HAS_MMX false
+#endif
+#endif
+
 
 
 SEXP hasSSE2() {
   SEXP Ans;
   PROTECT(Ans = allocVector(LGLSXP, 1));
-  LOGICAL(Ans)[0] =
-#if defined SSE2
-    TRUE // OK
-#else
-    FALSE // OK
-#endif
-    ;
+  LOGICAL(Ans)[0] = HAS_SSE2;
   UNPROTECT(1);
   return Ans;
 }
@@ -281,13 +307,7 @@ SEXP hasSSE2() {
 SEXP hasSSSE3() {
   SEXP Ans;
   PROTECT(Ans = allocVector(LGLSXP, 1));
-  LOGICAL(Ans)[0] =
-#if defined SSSE3
-    TRUE // OK
-#else
-    FALSE // OK
-#endif
-    ;
+  LOGICAL(Ans)[0] = HAS_SSSE3;
   UNPROTECT(1);
   return Ans;
 }
@@ -296,13 +316,7 @@ SEXP hasSSSE3() {
 SEXP hasAVX() {
   SEXP Ans;
   PROTECT(Ans = allocVector(LGLSXP, 1));
-  LOGICAL(Ans)[0] =
-#if defined AVX
-    TRUE // OK
-#else
-    FALSE // OK
-#endif
-    ;
+  LOGICAL(Ans)[0] = HAS_AVX;
   UNPROTECT(1);
   return Ans;
 }
@@ -311,14 +325,7 @@ SEXP hasAVX() {
 SEXP hasAVX2() {
   SEXP Ans;
   PROTECT(Ans = allocVector(LGLSXP, 1));
-  LOGICAL(Ans)[0] =
-#if defined AVX2
-    TRUE // OK
-#else
-    FALSE // OK
-#endif
-    ;
+  LOGICAL(Ans)[0] = HAS_AVX2;
   UNPROTECT(1);
   return Ans;
 }
-

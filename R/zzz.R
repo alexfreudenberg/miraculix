@@ -22,12 +22,12 @@
 
 .onLoad <- function(lib, pkg) {
   ## DESCRIPTION MUSS RandomFieldsUtils EINGEFUEGT SEIN
-  if (interactive()) .C("attachmiraculixInter") else .C("attachmiraculix");
+  .Call("loadmiraculix");
   RFoptions(solve_method=c("cholesky", "cholesky"), max_chol=10^5)
 }
 
 .onAttach <- function (lib, pkg) {
-#  packageStartupMessage("This is miraculix Version: 0.8.9");
+  packageStartupMessage(.Call("attachmiraculix"));
 }
 
 .onDetach <- function(lib) {

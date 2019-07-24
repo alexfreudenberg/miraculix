@@ -36,6 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define checking true
 #define INLINE inline
 
+
 #if defined DO_FLOAT
 #define real float
 #define Real Float
@@ -70,7 +71,45 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif // not DO_FLOAT
 
 
+int xxx = CodesPerBlock;
+
+//
 ALL_INLINER
+
+/*
+Uint xxxx() { return Blocks(5); }
+
+
+Uint inline *algn(int *X) {assert(algn_general(X, BytesPerBlock)>=(uintptr_t)X); return (Uint *) algn_general(X, BytesPerBlock); } 
+									
+
+Uint inline Blocks(Uint X) { printf("X=%d zzzCPB=%ld %ld %ld\n", X, CodesPerBlock, CodesPerUnit, UnitsPerBlock); return 1L + (X - 1L) / CodesPerBlock; } 
+
+Uint inline XBlocks(Uint X) { printf("X=%d aaaCPB=%ld %ld %ld\n", X, CodesPerBlock, CodesPerUnit, UnitsPerBlock); return 1L + (X - 1L) / CodesPerBlock; };
+
+//#define Units(snps) (Blocks(snps) * UnitsPerBlock)
+
+real inline *algnrl(real *X) {assert(algn_general(X, BytesPerBlock)>=(uintptr_t)X); return (real *)  algn_general(X, BytesPerBlock); } 
+ 
+Uint inline RealAlign(Uint X) { return BytesPerBlock / sizeof(real) + (1L +  (X - 1L) / CodesPerBlock) * CodesPerBlock; }
+
+
+//g++ -fno-omit-frame-pointer  -fsanitize=undefined,address -fno-omit-frame-pointer  -std=gnu++11 -I"/usr/local/lib/R/include" -DNDEBUG  -I"/home/schlather/R/x86_64-pc-linux-gnu-library/3.6/RandomFieldsUtils/include" -I/usr/local/include  -mavx  -fpic  -I/usr/lib/jvm/java-8-openjdk-amd64/include -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux/ -fno-omit-frame-pointer  -fsanitize=undefined,address -fno-omit-frame-pointer    -c xport_import.cc -o xport_import.o // i, 32, falsch!
+
+//g++ -I/usr/local/lib/R/include -I/usr/local/include -I/usr/lib/gcc/x86_64-linux-gnu/5/include/ -O2 -Wformat -Wformat-security -Wformat-y2k -Wuninitialized -Wall -Wextra -Wshadow -Wpointer-arith -pedantic -g -Wswitch-default  -fopenmp -fPIC -pthread -pipe -Wformat-overflow=2  -march=native -Wno-unused-variable -Wno-unused-function  -fno-omit-frame-pointer  -fsanitize=undefined,address -fno-omit-frame-pointer    -march=native -c miraculix/src/options.cc -o miraculix.CRAN/src/options.o // rr, 64 OK!
+
+// clang++  -std=gnu++11 -I"/usr/local/lib/R/include" -DNDEBUG  -I"/home/schlather/R/x86_64-pc-linux-gnu-library/3.6/RandomFieldsUtils/include" -I/usr/local/include -fopenmp -mavx  -fpic  -I/usr/lib/jvm/java-8-openjdk-amd64/include -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux/     -c options.cc -o options.o
+
+
+
+
+
+*/
+
+
+int yyy = CodesPerBlock;
+
+
 
 // [1 + (X - 1) / UnitsPerBlock] * UnitsPerBlock + (UnitsPerBlock - 1)
 // last part: to make finally sure that first used element of R-vector
@@ -610,11 +649,22 @@ SEXP vectorGeno(SEXP V, SEXP Z) {
   return(Ans);
 }
 
- 
+//entering genoVI CpB=64
+//X=39900 aaaCPB=64 16 4
+//snps=39900 CpB=64  blocks = 624 xxx=64 64
+
+//entering genoVI CpB=64
+//X=39900 zzzCPB=64 16 4
+//snps=39900 CpB=64  blocks = 624 xxx=64 64
+
+//entering genoVI CpB=64
+//X=39900 iii CPB=32 =  16 * 2
+//snps=39900 CpB=64  blocks = 1247 xxx=64 64
+
 
 void genoVectorIntern(BlockType0 *CM, double *V, Uint snps, Uint individuals,
 		      double *ans) {
-#if not defined ShuffleOK
+ #if not defined ShuffleOK
   ERR("snpcoding=Shuffle needs at least SSSE3.");
 #else
 
@@ -622,8 +672,12 @@ void genoVectorIntern(BlockType0 *CM, double *V, Uint snps, Uint individuals,
     //    genoVectorKahan(V, CM, snps, individuals, ans);
     // return;
   }
+  printf("entering genoVI CpB=%d\n", CodesPerBlock);
   Uint blocks = Blocks(snps),
     blocksM1 = blocks - 1;
+
+  printf("snps=%d CpB=%d  blocks = %d xxx=%d %d\n", snps,  CodesPerBlock,blocks,xxx, yyy); BUG;
+  
   double *end_ans = ans + snps;
   BlockType c,first2bits32;
   SET32(first2bits32, 0x00000003);
@@ -640,9 +694,22 @@ void genoVectorIntern(BlockType0 *CM, double *V, Uint snps, Uint individuals,
     for (Uint b=0; b<=blocksM1; b++) {
       // BlockType
       c = cm[b];
+
+      
       Uint endfor = b < blocksM1 ? CodesPerUnit
 		: (snps - blocksM1 * CodesPerBlock) / UnitsPerBlock;
       //      printf("endfor = %d blocksM1=%d upb=%d cp=%d\n", endfor, blocksM1, UnitsPerBlock, CodesPerUnit);
+
+
+      printf("snps=%d, blocksM1=%d endf=%d CpB=%d BpC=%d\n", snps, blocksM1, endfor, CodesPerBlock, BitsPerCode);
+#if defined AVX2
+      printf("AVX2\n");
+#else
+        printf("KEIN AVX2\n");    
+#endif 
+    
+	// a+=4 * endfor; continue; printf("Rd corrigier\n");
+
       for (Uint j=0; j<endfor; j++) {
 	BlockUnitType d;
 	AND(d VI, c, first2bits32);
@@ -683,6 +750,9 @@ __m256d _mm256_permute4x64_pd (__m256d a, const Rint imm8)
 
     BlockUnitType d;
     AND(d VI, c, first2bits32);
+
+    printf("end_ans - a = %ld %d \n", end_ans-a, UnitsPerBlock);
+    
     assert(end_ans >= a && end_ans - a < UnitsPerBlock);
     for(Uint k=0; a < end_ans; a++) {
       //   printf("%f %f\n", factor[d.u32[k]], factor[d.u32[k+4]]);

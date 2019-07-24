@@ -39,9 +39,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 #define INLINER								\
- Uint inline *algn(int *X) {assert(algn_general(X, BytesPerBlock)>=(uintptr_t)X); return (Uint *) algn_general(X, BytesPerBlock); } \
-  \
- Uint inline Blocks(Uint X) { return 1L + (X - 1L) / CodesPerBlock; } 
+  Uint inline *algn(int *X) {assert(algn_general(X, BytesPerBlock)>=(uintptr_t)X); return (Uint *) algn_general(X, BytesPerBlock); } \
+									\
+  Uint inline Blocks(Uint X) { printf("X=%u iii CPB=%ld =  %ld * %ld\n", X, CodesPerBlock, CodesPerUnit, UnitsPerBlock); return 1L + (X - 1L) / CodesPerBlock; } 
 
 #define Units(snps) (Blocks(snps) * UnitsPerBlock)
 

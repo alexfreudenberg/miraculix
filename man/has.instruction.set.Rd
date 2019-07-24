@@ -25,7 +25,7 @@ has.instruction.set(which=c("SSE2", "SSSE3",  "AVX", "AVX2"))
 \me
 
 \examples{
-  has.instruction.set("AVX2")
+%  has.instruction.set("AVX2")
 }
 
 %library(gtools); keywords()

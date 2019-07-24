@@ -56,6 +56,7 @@ zeroNthGeno(SNPxIndiv, snps)
 }
 
 \examples{ %   library(miraculix)
+if (FALSE) {
 require(RandomFieldsUtils)
 set.seed(0)
 
@@ -73,7 +74,7 @@ N <- sample(snps, snps / 4)
 Z1 <- as.matrix(CM, snps=N)
 stopifnot(all(M[N, ] == Z1))
 
-
+}
 }
 
 \keyword{misc}

@@ -92,6 +92,7 @@ compute(population, gen, sex, nr, tau, vec, betahat, select = NULL,
 \me
 
 \examples{
+if (FALSE) {
 set.seed(0)
 n <- sample(1000, 1)
 M <- cbind(sample(1:2^6, n, replace=TRUE),
@@ -104,6 +105,7 @@ print(head(CM))
 Z <- matrix(NA, ncol=ncol(M), nrow=nrow(M))
 for (i in 1:nrow(M))  Z[i, ] <- decodeOrigins(CM, i)
 stopifnot(all(M == Z))
+}
 }
 
 \keyword{misc}

@@ -128,6 +128,7 @@ genomicmatrix(snps, individuals, file.type,
 }
 
 \examples{
+if (FALSE) {
 set.seed(0)  
 snps <- 100
 indiv <- 10
@@ -148,7 +149,7 @@ if (interactive() && !file.exists(paste0(file, "bgl")) ) {
   Print(object.size(G), object.size(g)) ## g needs much more memory
   file.remove(f)
 }
-
+}
 
 }
 

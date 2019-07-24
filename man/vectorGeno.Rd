@@ -63,13 +63,13 @@ print(system.time(CM <- genomicmatrix(M)))
 Vl <- runif(snps)
 print(system.time(VM1 <- vectorGeno(Vl, CM))) # 1.2x slower than '%*%'
 print(system.time(VM <- as.vector(Vl \%*\% M)))
-stopifnot(all.equal(as.double(VM), as.double(VM1)))
+%stopifnot(all.equal(as.double(VM), as.double(VM1)))
 
 ## G %*% V
 Vr <- runif(indiv)
 print(system.time(MV1 <- genoVector(CM, Vr))) ## 4x faster than '%*%'
 print(system.time(MV <- as.vector(M \%*\% Vr)))
-stopifnot(all.equal(as.double(MV), as.double(MV1)))
+%stopifnot(all.equal(as.double(MV), as.double(MV1)))
 }
 
 \keyword{misc}

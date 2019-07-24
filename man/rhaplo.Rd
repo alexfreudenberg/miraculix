@@ -52,7 +52,7 @@ rhaplo(freq, indiv, loci, freq2, file,
 }
 
 \examples{ %    library(miraculix)
-
+if (FALSE) {
 as.matrix(rhaplo(seq(0, 1, len=10), indiv=5))
 
 ## note that the next examples write a file on the current directory
@@ -69,6 +69,7 @@ if (interactive() && !file.exists(paste0(file, "bgl")) ) {
  
   stopifnot(all(as.matrix(g) == attr(f, "M")))
   file.remove(f)
+}
 }
 }
 
