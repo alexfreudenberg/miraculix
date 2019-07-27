@@ -73,11 +73,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int xxx = CodesPerBlock;
 
-//
-ALL_INLINER
 
-/*
-Uint xxxx() { return Blocks(5); }
+//ALL_INLINER
+
+//Uint xxxx() { return Blocks(5); }
 
 
 Uint inline *algn(int *X) {assert(algn_general(X, BytesPerBlock)>=(uintptr_t)X); return (Uint *) algn_general(X, BytesPerBlock); } 
@@ -104,7 +103,6 @@ Uint inline RealAlign(Uint X) { return BytesPerBlock / sizeof(real) + (1L +  (X 
 
 
 
-*/
 
 
 int yyy = CodesPerBlock;

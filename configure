@@ -1697,7 +1697,7 @@ esac
 
 if test KNOWN_COMPILER ; then
 if test $USE_FLAGS = true ; then
-  CXX_FLAGS="-O2 -march=native $CXX_FLAGS"
+  CXX_FLAGS="-O2 -march=native -fsanitize=undefined,address $CXX_FLAGS"
 else
   CXX_FLAGS="-mavx $CXX_FLAGS"
 fi
