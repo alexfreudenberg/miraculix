@@ -1,4 +1,4 @@
-# Master thesis software
+# miraculix
 This repository contains open source code for the master thesis 'Statistical Methods for Ultra-High Dimensional Data in Genetics' submitted on 31st of March 2021. 
 
 ## Requirements
