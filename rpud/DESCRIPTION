@@ -1,0 +1,10 @@
+Package: rgpu
+Type: Package
+Title: MVP for a GPU accelerated linear algebra
+Version: 1.0
+Date: 2021-31-03
+Author: Alexander Freudenberg
+Maintainer: Alexander Freudenberg <afreuden@mail.uni-mannheim.de>
+Description: Provides an interface to R users for matrix calculations on a GPU. Needs to be compiled with configure-args="USE_GPU=yes"
+License: GPL (>= 3)
+NeedsCompilation: yes

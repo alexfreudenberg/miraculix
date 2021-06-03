@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo avx is included by Makevars.win
+

@@ -1,0 +1,61 @@
+NVCC=@CUDA_HOME@/bin/nvcc
+R_PATH=@R_LIB@
+CUTLASS_PATH=@CUTLASS_PATH@
+
+cc_sources = $(wildcard *.cc)
+cu_sources = $(wildcard *.cu)
+c_sources = $(wildcard *.c)
+sources = $(cc_sources) $(cu_sources) $(c_sources)
+
+cc_sharedlibs = $(patsubst %.cc, %.o, $(cc_sources))
+cu_sharedlibs = $(patsubst %.cu, %.o, $(cu_sources))
+c_sharedlibs = $(patsubst %.c, %.o, $(c_sources))
+sharedlibs = $(cc_sharedlibs) $(c_sharedlibs)
+
+ifeq (@CUDA_INSTALLED@,true)
+CUDA_LINKS = -L@CUDA_HOME@/lib64 -lcudart -lcublas -lcusolver
+sharedlibs = $(cc_sharedlibs) $(c_sharedlibs) $(cu_sharedlibs)
+endif
+
+PKG_LIBS =  $(LAPACK_LIBS) $(BLAS_LIBS)  $(SHLIB_OPENMP_CXXFLAGS) $(FLIBS) $(CUDA_LINKS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) @MIRACULIX_CXXFLAGS@ 
+
+
+all: $(SHLIB) clean
+
+
+OBJECTS = $(sharedlibs)
+
+%.o: %.cu
+	$(NVCC) -std=c++14 -Xcompiler -fopenmp --gpu-architecture sm_75 --expt-extended-lambda\
+	 $(CLINK_CPPFLAGS) -I $(R_INCLUDE_DIR) -I@CUDA_HOME@/include -I$(CUTLASS_PATH)/include -I$(CUTLASS_PATH)/tools/util/include -Xcompiler -fpic\
+	    -DCUTLASS_NVCC_ARCHS=75 -DTHRUST_DEBUG -DUSEGPU \
+	   -g -x cu -c $< -o $@ 
+
+# For an explanation of CLINK_CPPFLAGS see
+# https://stackoverflow.com/questions/45513058/what-does-linkingto-do-in-an-r-package
+# There is apparently not other way to determine the location of RandomFieldsUtils
+
+clean:
+	rm -r -f  mmagpu.o Makevars
+
+.PHONY: all clean
+
+#######################################################################
+#	Legacy
+#
+#all: miraculix.so $(sharedlibs)
+#	$(NVCC) -shared -L$(R_PATH)/lib -L/usr/local/lib64 -o miraculix.so $(sharedlibs)\
+#	 -L$(R_PATH)/lib -Xcompiler "$(PKG_LIBS)" -L$(R_PATH)/lib  -Xcompiler -fopenmp -lgfortran -lm -lquadmath\
+#	  -L$(R_PATH)/lib -lR -L/usr/local/cuda/lib64 -lcusolver -lcudart -lcublas
+#%.o: %.c
+#	$(NVCC) -O1 -std=c++11 -Xcompiler -fopenmp -I"$(R_INCLUDE_DIR)"\
+#	 -I"$(R_LIBS_USER)/RandomFieldsUtils/include"\
+#	  -I"$(R_LIBS_USER)/Rcpp/include/" -I/usr/local/include\
+#	   -I$(CUTLASS_PATH)/include/ -I$(CUTLASS_PATH)/tools/util/include -Xcompiler\
+#	   -Xcompiler -fpic -Xcompiler "@MIRACULIX_CXXFLAGS@" -g -c $< -o $@
+#%.o: %.cc
+#	$(NVCC) -O1 -std=c++11 -Xcompiler -fopenmp -I"$(R_INCLUDE_DIR)"\
+#	 -I"$(R_LIBS_USER)/RandomFieldsUtils/include" -I"$(R_LIBS_USER)/Rcpp/include/"\
+#	  -I/usr/local/include -I$(CUTLASS_PATH)/include -I$(CUTLASS_PATH)/tools/util/include -Xcompiler -fpic\
+#	   -Xcompiler "@MIRACULIX_CXXFLAGS@" -g -c $< -o $@

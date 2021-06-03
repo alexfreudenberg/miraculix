@@ -1,0 +1,42 @@
+# Paths of installation
+NVCC=@CUDA_HOME@/bin/nvcc
+
+
+# Target architectures
+# 86 is not yet supported by CUDA 11.0 
+archs= 61 70 75 80 
+arch_flags=$(foreach i,$(archs),--generate-code arch=compute_$(i),code=sm_$(i))
+arch_nums=$(subst $() $(),;,$(archs))
+
+
+#Suffixes to compile
+#suffixes= c cc f
+#ifeq (@CUDA_INSTALLED@,true)
+#suffixes += cu
+#endif
+#OBJECTS=$(foreach sfix, $(suffixes), $(patsubst %.$(sfix),%.o,$(shell ls *.$(sfix))))
+
+OBJECTS=zzz.o  AutoRandomFieldsUtils.o RFoptions.o beskf.o brdomain.o kleinkram.o linear.o maths.o options.o scalar.o solve.o sort.o utils.o win_linux_aux.o xport_import.o  bckslvmodified.o cholmodified.o spamown.o @MY_OWN_CU_FILES@  
+
+$(info  $(OBJECTS))
+
+# Flags for compilation and linkage
+PKG_LIBS =  $(LAPACK_LIBS) $(BLAS_LIBS)  $(SHLIB_OPENMP_CXXFLAGS) @MY_OWN_LIBFLAGS@ $(FLIBS) @CUDA_LINKS@
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) @MY_OWN_CXXFLAGS@  
+
+# Final compilation 
+all: $(SHLIB) clean
+
+
+# Details of CUDA compilation
+%.o: %.cu
+	$(NVCC) -std=c++11 -Xcompiler -fopenmp $(arch_flags) --expt-extended-lambda\
+	 $(CLINK_CPPFLAGS) -I $(R_INCLUDE_DIR) -I@CUDA_HOME@/include  -Xcompiler -fpic\
+	      -DUSEGPU \
+	   -g -x cu -c $< -o $@ 
+
+# Clean-up rules
+clean:
+	rm -r -f so*.o Makevars
+
+.PHONY: all clean

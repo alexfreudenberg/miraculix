@@ -1,0 +1,41 @@
+NVCC=@CUDA_HOME@/bin/nvcc
+R_PATH=@R_LIB@
+
+# Suffixes to compile
+suffixes= c cc f
+
+# Target architectures
+# for whatever reason 86 is not yet supported by CUDA 11.0 
+archs= 75 
+arch_flags=$(foreach i,$(archs),--generate-code arch=compute_$(i),code=sm_$(i))
+arch_nums=$(subst $() $(),;,$(archs))
+
+# Append if CUDA is active
+ifeq (@CUDA_INSTALLED@,true)
+CUDA_LINKS = -L@CUDA_HOME@/lib64 -lcudart -lcublas -lcusolver -lcusolverMg
+suffixes+= cu
+endif
+PKG_LIBS =  $(LAPACK_LIBS) $(BLAS_LIBS)  $(SHLIB_OPENMP_CXXFLAGS) $(FLIBS) $(CUDA_LINKS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) 
+
+
+all: $(SHLIB) clean
+
+OBJECTS=$(foreach sfix, $(suffixes), $(patsubst %.$(sfix),%.o,$(shell ls *.$(sfix))))
+
+# Details of CUDA compilation
+%.o: %.cu
+	$(NVCC) -std=c++14 -Xcompiler -fopenmp $(arch_flags) --expt-extended-lambda\
+	 $(CLINK_CPPFLAGS) -I $(R_INCLUDE_DIR) -I@CUDA_HOME@/include -I$(CUTLASS_PATH)/include -I$(CUTLASS_PATH)/tools/util/include -Xcompiler -fpic\
+	    -DCUTLASS_NVCC_ARCHS='$(arch_nums)' -DTHRUST_DEBUG -DUSEGPU \
+	   -g -x cu -c $< -o $@ 
+
+# For an explanation of CLINK_CPPFLAGS see
+# https://stackoverflow.com/questions/45513058/what-does-linkingto-do-in-an-r-package
+# There is apparently not other way to determine the location of RandomFieldsUtils
+
+clean:
+	rm -r -f  *.o Makevars
+
+.PHONY: all clean
+

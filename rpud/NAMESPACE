@@ -1,0 +1,4 @@
+export(cu_matmul)
+#export(access_pointer)
+export(solve_large)
+useDynLib(rgpu, .registration =TRUE, .fixes = "C_")
