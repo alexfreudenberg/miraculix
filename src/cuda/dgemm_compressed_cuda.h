@@ -59,6 +59,10 @@
 #include "cutlass/numeric_types.h"
 #include "cutlass/subbyte_reference.h"
 
+// This structure is used to handle a GPU object for genotype matrix
+// multiplication. It contains genotype matrix data and allocated device memory
+// to which double-precision matrices will be transferred.
+
 struct GPU_gemm_storage {
   uint8_t *d_plink; // Pointer to device copy of SNP matrix in plink format
   uint8_t *d_plink_transposed; // Pointer to device copy ot transposed SNP
@@ -74,6 +78,8 @@ struct GPU_gemm_storage {
   int device;     // Device to perform the operations on
 };
 
+// Function declarations
+
 int plink2gpu(char *plink, char *plink_transposed, int snps,
               int indiv, double *f, int n, void **GPU_obj);
 int dgemm_compressed_gpu(bool transa, void *GPU_obj, int n, double *B, int ldb,
@@ -81,6 +87,11 @@ int dgemm_compressed_gpu(bool transa, void *GPU_obj, int n, double *B, int ldb,
 int freegpu(void **GPU_obj);
 
 
+// Below we augment the cutlass namespace with templates for
+// genotype matrix multiplication
+
+// This part adds a packed_double data structure which contains four
+// double-precision floating point values
 namespace cutlass {
 
     template <int N>
@@ -191,6 +202,9 @@ namespace cutlass {
 
 } // namespace cutlass
 
+// This structure adds a mixed-input datatype matrix multiplication microkernel
+// of 2-bit integers and double-precision floats to the cutlass namespace
+
 namespace cutlass {
 namespace arch {
 
@@ -211,7 +225,9 @@ namespace arch {
         using Operator = OpMultiplyAdd;
         using ElementC = double;
 
-        /// Computes multiply-add
+        // This implementation of the microkernel probably isn't the most
+        // efficient but tests showed that the GEMM operations is bound by data
+        // transfers at the moment anyway
         CUTLASS_HOST_DEVICE
         void operator()(
             Array<double, 1>& d,
@@ -219,28 +235,13 @@ namespace arch {
             Array<cutlass::u4f64_t, 1> const& b,
             Array<double, 1> const& c)
         {
-
-            // uint8_t const* a8 = reinterpret_cast<uint8_t const*>(&a);
-            // if (thread0())
-            //     printf("%hu ", a8[0]);
-            // uint8_t mask = 0x03;
-            // uint8_t tmp = a8[0] & mask;
-            // d[0] = ((double)tmp) * b[3] + c[0];
-            // tmp = (a8[0] >> 2) & mask;
-            // d[0] += ((double)tmp) * b[2];
-            // tmp = (a8[0] >> 4) & mask;
-            // d[0] += ((double)tmp) * b[1];
-            // tmp = (a8[0] >> 6) & mask;
-            // d[0] += ((double)tmp) * b[0];
-
-           int8_t tmp;
+            int8_t tmp;
             d[0] = c[0];
-            for (int i = 0; i < 4; i++){
-               tmp = ((a[0] >> (2 * i)) & 0x3);
+            for (int i = 0; i < 4; i++) {
+                tmp = ((a[0] >> (2 * i)) & 0x3);
 #ifndef NOPLINK
-               tmp = max(tmp - 1, 0); // Convert PLINK format to 0,1,2
-#endif          
-                // printf("%d ", tmp);
+                tmp = max(tmp - 1, 0); // Convert PLINK format to 0,1,2
+#endif
                 d[0] += double(tmp) * b[0].storage[i];
             }
         }
@@ -250,8 +251,9 @@ namespace arch {
 
 } // namespace cutlass
 
-// The following part consists of specializations for a number of templates in the GEMM structure of cutlass
-// The specializations are adapted to the new data format but are very similar to the ones in cutlass apart from that
+// The following part consists of specializations for a number of templates in
+// the GEMM structure of cutlass The specializations are adapted to the new data
+// format but are otherwise very similar to the ones in cutlass
 namespace cutlass {
 namespace gemm {
 

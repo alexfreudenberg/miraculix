@@ -6,12 +6,12 @@ using BenchmarkTools
 using DataFrames
 using ProgressBars
 using CSV
-using TimerOutputs
 using Libdl
 using CUDA
 using Random
 CUDA.set_runtime_version!("local")
 
+#TODO: Disentagle this file
 
 sparse_solve = function (V::Vector{Float64}, I_vec::Vector{Int}, J_vec::Vector{Int}, sp_nnz::Int, m::Int, B::Matrix{Float64})
 	#
@@ -29,6 +29,15 @@ sparse_solve = function (V::Vector{Float64}, I_vec::Vector{Int}, J_vec::Vector{I
 	# Returns
 	# X::Matrix{Float64}: The solution matrix X for the linear system A * X = B.
 	#
+
+
+
+	# Open shared library and define references to its symbols
+	REP_FOLDER = ENV["PWD"];
+	lib = dlopen(REP_FOLDER * "/src/solve_gpu.so")
+	sparse_init_sym = dlsym(lib, :sparse2gpu)
+	sparse_solve_sym = dlsym(lib, :dcsrtrsv_solve)
+	sparse_destroy_sym = dlsym(lib, :freegpu_sparse)
 
 	# Auxiliary structures for C functions
 	X = similar(B)
@@ -66,34 +75,7 @@ sparse_solve = function (V::Vector{Float64}, I_vec::Vector{Int}, J_vec::Vector{I
 	return X
 end
 
-# Open shared library and define references to its symbols
-REP_FOLDER = ENV["HOME"] * "/GitHub/miraculix.jl";
-lib = dlopen(REP_FOLDER * "/src/solve_gpu.so")
-sparse_init_sym = dlsym(lib, :sparse2gpu)
-sparse_solve_sym = dlsym(lib, :dcsrtrsv_solve)
-sparse_destroy_sym = dlsym(lib, :freegpu_sparse)
 
-
-
-#  I have prepared an exemplary sparse matrix file there. 
-println("Reading pedigree")
-pedigree_file = REP_FOLDER * "/data/pedigree_IJV.csv"
-pedigree_file_ICBF = REP_FOLDER * "/data/A11.dat_chol"
-# df_IJV = CSV.read(pedigree_file, DataFrame)
-df_IJV = readdlm(pedigree_file_ICBF, ' ', Float64, '\n', use_mmap=true, dims = (589952160,3))
-sp_nnz = length(df_IJV[:,1])
-m = Int64(maximum(df_IJV[:,1]))
-ncol_B = 12
-B = randn((m, ncol_B))
-I_vec, J_vec, V =  Vector{Int64}(df_IJV[:,2]), Vector{Int64}(df_IJV[:,1]), Vector{Float64}(df_IJV[:,3])
-
-X = sparse_solve(V, I_vec, J_vec, sp_nnz, m, B)
-
-S = sparse(I_vec, J_vec, V, m, m)
-deviation = sum(abs.(S * (transpose(S) * X) - B))
-println("Deviation ", deviation)
-
-@assert false
 # I test the function on three matrices of varying sizes and structure - these are set-up here
 println("Setting test matrices")
 L_anc = sparse(df_IJV.I, df_IJV.J, df_IJV.V, maximum(df_IJV.J), maximum(df_IJV.J))
