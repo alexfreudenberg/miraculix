@@ -1,6 +1,6 @@
 !  Authors 
-!  Original code: Jeremie Vandenplas
-!  Modified by Alexander Freudenberg, alexander.freudenberg@stads.de
+!  Jeremie Vandenplas, jeremie.vandenplas@wur.nl
+!  Alexander Freudenberg, alexander.freudenberg@stads.de
 !  Copyright (C) 2022-2023 Jeremie Vandenplas, Alexander Freudenberg
 
 !  Licensed under the Apache License, Version 2.0 (the "License");

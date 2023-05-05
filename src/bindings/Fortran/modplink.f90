@@ -1,4 +1,10 @@
-!License: MiXBLUP
+! License: MiXBLUP
+!
+! Authors 
+! Jeremie Vandenplas, jeremie.vandenplas@wur.nl
+!
+! Copyright (C) 2022-2023 Jermie Vandenplas
+!
 
 module modplink
  use, intrinsic:: iso_fortran_env, only:int8, int32, real32, real64

@@ -1,4 +1,11 @@
-!License: MiXBLUP
+! License: MiXBLUP
+!
+! Authors 
+! Jeremie Vandenplas, jeremie.vandenplas@wur.nl
+!
+! Copyright (C) 2022-2023 Jermie Vandenplas
+!
+
 
 module mod5codesapi
  use, intrinsic:: iso_c_binding, only: c_char, c_int, c_double, c_ptr
