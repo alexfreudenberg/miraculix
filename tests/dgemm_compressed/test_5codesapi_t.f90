@@ -156,7 +156,6 @@ program test_5codesAPI_t
  !Start repetition
  if(.not.lcenter)freq = 0._real64
  !$ c_ttot = 0
- !$ f_ttot = 0
  !$ ttot = 0
  err = 0
 

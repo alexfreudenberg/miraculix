@@ -17,7 +17,7 @@ else ifeq ($(COMPILER), intel)
 
 endif
 
-SRC_DIR=$(PWD)/../src
+SRC_DIR=$(PWD)/../../src
 FFLAGS+=-I$(SRC_DIR)/bindings/Fortran
 LDFLAGS+=-L$(SRC_DIR)/miraculix -L$(SRC_DIR)/bindings/Fortran -L$(SRC_DIR)/cuda
 LDFLAGS+= -Wl,-rpath=$(SRC_DIR)/miraculix -Wl,-rpath=$(SRC_DIR)/bindings/Fortran -Wl,-rpath=$(SRC_DIR)/cuda 
