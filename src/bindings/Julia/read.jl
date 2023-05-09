@@ -1,7 +1,19 @@
-#
-#   This file implements a read function for plink binary files (.bed)
-#   The data is subsequently converted to a miraculix TwoBit storage format
-# 
+#  Authors 
+#  Alexander Freudenberg, alexander.freudenberg@stads.de
+
+#  Copyright (C) 2022-2023 Alexander Freudenberg
+
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
 
 # 
@@ -11,7 +23,6 @@
 using Base;
 const TYPE = UInt128;
 
-file = "/Users/alex/Downloads/plink_mac_20220402/plink.bed"
 
 module read
 
