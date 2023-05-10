@@ -95,38 +95,30 @@ void plink2compressed(char *plink,
   return; 
 }
 
-
-void dgemm_compressed(char* trans, // 'N', 'T'                     //JV: would be easier if the value was passed instead of the pointer
+void dgemm_compressed(char *trans, // 'N', 'T'
                       void *compressed,
-		      int n, // number of columns of the matrix B 
-		      //		      double *f,
-		      double *B,                                  //JV: should it be transposed?
-		      int Ldb,    //how should it be size_t ldb
-                      double *C,
-		      int Ldc) {
-  //   printf("%c %d %d %d \n", *trans, n, Ldb, Ldc);
-  //exit(99);
-  
-  if (is(trans)) genoVector5api(compressed, B, n, Ldb, C, Ldc);
-  else vectorGeno5api(compressed, B, n, Ldb,C, Ldc); 
+                      int n, // number of columns of the matrix B
+                      double *B,	
+                      int Ldb, // how should it be size_t ldb
+                      double *C, int Ldc) {
+
+  if (is(trans))
+    genoVector5api(compressed, B, n, Ldb, C, Ldc);
+  else
+    vectorGeno5api(compressed, B, n, Ldb, C, Ldc);
   return;
 }
 
-
-
-void dgemm_plink(char* trans, // 'N', 'T'                     //JV: would be easier if the value was passed instead of the pointer
+void dgemm_plink(char* trans, // 'N', 'T'                     
 		 char *plink,      // first all indiv of one snp
 		 char *plink_transposed,// first all snps of one indiv
 		 int snps, int indiv,
 		 double *f, 
 		 int n, // number of columns of the matrix B 
-		 //		      double *f,
-		 double *B,                                  //JV: should it be transposed?
+		 double *B,                               
 		 int Ldb,    //how should it be size_t ldb
 		 double *C,
 		 int Ldc) {
-  //   printf("%c %d %d %d \n", *trans, n, Ldb, Ldc);
-  //exit(99);
   
   if (is(trans)) {
     int tmp = snps; snps=indiv; indiv=tmp;

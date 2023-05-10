@@ -42,7 +42,7 @@ standalone: $(CUSTANDALONE)
 	$(NVCC) -Xcompiler -w -DSTANDALONE  $(CXXFLAGS) $(LIBS) $^ -o ./main.o
 
 .PHONY: libdgemm
-libdgemm:
+libmiraculixGPU:
 	cd cuda && make lib
 
 .PHONY: libfortran
