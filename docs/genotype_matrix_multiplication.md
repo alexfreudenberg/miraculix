@@ -1,5 +1,5 @@
 # Genotype Matrix Multiplication 
-The genotype matrix multiplication functionality is exposed through the [5codesAPI](./src/miraculix/5codesAPI.c). Here, we provide a brief overview of the interface:
+The genotype matrix multiplication functionality is exposed through the [5codesAPI](../src/miraculix/5codesAPI.c). Here, we provide a brief overview of the interface:
 
 ```{C}
 // Options function steering the execution of the matrix multiplication
