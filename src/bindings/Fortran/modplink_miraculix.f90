@@ -6,7 +6,7 @@
 ! Copyright (C) 2022-2023 Jermie Vandenplas
 !
 
-module modplink
+module modplink_miraculix
  use, intrinsic:: iso_fortran_env, only:int8, int32, real32, real64
  !$ use omp_lib
  implicit none!(type, external)

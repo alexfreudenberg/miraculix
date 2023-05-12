@@ -52,3 +52,4 @@ libfortran:
 .PHONY: clean
 clean:
 	$(RM) $(OBJECTS) $(CUOBJECTS) *.a *.out *.o 
+	$(RM) miraculix/*.o miraculix/*.a

@@ -26,27 +26,23 @@ LINK=$(FORTRAN)
 
 SRC = \
       mod5codesapi.f90 \
-      modplink.f90 \
+      modplink_miraculix.f90 \
       modtestplink.f90
 
 OBJ = $(SRC:.f90=.o)
 MODS = $(OBJ:.o=.mod)
 
 LIB = libfortran.a
-EXE = test_5codesapi
-EXET = test_5codesapi_t
-
 
 lib: $(LIB)
 
 $(LIB): $(OBJ)
 	ar cr $@ $(OBJ)
 
-
 %.o: %.f90
 	$(FORTRAN) $(FFLAGS) -c $<
 
 clean:
-	$(RM) $(OBJ) $(MODS) $(LIB) $(EXE) $(EXET) $(ALL) *.optrpt
+	$(RM) $(OBJ) $(MODS) $(LIB) $(ALL) *.optrpt
 
 .PHONY: clean lib

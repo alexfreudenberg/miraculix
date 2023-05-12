@@ -28,8 +28,8 @@ program benchmark
                          , c_get_freq => c_get_compressed_freq&
                          , c_setOptions_compressed
  use modtestplink, only: tgeno
- use modplink, only: dgemm_compressed, transpose_integermatrix
- use modplink, only: allelefreq
+ use modplink_miraculix, only: dgemm_compressed, transpose_integermatrix
+ use modplink_miraculix, only: allelefreq
  !$ use omp_lib
  implicit none
 
