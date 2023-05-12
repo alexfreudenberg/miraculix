@@ -57,7 +57,20 @@ Preprocess SNP data and store it in a separate object.
 ```{Fortran}
 call c_plink2compressed(c_plinkbed, c_plinkbed_transposed, c_snps, c_indiv, c_f, c_ncol, c_compressed)
 ```
-We 
+The `c_plinkbed` and `c_plinkbed_transposed` hold the SNP data in [PLINK bed](https://www.cog-genomics.org/plink/1.9/formats#bed) format truncated by the header bytes. The number of SNPs and individuals in the dataset is supplied through `c_snps` and `c_indiv`. Allele frequencies can be supplied through the `c_f` pointer - this can be useful when using frequencies that differ from the SNP data. The `c_ncol` parameter is used for the GPU implementation: It indicates the maximum number of columns with which the `dgemm_compressed` routine will be called. The `c_compressed` parameter holds a pointer to a pointer, in which the preprocessed data storage object will be stored. 
+
+**Computation**
+Calculate the genotype matrix multiplication.
+```{Fortran}
+call c_dgemm_compressed('n', c_compressed, c_ncol, c_B, c_snps, c_C, c_indiv)
+```
+In this example, we calculate the untransposed (hence 'n') genotype matrix times a real-valued matrix in double precision stored in `c_B`.  
+
+**Destroy**
+Free allocated memory.
+```{Fortran}
+call c_free_compressed(c_compressed)
+```
 
 ## Citation
 If you decide to use this repository for your scientific work, please consider citing it.
