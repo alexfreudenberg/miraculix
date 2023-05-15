@@ -21,7 +21,6 @@
 #
 
 using Base;
-const TYPE = UInt128;
 
 
 module read
@@ -53,7 +52,7 @@ function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::M
     if ~isfile(replace(file, ".bed" => ".fam")) | ~isfile(replace(file,".bed" => ".bim"))
         error("Missing supplementary file .fam or .bim")
     end
-    const TYPESIZE = sizeof(T) * 8;
+    const TYPESIZE = sizeof(UInt8) * 8;
 
 
     io = open(file, "r");
@@ -71,7 +70,7 @@ function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::M
 
     if snpmajor
         n_row = Int(ceil(2 * n_snps/ TYPESIZE));
-        result = zeros(T, (n_row, n_indiv));
+        result = zeros(UInt8, (n_row, n_indiv));
 
         if coding == "TwoBit"
             # Read bed file - this throws an error if too small
@@ -85,7 +84,7 @@ function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::M
             # Conversion to TwoBit format
             @inbounds for i = 1:n_row, j = 1:n_indiv
                 index_str = bitstring(result[i,j]);
-                new_entry = T(0);
+                new_entry = UInt8(0);
                 @inbounds for substr_index = 1:2:TYPESIZE
                     new_entry <<= 2;
                     substr = index_str[substr_index : (substr_index +1)];
@@ -103,9 +102,9 @@ function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::M
             
         else
             error("Not implemented yet")
-        end
+        end # coding
         
-    end
+    end # snpmajor
 
 
 end #function
