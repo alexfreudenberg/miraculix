@@ -26,7 +26,26 @@ const TYPE = UInt128;
 
 module read
 
-function read_bed(::Type{T}, file::String, coding::String="TwoBit", snpmajor::Bool=true)::T where{T}
+"""
+    read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{Int32}
+
+Reads a PLINK .bed binary file and stores the compressed genotype data in a single-precision integer matrix. 
+
+# Arguments
+- `file`: A string representing the path of the .bed file to read. It is expected that supplementary .bim and .fam files are present at the same location with the same base name as the .bed file.
+- `coding`: A string specifying the storage format of the genotype data. Default value is "TwoBit". 
+- `snpmajor`: A boolean value to determine if the stored matrix should be transposed. If true, the matrix is transposed. Default value is true.
+
+The .bed file is a primary representation of genotype calls at biallelic variants, see https://www.cog-genomics.org/plink/1.9/formats#bed. It must be accompanied by .bim and .fam files. The first three bytes should be 0x6c, 0x1b, and 0x01 in that order. The rest of the file is a sequence of V blocks of N/4 (rounded up) bytes each, where V is the number of variants and N is the number of samples. Each block corresponds to a marker in the .bim file, with the low-order two bits of a block's first byte storing the first sample's genotype code, the next two bits storing the second sample's code, and so on.
+
+# Returns
+- A single-precision integer matrix (`Matrix{Int32}`) holding the genotype data from the .bed file in compressed format.
+
+# Exceptions
+- Throws an error if the .bed file or its supplementary .bim and .fam files do not exist or cannot be read.
+- Throws an error if the .bed file does not follow the specified format.
+"""
+function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{UInt8}
 
     if ~endswith(file,".bed")
         error("File not in .bed format")
