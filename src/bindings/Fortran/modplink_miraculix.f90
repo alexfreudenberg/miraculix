@@ -118,7 +118,7 @@ subroutine plinkbedr_r8(namefile,geno,nids,nsnps,lfreq)
     if(io.ne.0)then
      write(*,'(a)')&
        'There is an issue during reading the Plink file.'// &
-       'modplink '// &
+       'modplink_miraculix '// &
        'plinkbedr_r8 ('//value2char(__LINE__)//')'
      error stop io
     endif
@@ -138,7 +138,7 @@ subroutine plinkbedr_r8(namefile,geno,nids,nsnps,lfreq)
  else
   write(*,'(a)')&
     'It is not a SNP-major bed file of plink!'// &
-    'modplink '// &
+    'modplink_miraculix '// &
     'plinkbedr_r8 ('//value2char(__LINE__)//')'
   close(un)
   error stop
