@@ -32,27 +32,16 @@ include(MODULE_PATH)
 
 miraculix.dgemm_compressed.set_library_path(LIBRARY_PATH)
 miraculix.dgemm_compressed.load_shared_library()
-miraculix.dgemm_compressed.set_options(use_gpu=true)
+miraculix.dgemm_compressed.set_options(use_gpu=false)
 
 genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE)
 freq = miraculix.read_plink.read_freq(FREQ_FILE)
 
 
+obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data, n_snps, n_indiv, freq, 10)
 
-# obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data, n_snps, n_indiv, freq, 10)
-# error("success")
+n_col = 10
+B = randn(Float64, n_indiv, n_col)
 
-init_sym = dlsym(miraculix.dgemm_compressed.LIBRARY_HANDLE[], :plink2compressed)
-using LinearAlgebra
-
-# Define your inputs
-plink =  rand(Char, 100, 100)  # replace with your actual data
-plink_transposed = plink # transpose(plink)
-snps = size(plink, 1) 
-indiv = size(plink, 2) * 4
-f = rand(snps)  # replace with your actual data
-max_n = 10  # replace with your actual data
-compressed = Ref{Ptr{Cvoid}}(C_NULL)
-ccall(init_sym, Cvoid, 
-      (Ptr{Char}, Ptr{Char}, Cint, Cint, Ptr{Float64}, Cint, Ptr{Ptr{Cvoid}}), 
-      plink, plink_transposed, snps, indiv, f, max_n, compressed)
+C = miraculix.dgemm_compressed.dgemm_compressed_func(false, obj_ref, B, n_indiv, n_snps)
+print(C)

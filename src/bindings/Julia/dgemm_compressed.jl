@@ -74,5 +74,20 @@ function init_compressed(plink::Matrix{UInt8}, snps::Int, indiv::Int, freq::Vect
     return obj_ref
 end
 
+function dgemm_compressed_func(transpose::Bool, obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, indiv::Int, snps::Int)
+    trans = transpose ? 'T' : 'N'
+    
+    n_row = size(B, 1)
+    n_col = size(B, 2)
+    C = zeros(Float64, transpose ? snps : indiv, n_col)
+
+    dgemm_compressed_sym = dlsym(LIBRARY_HANDLE[], :dgemm_compressed)
+    ccall(dgemm_compressed_sym, Cvoid, 
+        (Ptr{Char}, Ptr{Cvoid}, Int32, Ptr{Float64}, Int32, Ptr{Float64}, Int32),
+        Ref(trans), obj_ref[], n_col, B, n_row, C, size(C,1))
+    
+    return C
+end
+
 
 end #module 
