@@ -20,10 +20,12 @@
 #   TODOs: OneBit conversion, multithreading 
 #
 
-using Base;
 
 
 module read_plink
+
+using Base;
+using DelimitedFiles
 
 """
     read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{Int32}
@@ -44,7 +46,7 @@ The .bed file is a primary representation of genotype calls at biallelic variant
 - Throws an error if the .bed file or its supplementary .bim and .fam files do not exist or cannot be read.
 - Throws an error if the .bed file does not follow the specified format.
 """
-function readbed(file::String, coding_twobit::Bool=false, snpmajor::Bool=true)::Matrix{UInt8}
+function read_bed(file::String, coding_twobit::Bool=false, snpmajor::Bool=true)
 
     if ~endswith(file,".bed")
         error("File not in .bed format")
@@ -66,15 +68,15 @@ function readbed(file::String, coding_twobit::Bool=false, snpmajor::Bool=true)::
     bim_contents = read(replace(file, ".bed" => ".bim"), String);
     n_indiv = eachmatch(r"(\n)", fam_contents) |> collect |> length;
     n_snps = eachmatch(r"(\n)", bim_contents) |> collect |> length;
-    n_bytes_per_row = Int(ceil(n_indiv/4));
+    n_bytes_per_col = Int(ceil(n_indiv/4));
 
     if snpmajor
-        n_row = Int(ceil(2 * n_snps/ size_in_bits));
-        result = zeros(UInt8, (n_row, n_indiv));
+        n_row = n_bytes_per_col;
+        result = zeros(UInt8, (n_row, n_snps));
 
         # Read bed file - this throws an error if too small
         for i = 1:n_snps
-            unsafe_read(io, pointer(result, (i-1) * n_row + 1), n_bytes_per_row);
+            unsafe_read(io, pointer(result, (i-1) * n_row + 1), n_bytes_per_col);
         end
         # Assert end of file
         @assert eof(io) "Too large .bed file"
@@ -104,8 +106,31 @@ function readbed(file::String, coding_twobit::Bool=false, snpmajor::Bool=true)::
         error("Not implemented yet")        
     end # snpmajor
     
-    return result
+    return result, n_snps, n_indiv
 end #function
 
+
+"""
+    read_freq(file::String)::DataFrame
+
+Reads a file with the suffix `.freq` and extracts allele frequencies.
+
+# Arguments
+- `file`: A string specifying the path of the .freq file to read.
+
+The .freq file is expected to contain allele frequency data with the first column indicating the SNP ID and the second column containing the frequency. 
+Each row represents an allele with a specific frequency in the population.
+
+# Returns
+- A Vector where each row corresponds to an allele and its frequency in the population.
+
+# Exceptions
+- Throws an error if the .freq file does not exist or cannot be read.
+- Throws an error if the .freq file is not in the expected format.
+"""
+function read_freq(file::String)
+    freq = readdlm(file)[:,2]
+    return freq
+end 
 
 end #module

@@ -63,7 +63,7 @@ function init_compressed(plink::Matrix{UInt8}, snps::Int, indiv::Int, freq::Vect
     obj_ref = Ref{Ptr{Cvoid}}(C_NULL)
 
     init_sym = dlsym(LIBRARY_HANDLE[], :plink2compressed)
-    ccall(init_sym, Cvoid, (Ptr{Cchar}, Ptr{Cchar}, Int32, Int32, Ptr{Cdouble}, Int32, Ptr{Ptr{Cvoid}}), Ptr{Char}(plink), C_NULL, Int32(snps), Int32(indiv), freq, Int32(max_ncol), obj_ref)
+    ccall(init_sym,  Cvoid,  (Ptr{UInt8}, Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint, Ptr{Ptr{Cvoid}}), plink, plink, Int32(snps), Int32(indiv), freq, Int32(max_ncol), obj_ref)
 
     return obj_ref
 end
