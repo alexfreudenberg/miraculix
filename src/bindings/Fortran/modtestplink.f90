@@ -8,7 +8,7 @@
 
 module modtestplink
  use, intrinsic:: iso_fortran_env, only: int8, int32, real64
- use modplink, only: plinkbedr
+ use modplink_miraculix, only: plinkbedr
  implicit none
 
  private
