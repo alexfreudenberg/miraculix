@@ -53,7 +53,7 @@ void setOptions_compressed(int use_gpu, // 0 == use CPU
 
 
   //  printf("floatLoop = %d \n", floatLoop); exit(99);
-  //  printf("get started\n");
+    printf("get started\n");
     getStartedOptions();
     //  printf("GPU setting options in setOptions_compressed\n");
     setOptions5(use_gpu, cores, floatLoop,	     

@@ -32,7 +32,7 @@ include(MODULE_PATH)
 
 miraculix.dgemm_compressed.set_library_path(LIBRARY_PATH)
 miraculix.dgemm_compressed.load_shared_library()
-miraculix.dgemm_compressed.set_options()
+miraculix.dgemm_compressed.set_options(use_gpu=true)
 
 genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE)
 freq = miraculix.read_plink.read_freq(FREQ_FILE)

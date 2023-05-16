@@ -52,11 +52,17 @@ function close_shared_library()
     end
 end
 
-function set_options(use_gpu::Bool = false, cores::Int = 0, not_center::Bool = false, variant::Int = 0, verbose::Int = 0)
+function set_options(;use_gpu::Bool = false, cores::Int = 0, not_center::Bool = false, variant::Int = 0, verbose::Int = 1)
+    floatLoop = Int32(0)
+    meanSubstract = Int32(0)
+    ignore_missings = Int32(1)
+    normalize = Int32(0)
+    use_miraculix_freq = Int32(0)
+
     options_sym = dlsym(LIBRARY_HANDLE[], :setOptions_compressed)
     ccall(options_sym, Cvoid, 
         (Int32, Int32, Int32, Int32, Int32, Int32, Int32, Int32, Int32, Int32 ),
-        Int32(use_gpu), Int32(cores), 0, 0, 0, Int32(not_center), 0, 0, Int32(variant), Int32(verbose))
+        Int32(use_gpu), Int32(cores), floatLoop, meanSubstract, ignore_missings, Int32(not_center), normalize, use_miraculix_freq, Int32(variant), Int32(verbose))
 end
 
 function init_compressed(plink::Matrix{UInt8}, snps::Int, indiv::Int, freq::Vector{Float64}, max_ncol::Int)

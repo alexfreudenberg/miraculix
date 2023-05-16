@@ -31,8 +31,8 @@ LIB = libmiraculix.a
 SHARED_LIB = miraculix.so
 
 ifeq ($(CUDA), true)
-CUDA_LIB = ../cuda/libdgemm_compressed_cuda.a
-LINK_FLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver -L$(CUDA_LIB)
+CUDA_LIB = ../cuda/
+LINK_FLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver -L$(CUDA_LIB) -ldgemm_compressed_cuda
 
 CCFLAGS+=-DCUDA # Indicates that CUDA functions need to be linked 
 FFLAGS+=-DCUDA
@@ -45,7 +45,7 @@ shared_lib: $(SHARED_LIB)
 lib: $(LIB)
 
 $(SHARED_LIB): $(ALL)
-	$(LINK) -shared $(LINK_FLAGS) $^ -o $@
+	$(LINK) -shared $^ -o $@ $(LINK_FLAGS) 
 
 $(LIB): $(ALL)
 	ar cr $@ $(ALL)
