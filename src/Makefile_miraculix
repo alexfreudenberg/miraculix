@@ -18,8 +18,8 @@ ifeq ($(COMPILER), gcc)
 else ifeq ($(COMPILER), intel)
 
  CC=icc
- CFLAGS=-O2 -diag-disable=10441 $(DEBUGGING_FLAG) 
- CCFLAGS=-O2 -qopenmp -parallel -pthread -diag-disable=10441 $(DEBUGGING_FLAG)
+ CFLAGS=-O2 -diag-disable=10441 -fPIC $(DEBUGGING_FLAG) 
+ CCFLAGS=-O2 -qopenmp -parallel -pthread -diag-disable=10441 -fPIC $(DEBUGGING_FLAG)
  LINK_FLAGS=-liomp5 -lmkl_blas95_lp64 -lmkl_lapack95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core  -lpthread -lm -ldl -lstdc++
 
  LINKER=-std=gnu++14
@@ -28,18 +28,24 @@ endif
 
 
 LIB = libmiraculix.a
-
+SHARED_LIB = miraculix.so
 
 ifeq ($(CUDA), true)
-LINK_FLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver
+CUDA_LIB = ../cuda/libdgemm_compressed_cuda.a
+LINK_FLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver -L$(CUDA_LIB)
+
 CCFLAGS+=-DCUDA # Indicates that CUDA functions need to be linked 
 FFLAGS+=-DCUDA
-LINK=g++
+LINK=$(CC)
 endif
 
 
 
+shared_lib: $(SHARED_LIB)
 lib: $(LIB)
+
+$(SHARED_LIB): $(ALL)
+	$(LINK) -shared $(LINK_FLAGS) $^ -o $@
 
 $(LIB): $(ALL)
 	ar cr $@ $(ALL)

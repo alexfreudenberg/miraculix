@@ -23,7 +23,7 @@
 using Base;
 
 
-module read
+module read_plink
 
 """
     read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{Int32}
@@ -44,7 +44,7 @@ The .bed file is a primary representation of genotype calls at biallelic variant
 - Throws an error if the .bed file or its supplementary .bim and .fam files do not exist or cannot be read.
 - Throws an error if the .bed file does not follow the specified format.
 """
-function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{UInt8}
+function readbed(file::String, coding_twobit::Bool=false, snpmajor::Bool=true)::Matrix{UInt8}
 
     if ~endswith(file,".bed")
         error("File not in .bed format")
@@ -52,7 +52,7 @@ function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::M
     if ~isfile(replace(file, ".bed" => ".fam")) | ~isfile(replace(file,".bed" => ".bim"))
         error("Missing supplementary file .fam or .bim")
     end
-    const TYPESIZE = sizeof(UInt8) * 8;
+    size_in_bits = sizeof(UInt8) * 8;
 
 
     io = open(file, "r");
@@ -65,27 +65,27 @@ function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::M
     fam_contents = read(replace(file, ".bed" => ".fam"), String);
     bim_contents = read(replace(file, ".bed" => ".bim"), String);
     n_indiv = eachmatch(r"(\n)", fam_contents) |> collect |> length;
-    n_snps = eachmatch(r"(\n)", fam_contents) |> collect |> length;
+    n_snps = eachmatch(r"(\n)", bim_contents) |> collect |> length;
     n_bytes_per_row = Int(ceil(n_indiv/4));
 
     if snpmajor
-        n_row = Int(ceil(2 * n_snps/ TYPESIZE));
+        n_row = Int(ceil(2 * n_snps/ size_in_bits));
         result = zeros(UInt8, (n_row, n_indiv));
 
-        if coding == "TwoBit"
-            # Read bed file - this throws an error if too small
-            for i = 1:n_snps
-                unsafe_read(io, pointer(result, (i-1) * n_row + 1), n_bytes_per_row);
-            end
-            # Assert end of file
-            @assert eof(io) "Too large .bed file"
-            close(io);
+        # Read bed file - this throws an error if too small
+        for i = 1:n_snps
+            unsafe_read(io, pointer(result, (i-1) * n_row + 1), n_bytes_per_row);
+        end
+        # Assert end of file
+        @assert eof(io) "Too large .bed file"
+        close(io);
 
+        if coding_twobit
             # Conversion to TwoBit format
             @inbounds for i = 1:n_row, j = 1:n_indiv
                 index_str = bitstring(result[i,j]);
                 new_entry = UInt8(0);
-                @inbounds for substr_index = 1:2:TYPESIZE
+                @inbounds for substr_index = 1:2:size_in_bits
                     new_entry <<= 2;
                     substr = index_str[substr_index : (substr_index +1)];
                     # For documentation of values, see https://www.cog-genomics.org/plink/1.9/formats#bed
@@ -98,15 +98,13 @@ function read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::M
                     end
                 end
                 result[i,j] = new_entry;
-            end
-            
-        else
-            error("Not implemented yet")
+            end            
         end # coding
-        
+    else
+        error("Not implemented yet")        
     end # snpmajor
-
-
+    
+    return result
 end #function
 
 

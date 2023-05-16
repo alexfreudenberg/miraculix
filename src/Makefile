@@ -32,6 +32,11 @@ all: $(OBJECTS)
 solve: solve_gpu.cu cuda_utils.cu
 	$(NVCC) $(CXXFLAGS) $(LIBS) --shared $^ -o solve_gpu.so
 
+.PHONY: shared_lib
+shared_lib:
+	cp Makefile_miraculix ./miraculix/Makefile
+	cd miraculix && make shared_lib
+
 .PHONY: libmiraculix
 libmiraculix:
 	cp Makefile_miraculix ./miraculix/Makefile

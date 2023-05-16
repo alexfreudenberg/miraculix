@@ -20,7 +20,10 @@ ifeq ($(DEBUG), true)
 CXXFLAGS+=-DDEBUG
 endif
 
-.PHONY: lib lib12
+.PHONY: lib lib12 shared_lib
+shared_lib: dgemm_compressed_cuda.o solve_gpu.o cuda_utils.o
+	$(NVCC) -shared -o $(<:.o=.so) $^
+
 lib: dgemm_compressed_cuda.o solve_gpu.o cuda_utils.o
 	ar rcs lib$(<:.o=.a) $^ 
 
