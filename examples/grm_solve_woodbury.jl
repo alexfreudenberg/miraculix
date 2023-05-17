@@ -25,8 +25,8 @@ using Libdl
 
 MODULE_PATH = "../src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = "./src/miraculix/miraculix.so"
-DATA_FILE = "./data/small.bed"
-FREQ_FILE = "./data/small.freq"
+DATA_FILE = "./data/xsmall.bed"
+FREQ_FILE = "./data/xsmall.freq"
 
 include(MODULE_PATH)
 
@@ -41,7 +41,19 @@ freq = miraculix.read_plink.read_freq(FREQ_FILE)
 obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data, n_snps, n_indiv, freq, 10)
 
 n_col = 10
-B = randn(Float64, n_indiv, n_col)
+B = randn(Float64, n_snps, n_col)
 
-C = miraculix.dgemm_compressed.dgemm_compressed_func(false, obj_ref, B, n_indiv, n_snps)
-print(C)
+C = miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_ref, B, n_indiv, n_snps)
+
+genotype_data_decompressed = zeros(Float64, n_indiv, n_snps)
+
+@inbounds for index in 1:length(genotype_data)
+    entry = genotype_data[index]
+    offset_decompressed = (index-1) * 4 + 1
+    for i in 0:3
+        genotype_data_decompressed[offset_decompressed + i] = max(0, Float64((entry >> (2*i)) & 0x03)-1)
+    end    
+end
+
+freq_test = mean(genotype_data_decompressed ./ 2.0, dims=1) |> vec
+max_deviation = maximum(abs.(freq_test .- freq))
