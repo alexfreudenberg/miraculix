@@ -45,15 +45,18 @@ B = randn(Float64, n_snps, n_col)
 
 C = miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_ref, B, n_indiv, n_snps)
 
-genotype_data_decompressed = zeros(Float64, n_indiv, n_snps)
+genotype_data_decompressed = zeros(Float64, n_indiv, n_snps);
 
 @inbounds for index in 1:length(genotype_data)
     entry = genotype_data[index]
     offset_decompressed = (index-1) * 4 + 1
-    for i in 0:3
+    @inbounds for i in 0:3
         genotype_data_decompressed[offset_decompressed + i] = max(0, Float64((entry >> (2*i)) & 0x03)-1)
     end    
 end
 
-freq_test = mean(genotype_data_decompressed ./ 2.0, dims=1) |> vec
-max_deviation = maximum(abs.(freq_test .- freq))
+freq_test = mean(genotype_data_decompressed ./ 2.0, dims=1)
+max_deviation = maximum(abs.(vec(freq_test) .- freq))
+
+C_test = (genotype_data_decompressed .- 2.0 * freq_test) * B
+max_deviation = maximum(abs.(C_test .- C))
