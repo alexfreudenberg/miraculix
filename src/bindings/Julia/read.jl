@@ -16,11 +16,6 @@
 #  limitations under the License.
 
 
-# 
-#   TODOs: OneBit conversion, multithreading 
-#
-
-
 
 module read_plink
 
