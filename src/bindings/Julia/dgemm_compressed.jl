@@ -22,7 +22,7 @@ using Base
 using Libdl
 
 const LIBRARY_PATH = Ref{String}()  # Reference to store the library path
-const LIBRARY_HANDLE = Ref{Ptr{Cvoid}}()
+const LIBRARY_HANDLE = Ref{Ptr{Cvoid}}() # Reference to store the library handle returned by Libdl
 
 
 """
@@ -70,7 +70,6 @@ function load_shared_library()
     
     # Load the shared library
     LIBRARY_HANDLE[] = dlopen(libpath)
-
 end
 
 """
@@ -89,6 +88,66 @@ function close_shared_library()
         dlclose(LIBRARY_HANDLE[])
         LIBRARY_HANDLE[] = C_NULL
     end
+end
+
+function check_dimensions(plink::Matrix{UInt8}, snps::Int, indiv::Int)
+    if (size(plink, 1) != ceil(indiv/4)) || (size(plink, 2) != snps)
+        error("Matrix has wrong dimensions: Expected $snps SNPs and $indiv samples")
+    end
+end
+
+# This function decompresses genotype data in PLINK format 
+function decompress_genotype_data(plink::Matrix{UInt8}, indiv::Int, snps::Int)
+    decompressed = zeros(Float64, Int(ceil(indiv/4) * 4), snps);
+
+    for (index,entry) in pairs(IndexLinear(),plink)
+        offset_decompressed = (index-1) * 4 + 1
+        for i in 0:3
+            # Convert packed SNP data to Float
+            genotype_float = Float64((entry >> (2*i)) & 0x03)
+            # Check if there is a missing value which is coded as 1 in PLINK format
+            (genotype_float == 1.0) && error("Missing in genotype data")
+            # Convert PLINK format to 0,1,2 format
+            decompressed[offset_decompressed + i] = max(0, genotype_float -1)
+        end    
+    end
+    return decompressed
+end
+
+
+"""
+    transpose_genotype_matrix(plink::Matrix{UInt8}, snps::Int, indiv::Int)
+
+Transposes the SNP-wise genotype matrix and returns it in a UInt8 storage format.
+
+# Arguments
+- `plink`: A Matrix of UInt8 representing the PLINK .bed matrix, which is SNP-major.
+- `snps`: An integer representing the number of SNPs.
+- `indiv`: An integer representing the number of individuals.
+
+This function performs a transpose operation on the PLINK .bed matrix, converting it from a SNP-major format to a sample-major format, allowing for different types of computational operations.
+
+# Returns
+- A Matrix of UInt8, which is the transposed genotype matrix in a sample-major format.
+
+# Exceptions
+- Throws an error if the PLINK .bed matrix is not in the expected format, or if the transpose operation fails.
+"""
+function transpose_genotype_matrix(plink::Matrix{UInt8}, snps::Int, indiv::Int)
+    check_dimensions(plink, snps, indiv)
+    plink_transposed = zeros(UInt8, Int(ceil(snps/4)), indiv)
+
+    for (index, entry) in pairs(IndexCartesian(), plink)
+        id_indiv = index[1]
+        id_snp = index[2]
+        for i in 0:3
+            new_col = Int((id_indiv-1) * 4 + i + 1)
+            new_row = Int(ceil(id_snp/4))
+            offset = (id_snp-1) % 4
+            plink_transposed[new_row, new_col] |= ((entry >> (2 * i)) & 0x03) << (2*offset)
+        end
+    end
+    return plink_transposed
 end
 
 """
@@ -143,6 +202,8 @@ If the GPU usage is enabled via the `set_options` function, the SNP matrix and i
 """
 function init_compressed(plink::Matrix{UInt8}, snps::Int, indiv::Int, freq::Vector{Float64}, max_ncol::Int)
     obj_ref = Ref{Ptr{Cvoid}}(C_NULL)
+    check_dimensions(plink, snps, indiv)
+
 
     init_sym = dlsym(LIBRARY_HANDLE[], :plink2compressed)
     ccall(init_sym,  Cvoid,  (Ptr{UInt8}, Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint, Ptr{Ptr{Cvoid}}), plink, plink, Int32(snps), Int32(indiv), freq, Int32(max_ncol), obj_ref)
@@ -165,15 +226,22 @@ Performs matrix multiplication on the SNP data.
 
 This function performs matrix multiplication on the SNP data, either on the original or the transposed genotype matrix depending on the `transpose` parameter.
 
+# Returns 
+- A matrix C which stores the result of the genotype matrix multiplication
+
 # Exceptions
 - Throws an error if the matrix multiplication fails or the inputs are not in the expected format.
 """
 function dgemm_compressed_main(transpose::Bool, obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, snps::Int, indiv::Int)
     trans = transpose ? "T" : "N"
-    
     n_row = size(B, 1)
     n_col = size(B, 2)
-    C = zeros(Float64, transpose ? indiv : snps, n_col)
+
+    if n_row != (transpose ? indiv : snps)
+        error("Matrix B is not compatible with genotype matrix of $snps SNPs and $indiv individuals when operation = $trans ")
+    end
+
+    C = zeros(Float64, transpose ? snps : indiv, n_col)
 
     dgemm_compressed_sym = dlsym(LIBRARY_HANDLE[], :dgemm_compressed)
     ccall(dgemm_compressed_sym, Cvoid, 
@@ -197,7 +265,8 @@ This function releases the memory allocated to the storage object that holds the
 - Throws an error if the memory cannot be properly freed.
 """
 function free_compressed(obj_ref::Ref{Ptr{Cvoid}})
-
+    free_sym = dlsym(LIBRARY_HANDLE[], :free_compressed)
+    ccall(free_sym, Cvoid, (Ptr{Ptr{Cvoid}},), obj_ref)
 end
 
 end #module 

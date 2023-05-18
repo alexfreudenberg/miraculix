@@ -21,12 +21,14 @@
 # - Throws an error if the genomic relationship matrix G is not invertible.
 # - Throws an error if the data for G or x cannot be read or is incorrectly formatted.
 
+using Statistics
 using Libdl
 
-MODULE_PATH = "../src/bindings/Julia/miraculix.jl"
-LIBRARY_PATH = "./src/miraculix/miraculix.so"
-DATA_FILE = "./data/xsmall.bed"
-FREQ_FILE = "./data/xsmall.freq"
+ROOT_DIR = string(@__DIR__) * "/../.."
+MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
+LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
+DATA_FILE = ROOT_DIR * "/data/xsmall.bed"
+FREQ_FILE = ROOT_DIR * "/data/xsmall.freq"
 
 include(MODULE_PATH)
 
@@ -43,20 +45,5 @@ obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data, n_snps, n_in
 n_col = 10
 B = randn(Float64, n_snps, n_col)
 
-C = miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_ref, B, n_indiv, n_snps)
+C = miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_ref, B, n_snps, n_indiv)
 
-genotype_data_decompressed = zeros(Float64, n_indiv, n_snps);
-
-@inbounds for index in 1:length(genotype_data)
-    entry = genotype_data[index]
-    offset_decompressed = (index-1) * 4 + 1
-    @inbounds for i in 0:3
-        genotype_data_decompressed[offset_decompressed + i] = max(0, Float64((entry >> (2*i)) & 0x03)-1)
-    end    
-end
-
-freq_test = mean(genotype_data_decompressed ./ 2.0, dims=1)
-max_deviation = maximum(abs.(vec(freq_test) .- freq))
-
-C_test = (genotype_data_decompressed .- 2.0 * freq_test) * B
-max_deviation = maximum(abs.(C_test .- C))
