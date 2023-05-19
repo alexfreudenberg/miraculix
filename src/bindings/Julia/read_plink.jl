@@ -20,7 +20,7 @@
 module read_plink
 
 using Base;
-using DelimitedFiles
+using DelimitedFiles;
 
 """
     read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{Int32}
@@ -41,7 +41,7 @@ The .bed file is a primary representation of genotype calls at biallelic variant
 - Throws an error if the .bed file or its supplementary .bim and .fam files do not exist or cannot be read.
 - Throws an error if the .bed file does not follow the specified format.
 """
-function read_bed(file::String, coding_twobit::Bool=false, snpmajor::Bool=true)
+function read_bed(file::String, coding_twobit::Bool=false)
 
     if ~endswith(file,".bed")
         error("File not in .bed format")
@@ -65,42 +65,38 @@ function read_bed(file::String, coding_twobit::Bool=false, snpmajor::Bool=true)
     n_snps = eachmatch(r"(\n)", bim_contents) |> collect |> length;
     n_bytes_per_col = Int(ceil(n_indiv/4));
 
-    if snpmajor
-        n_row = n_bytes_per_col;
-        result = zeros(UInt8, (n_row, n_snps));
+    n_row = n_bytes_per_col;
+    result = zeros(UInt8, (n_row, n_snps));
 
-        # Read bed file - this throws an error if too small
-        for i = 1:n_snps
-            unsafe_read(io, pointer(result, (i-1) * n_row + 1), n_bytes_per_col);
-        end
-        # Assert end of file
-        @assert eof(io) "Too large .bed file"
-        close(io);
+    # Read bed file - this throws an error if too small
+    for i = 1:n_snps
+        unsafe_read(io, pointer(result, (i-1) * n_row + 1), n_bytes_per_col);
+    end
+    # Assert end of file
+    @assert eof(io) "Too large .bed file"
+    close(io);
 
-        if coding_twobit
-            # Conversion to TwoBit format
-            @inbounds for i = 1:n_row, j = 1:n_indiv
-                index_str = bitstring(result[i,j]);
-                new_entry = UInt8(0);
-                @inbounds for substr_index = 1:2:size_in_bits
-                    new_entry <<= 2;
-                    substr = index_str[substr_index : (substr_index +1)];
-                    # For documentation of values, see https://www.cog-genomics.org/plink/1.9/formats#bed
-                    if substr == "10"
-                        new_entry |= 1
-                    elseif substr == "11"
-                        new_entry |= 2
-                    elseif substr == "01"
-                        error("Missings in .bed not supported")
-                    end
+    if coding_twobit
+        # Conversion to TwoBit format
+        @inbounds for i = 1:n_row, j = 1:n_indiv
+            index_str = bitstring(result[i,j]);
+            new_entry = UInt8(0);
+            @inbounds for substr_index = 1:2:size_in_bits
+                new_entry <<= 2;
+                substr = index_str[substr_index : (substr_index +1)];
+                # For documentation of values, see https://www.cog-genomics.org/plink/1.9/formats#bed
+                if substr == "10"
+                    new_entry |= 1
+                elseif substr == "11"
+                    new_entry |= 2
+                elseif substr == "01"
+                    error("Missings in .bed not supported")
                 end
-                result[i,j] = new_entry;
-            end            
-        end # coding
-    else
-        error("Not implemented yet")        
-    end # snpmajor
-    
+            end
+            result[i,j] = new_entry;
+        end            
+    end # coding
+
     return result, n_snps, n_indiv
 end #function
 
