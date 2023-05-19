@@ -1,4 +1,4 @@
-DEBUG=true
+DEBUG=false
 
 CUTLASS_PATH=../cutlass/include/
 CUTLASS_UTILS=../cutlass/tools/util/include
