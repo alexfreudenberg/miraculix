@@ -16,6 +16,7 @@ module mod5codesapi
  public :: c_plink2compressed
  public :: c_dgemm_compressed
  public :: c_free_compressed
+ public :: c_sparse_times_plink
 
  interface
   subroutine c_setoptions_compressed(use_gpu&
@@ -80,7 +81,8 @@ module mod5codesapi
    type(c_ptr), intent(inout) :: compressed !(matches void**)
   end subroutine
 
-  subroutine c_sparse_times_plink()&
+  subroutine c_sparse_times_plink(transsparse, transcompressed, plink, plink_transposed&
+                                  , snps, indiv, nIdx, rowIdxB, colIdxB, B, C, ldc)&
              bind(C, name='sparse_times_plink')
    import c_char, c_int, c_double, c_ptr
    character(c_char), intent(in) :: transsparse(*)    !N: matrix as is (sparse row format)
@@ -92,8 +94,8 @@ module mod5codesapi
    integer(c_int), intent(in) :: rowIdxB(*)   !cf. CSR/CSR/Yale 
    integer(c_int), intent(in) :: colIdxB(*)   !cf. CSR/CSR/Yale 
    real(c_double), intent(in) :: B(:)         !values of sparse
-   real(c_double, intent(inout) :: C(Ldc, *)  !result (nIdx x snps)
-   integer(c_int), value, intent(in) :: Ldc   !typically =nIdx
+   real(c_double), intent(inout) :: C(ldc, *)  !result (nIdx x snps)
+   integer(c_int), value, intent(in) :: ldc   !typically =nIdx
   end subroutine
 
  end interface
