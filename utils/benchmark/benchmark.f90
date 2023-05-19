@@ -28,8 +28,7 @@ program benchmark
                          , c_get_freq => c_get_compressed_freq&
                          , c_setOptions_compressed
  use modtestplink, only: tgeno
- use modplink_miraculix, only: dgemm_compressed, transpose_integermatrix
- use modplink_miraculix, only: allelefreq
+ use modplink_miraculix, only: transpose_integermatrix !dgemm_compressed, allelefreq
  !$ use omp_lib
  implicit none
 
@@ -151,32 +150,32 @@ program benchmark
  select case (test_mode)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!F dgemm
- case ("Org")
-  write(*,'(5A)') line_break, line_break, line_break, line_break, line_break
-  write(*,'(a)')"F dgemm"
-  do irepet = 1, (nrepet+ nmin)
-    !$ f_t1 = omp_get_wtime()
-    call dgemm_compressed('t', 'n', mat%cov%neffectivelevel, ncol, mat%cov%nrows, mat%cov%ncol&
-                          ,1._real64, mat%cov%ival, freq, mat%cov%nrows, B, mat%nsnp&
-                          ,0._real64, f_C, mat%ngen)
-    !$ f_t2 = omp_get_wtime()
-    !$ if (irepet > nmin) write(*,'(a,g0.6)')'  Elapsed time - Z - F: ', f_t2 - f_t1
-    !$ if (irepet > nmin) f_ttot = f_ttot + f_t2 - f_t1
-  enddo
-  !$ write(*,'("Average time - Z - F: ", g0.6)')f_ttot/real(nrepet)
-  !$ f_ttot = 0
+! !F dgemm
+!  case ("Org")
+!   write(*,'(5A)') line_break, line_break, line_break, line_break, line_break
+!   write(*,'(a)')"F dgemm"
+!   do irepet = 1, (nrepet+ nmin)
+!     !$ f_t1 = omp_get_wtime()
+!     call dgemm_compressed('t', 'n', mat%cov%neffectivelevel, ncol, mat%cov%nrows, mat%cov%ncol&
+!                           ,1._real64, mat%cov%ival, freq, mat%cov%nrows, B, mat%nsnp&
+!                           ,0._real64, f_C, mat%ngen)
+!     !$ f_t2 = omp_get_wtime()
+!     !$ if (irepet > nmin) write(*,'(a,g0.6)')'  Elapsed time - Z - F: ', f_t2 - f_t1
+!     !$ if (irepet > nmin) f_ttot = f_ttot + f_t2 - f_t1
+!   enddo
+!   !$ write(*,'("Average time - Z - F: ", g0.6)')f_ttot/real(nrepet)
+!   !$ f_ttot = 0
 
-  do irepet = 1, (nrepet+ nmin)
-    !$ f_t1 = omp_get_wtime()
-    call dgemm_compressed('n', 'n', mat%cov%nrows, ncol, mat%cov%neffectivelevel, mat%cov%ncol&
-                          ,1._real64, mat%cov%ival, freq, mat%cov%nrows, B_T, mat%ngen&
-                          ,0._real64, f_C_T, mat%nsnp)
-    !$ f_t2 = omp_get_wtime()
-    !$ if (irepet > nmin) write(*,'(a,g0.6)')'  Elapsed time - Z^T - F: ', f_t2 - f_t1
-    !$ if (irepet > nmin) f_ttot = f_ttot + f_t2 - f_t1
-  enddo
-  !$ write(*,'("Average time - Z^T - F: ", g0.6)')f_ttot/real(nrepet)
+!   do irepet = 1, (nrepet+ nmin)
+!     !$ f_t1 = omp_get_wtime()
+!     call dgemm_compressed('n', 'n', mat%cov%nrows, ncol, mat%cov%neffectivelevel, mat%cov%ncol&
+!                           ,1._real64, mat%cov%ival, freq, mat%cov%nrows, B_T, mat%ngen&
+!                           ,0._real64, f_C_T, mat%nsnp)
+!     !$ f_t2 = omp_get_wtime()
+!     !$ if (irepet > nmin) write(*,'(a,g0.6)')'  Elapsed time - Z^T - F: ', f_t2 - f_t1
+!     !$ if (irepet > nmin) f_ttot = f_ttot + f_t2 - f_t1
+!   enddo
+!   !$ write(*,'("Average time - Z^T - F: ", g0.6)')f_ttot/real(nrepet)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !CPU dgemm
@@ -184,7 +183,7 @@ program benchmark
   !$ t1 = omp_get_wtime()
   usegpu = 0
   c_plinkbed_transposed = c_plinkbed
-  call c_setOptions_compressed(usegpu, 0, 0, 0, 1, c_not_center, 0, 0, 512, 1)
+  call c_setOptions_compressed(usegpu, 0, 0, 0, 1, c_not_center, 0, 0, 256, 1)
   call c_plink2compressed(c_plinkbed, c_plinkbed_transposed, c_snps, c_indiv, c_f, c_ncol, c_compressed)
   !$ write(*,'(a,g0.6)')'  c_plink2compressed (s): ', omp_get_wtime() - t1
   

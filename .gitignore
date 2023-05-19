@@ -12,6 +12,7 @@
 *.fam
 *.freq
 *.bed
+*.mem
 
 *.optrpt
 *.tgz
