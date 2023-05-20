@@ -84,22 +84,22 @@ program test_sparse_plink
  write(*,'(a,i0)')'Number of genotyped animals (plink) : ', nan_
  write(*,'(a,i0)')'Number of SNPs (plink)              : ', nsnp_
 
- nIdx = n2
- ldc = n2
+ nIdx = n1
+ ldc = n1
  write(*,'(a,i0)')'nIdx: ', nIdx
  write(*,'(a,i0)')'ldc : ', ldc
 
  allocate(ivalt, source = transpose(mat%cov%ival))
  c_plinkbed = c_loc(ivalt)
 
- allocate(C(n1, nsnp_), source = 0._c_double)
+ allocate(C(ldc, nsnp_), source = 0._c_double)
 
  call c_sparse_times_plink('N', 'N', c_plinkbed, c_plinkbed_transposed&
                            , nsnp_, nan_, nIdx&
                            , a12_ia, a12_ja, a12_a&
                            , C, ldc)
 
- call printdense(C)
+ call printdense(real(C, real64))
 
 contains
 
