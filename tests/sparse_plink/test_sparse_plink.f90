@@ -3,6 +3,7 @@ program test_sparse_plink
  use, intrinsic :: iso_fortran_env, only: int8, real64
  use modtestplink, only: tgeno
  use mod5codesapi, only: c_sparse_times_plink
+ use modplink_miraculix, only: transpose_integermatrix
  implicit none
  integer(c_int), parameter :: a12_ia(*) = [1, 5, 8]
  integer(c_int), parameter :: a12_ja(*) = [1, 2, 3, 5, 1, 2, 5]
@@ -19,13 +20,18 @@ program test_sparse_plink
  integer(c_int) :: nsnp_, nan_
  integer(c_int) :: nIdx
  integer(c_int) :: ldc
+ integer :: idummy, compressedn, lda_atrans
  integer(kind=int8), pointer, contiguous :: ivalt(:,:)
+ integer(kind=int8), pointer, contiguous :: ivalt_transposed(:,:)
+ integer(kind=int8), allocatable :: trans_ival(:,:)
  real(kind=c_double), allocatable :: C(:,:)
  real(kind=real64), allocatable :: freq(:)
+ real(kind=real64), allocatable :: densesp(:,:)
  character(len=:), allocatable :: freqfile
  type(tgeno) :: mat
  type(tgeno) :: mat_ascii
- type(c_ptr) :: c_plink
+ type(c_ptr) :: c_plinkbed
+ type(c_ptr) :: c_plinkbed_transposed
 
 
  freqfile = 'geno.freq'
@@ -37,6 +43,18 @@ program test_sparse_plink
  call mat%read_bed()
  freq = readfreq(freqfile, mat%nsnp)
 
+
+ call transpose_integermatrix(mat%ngen, mat%nsnp, size(mat%cov%ival, 2)&
+                              , mat%cov%ival, idummy&
+                              , trans_ival, compressedn, lda_atrans)
+
+ write(*,'(a,i0,a,i0)')'Dimension of trans_ival: '&
+                       , lda_atrans, ' x ', compressedn
+
+ allocate(ivalt_transposed, source = transpose(trans_ival))
+ c_plinkbed_transposed = c_loc(ivalt_transposed)
+
+
  write(*,'(a,i0)')'Number of non-genotyped animals (row sparse): ', n1
  write(*,'(a,i0)')'Number of genotyped animals (column sparse) : ', n2
 
@@ -45,33 +63,43 @@ program test_sparse_plink
   call mat_ascii%read_asci()
   if(lcenter)call center_by_f(mat_ascii, freq)
 
-  associate(densesp => sp_to_dense(n1, n2, a12_ia, a12_ja, a12_a))
-   write(*, '(a)')'TEST: Sparse matrix'
-   call printdense(densesp)
-   write(*, '(a)')'TEST: Sparse matrix * genotype'
-   call printdense(matmul(densesp, mat_ascii%cov%val))
-  end associate
+  densesp = sp_to_dense(n1, n2, a12_ia, a12_ja, a12_a)
+
+  write(*, '(a)')'TEST: Sparse matrix'
+  call printdense(densesp)
+
+  write(*, '(a)')'TEST: Sparse matrix * genotype'
+  print*,'densese 1: ',size(densesp, 1)
+  print*,'densese 2: ',size(densesp, 2)
+  print*,'mat_ascii%cov%val 1',size(mat_ascii%cov%val, 1)
+  print*,'mat_ascii%cov%val 2',size(mat_ascii%cov%val, 2)
+  call printdense(matmul(densesp, transpose(mat_ascii%cov%val)))
+
+  deallocate(densesp)
  endif
 
  !miraculix
- nan_ = mat%cov%nrows
- nsnp_ = mat%cov%neffectivelevel
+ nan_ = mat%cov%neffectivelevel
+ nsnp_ = mat%cov%nrows
  write(*,'(a,i0)')'Number of genotyped animals (plink) : ', nan_
  write(*,'(a,i0)')'Number of SNPs (plink)              : ', nsnp_
 
- nIdx = n1
- ldc = n1
+ nIdx = n2
+ ldc = n2
  write(*,'(a,i0)')'nIdx: ', nIdx
  write(*,'(a,i0)')'ldc : ', ldc
 
  allocate(ivalt, source = transpose(mat%cov%ival))
- c_plink = c_loc(ivalt)
+ c_plinkbed = c_loc(ivalt)
 
- call c_sparse_times_plink('N', 'N', c_plink, c_null_ptr&
+ allocate(C(n1, nsnp_), source = 0._c_double)
+
+ call c_sparse_times_plink('N', 'N', c_plinkbed, c_plinkbed_transposed&
                            , nsnp_, nan_, nIdx&
                            , a12_ia, a12_ja, a12_a&
                            , C, ldc)
 
+ call printdense(C)
 
 contains
 
