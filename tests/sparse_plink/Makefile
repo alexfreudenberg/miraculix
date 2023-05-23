@@ -14,6 +14,7 @@ else ifeq ($(COMPILER), intel)
  FFLAGS+=-I${MKLROOT}/include -I${MKLROOT}/include/intel64/lp64 -L${MKLROOT}/lib/intel64
  FFLAGS+=-fpp -qopenmp -qopt-matmul
  LDFLAGS=-liomp5 -lmkl_blas95_lp64 -lmkl_lapack95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core  -lpthread -lm -ldl -lstdc++
+ LDFLAGS+=-g -check all -traceback
 
 endif
 
@@ -36,7 +37,7 @@ MODS = $(OBJ:.o=.mod)
 LIBFORTRAN = $(SRC_DIR)/bindings/Fortran/libfortran.a
 LIBMIRACULIX = $(SRC_DIR)/miraculix/libmiraculix.a
 
-EXE = test_sparse_plink
+EXE = test_sparse_plink.out
 
 
 
@@ -55,5 +56,5 @@ clean:
 	$(RM) $(OBJ) $(MODS) $(LIB) $(EXE) $(ALL) *.optrpt
 
 tests: all
-	./$(EXE) small.bed small.freq
+	./$(EXE)
 
