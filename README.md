@@ -42,7 +42,7 @@ If you wish to integrate the genotype matrix multiplication functionality into y
 Interfaces to the other routines will be added gradually.
 
 ## Examples 
-Exemplary usage of the routines can be found in our [benchmarking files](./utils/benchmark/). The syntax for these Fortran files is as follows:
+Exemplary usage of the routines can be found in the [examples](./examples) folder and in the [benchmarking files](./utils/benchmark/). The syntax for these Fortran files is as follows:
 **Options**
 Set the options used later on. Most of the options can't be changed after they have been set initially. 
 ```{Fortran}
