@@ -17,6 +17,8 @@ program test_sparse_plink
  logical, parameter :: ltest = .true.
  logical, parameter :: lcenter = .false.
 
+ character(*), parameter :: dirdata = '../../data/sparse_plink/'
+
  integer(c_int) :: nsnp_, nan_
  integer(c_int) :: nIdx
  integer(c_int) :: ldc
@@ -34,8 +36,8 @@ program test_sparse_plink
  type(c_ptr) :: c_plinkbed_transposed
 
 
- freqfile = 'geno.freq'
- mat%genfile = 'geno.bed'
+ freqfile = dirdata//'geno.freq'
+ mat%genfile = dirdata//'geno.bed'
 
  write(*,'(/2a)')' Bed file        : ',trim(mat%genfile)
  write(*,'(2a/)')' Allele freq file: ',trim(freqfile)

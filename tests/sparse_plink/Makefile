@@ -37,7 +37,7 @@ MODS = $(OBJ:.o=.mod)
 LIBFORTRAN = $(SRC_DIR)/bindings/Fortran/libfortran.a
 LIBMIRACULIX = $(SRC_DIR)/miraculix/libmiraculix.a
 
-EXE = test_sparse_plink.out
+EXE = test_sparse_plink
 
 
 
@@ -45,7 +45,7 @@ all: $(EXE)
 
 
 $(EXE): $(EXE).o $(LIBMIRACULIX) $(LIBFORTRAN)
-	$(FORTRAN) $(FFLAGS) $(EXE).o -o $@ $(LDFLAGS) 
+	$(FORTRAN) $(FFLAGS) $(EXE).o -o $@.out $(LDFLAGS) 
 
 %.o: %.f90
 	$(FORTRAN) $(FFLAGS) -c $<
@@ -56,5 +56,5 @@ clean:
 	$(RM) $(OBJ) $(MODS) $(LIB) $(EXE) $(ALL) *.optrpt
 
 tests: all
-	./$(EXE)
+	./$(EXE).out
 
