@@ -42,16 +42,18 @@
 #define XSTR(x) #x
 
 void debug_info(const char *s, ...) {
-#ifdef DEBUG
 
-  va_list argptr;
-  va_start(argptr, s);
-  printf("\033[36m\t");
-  vprintf(s, argptr);
-  printf("\033[37m\n");
-  va_end(argptr);
-  
-#endif
+  char *print_level_env = getenv("PRINT_LEVEL");
+  if (print_level_env != NULL) {
+    int print_level = atoi(print_level_env);
+
+    va_list argptr;
+    va_start(argptr, s);
+    printf("\033[36m\t ");
+    vprintf(s, argptr);
+    printf(" \033[37m\n");
+    va_end(argptr);
+  }
 }
 
 int checkError(const char *func, int line, cudaError_t err) {
@@ -74,12 +76,22 @@ int checkError(const char *func, int line, cublasStatus_t err) {
 
 int checkError(const char *func, int line, cusparseStatus_t err) {
   if (err != CUSPARSE_STATUS_SUCCESS) {
-    printf("Internal error in cuSPARSE function %s at line %d: %s\n", func, line,
+    printf("Error in call to cuSPARSE in function %s at line %d: %s\n", func, line,
            cusparseGetErrorString(err));
     return 1;
   }
   return 0;
 }
+
+int checkError(const char *func, int line, cusolverStatus_t err) {
+  if (err != CUSOLVER_STATUS_SUCCESS) {
+    printf("Error in call to cuSOLVER in function %s at line %d: %d\n", func, line,
+           err);
+    return 1;
+  }
+  return 0;
+}
+
 
 int checkCuda(){
   //
@@ -153,6 +165,7 @@ int switchDevice(){
   // Select GPU device
   // The following section switches the current context to the requested device
   // 
+
   cudaError_t err;
   int device = 0;
   int device_available = 0;

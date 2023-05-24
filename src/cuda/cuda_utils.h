@@ -46,3 +46,4 @@ int switchDevice();
 int checkError(const char *func, int line, cudaError_t err);
 int checkError(const char *func, int line, cublasStatus_t err);
 int checkError(const char *func, int line, cusparseStatus_t err);
+int checkError(const char *func, int line, cusolverStatus_t err);

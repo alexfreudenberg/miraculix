@@ -36,11 +36,6 @@
 #include <cusolverSp.h>
 #include <cusparse.h>
 
-#define Uint unsigned int
-#define PADDIM 4L
-#define THREADS_PER_BLOCK 1024 // 2048 / 32
-#define BLOCKS 1024
-
 extern "C" {
 struct GPU_sparse_storage {
      int *d_cscColPtr;

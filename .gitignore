@@ -2,6 +2,7 @@
 /build
 /data/*
 /.vscode/*
+/src/miraculix/*.cu
 *.so
 *.o
 *.a

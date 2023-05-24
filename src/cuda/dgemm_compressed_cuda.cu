@@ -193,6 +193,9 @@ int freegpu(void **GPU_obj){
   if(checkCuda() != 0){
     return 1;
   }
+  if(*GPU_obj == NULL){
+    return 1;
+  }  
   
   // Free device memory and derefence storage object
   struct GPU_gemm_storage *GPU_storage_obj = (struct GPU_gemm_storage *) (*GPU_obj);

@@ -1,7 +1,7 @@
 CUDA=true
 COMPILER=intel
 
-#Martin's includes:
+#miraculix source files:
 MK_SRC=./
 SRC=./
 include makefile.c.mk
