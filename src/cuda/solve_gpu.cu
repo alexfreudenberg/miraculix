@@ -62,17 +62,6 @@ __global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet);
 int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_cols,
     double* X, double *logdet, int oversubscribe)
 {
-    /*
-        This function solves the problem
-            A x = b
-        on   an available GPU and writes the solution to the original memory
-        Input:
-            matrix: pointer to rowwise allocated matrix A
-            individuals: number of individuals in matrix, i.e. dimension
-            vector: pointer to vector b
-        Ouput:
-            vector: contains solution x after the function has been called
-    */
 
     // Initialize process variables
     unsigned     long size         = (unsigned long)input_size;
@@ -109,7 +98,9 @@ int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
     cusolverDnSetStream(handle, stream);
     cusolverDnCreateParams(&params);
 
+    //
     // Allocate memory on device
+    //
     cudaMalloc(&info, sizeof(int));
 
     if (oversubscribe == 1) {
@@ -131,7 +122,9 @@ int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
 
     cudaMemset(info, 0, sizeof(int));
 
+    //
     // Copy data to device
+    //
     err = cudaMemcpy(d_matrix, A, sizeof(double) * size * size, cudaMemcpyHostToDevice);
     if (checkError(__func__, __LINE__, err) != 0)
       return (1);
@@ -146,7 +139,10 @@ int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
 
     start_potrf = clock();
     debug_info("Time for initializing: %.3fs", difftime(start_potrf, start));
+
+    //
     // Calculate buffer size
+    //
     status = cusolverDnXpotrf_bufferSize(handle, params, uplo, size, dataTypeA, d_matrix,
         size, dataTypeA, &bufferSize_device, &bufferSize_host);
     cudaDeviceSynchronize();
@@ -160,7 +156,9 @@ int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
     if (checkError(__func__, __LINE__, err) != 0)
       return (1);
 
-    // write cholesky factorization to device copy of A
+    //
+    // Calculate cholesky factorization and store it in d_matrix
+    //
     status = cusolverDnXpotrf(handle, params, uplo, size, dataTypeA, d_matrix,
                               size, dataTypeA, buffer_device, bufferSize_device,
                               buffer_host, bufferSize_host, info);
@@ -188,7 +186,10 @@ int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
 
     start_potrs = clock();
     debug_info("Time for potrf: %.3fs", difftime(start_potrs, start_potrf));
+
+    //
     // Calculate x = A\b
+    //
     status = cusolverDnXpotrs(handle, params, uplo, size, rhs_cols, dataTypeA,
         d_matrix, size, dataTypeA, d_B, size, info);
     cudaDeviceSynchronize();
@@ -200,7 +201,10 @@ int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
 
     start_logdet = clock();
     debug_info("Time for potrs: %.3fs", difftime(start_logdet, start_potrs));
+    
+    //
     // Calculate log determinant of A through its Cholesky root
+    //
     if (logdet != NULL) {
       cudaMalloc((void **)&d_logdet, sizeof(double));
       cudaMalloc((void **)&d_size, sizeof(long));
@@ -233,14 +237,16 @@ int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
     if (checkError(__func__, __LINE__, err) != 0)
       return (1);
   
-
+    //
     // Copy  solution from device to vector on host
+    //
     err = cudaMemcpy(X, d_B, sizeof(double) * size * rhs_cols, cudaMemcpyDeviceToHost);
     if (checkError(__func__, __LINE__, status) != 0)
       return (1);
 
     debug_info("Total time: %.3fs", difftime(clock(), start));
-    // free allocated memory
+    
+    // Free allocated memory
     cudaFree(info);
     cudaFree(buffer_device);
     cudaFree(buffer_host);
@@ -251,124 +257,17 @@ int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
     return 0;
 };
 
-int cholSparse(double* csrVal, int* csrRowPtr, int* csrColInd, int m, int nnz, double* b, int ncol, double* x)
-{
-    /*
-        This function provides an interface to the sparse cholesky factorization supplied by CUDA. Its inputs are arrays of sparse memory format. The input matrix must be symmetric. Though CUDA uses a Compressed Sparse Row (CSR) format, this function also works with CSC format, since they coincide for symmetric input matrices.
-    */
-    // Declare CUDA overhead objects
-    cudaError_t err;
-
-#define REPET 10
-
-    // Declare device pointers and
-    double *d_x = NULL,
-           *d_b = NULL,
-           *d_csrVal = NULL;
-    int *d_csrRowPtr = NULL,
-        *d_csrColInd = NULL;
-    int singularity = 0;
-
-
-    // Allocate memory for device objects
-    cudaMalloc((void**)&d_x, sizeof(double) * m * ncol);
-    cudaMalloc((void**)&d_b, sizeof(double) * m * ncol);
-    cudaMalloc((void**)&d_csrVal, sizeof(double) * nnz);
-    cudaMalloc((void**)&d_csrRowPtr, sizeof(int) * (m + 1));
-    cudaMalloc((void**)&d_csrColInd, sizeof(int) * nnz);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-        printf("Chol Alloc %s\n", cudaGetErrorString(err));
-
-    // Copy objects to device
-    cudaMemcpy(d_b, b, sizeof(double) * m * ncol, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_csrVal, csrVal, sizeof(double) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_csrRowPtr, csrRowPtr, sizeof(int) * (m + 1), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_csrColInd, csrColInd, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-        printf("Chol Memcpy %s\n", cudaGetErrorString(err));
-
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int k = 0; k < REPET; k++) {
-#pragma omp parallel num_threads(ncol)
-        for (int i = 0; i < ncol; i++) {
-            csrqrInfo_t info = NULL;
-
-            cusolverSpHandle_t handle = NULL;
-            cusparseMatDescr_t descrA = NULL;
-            cudaStream_t pStream;
-            cudaStreamCreate(&pStream);
-
-            // Initialize overhead objects
-            cusolverSpCreate(&handle);
-            cusolverSpSetStream(handle, pStream);
-            cusparseCreateMatDescr(&descrA);
-            cusolverSpCreateCsrqrInfo(&info);
-
-            // Set function parameters
-            cusparseSetMatType(descrA, CUSPARSE_MATRIX_TYPE_GENERAL);
-            cusparseSetMatIndexBase(descrA, CUSPARSE_INDEX_BASE_ONE);
-            cudaStreamSynchronize(pStream);
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-              printf("Chol Sparse init %s\n", cudaGetErrorString(err));
-
-            // Perform cholesky factorization
-            cusolverSpDcsrlsvchol(handle, m, nnz, descrA, d_csrVal, d_csrRowPtr,
-                                  d_csrColInd, d_b + i * m, 0.0, 0, d_x + i * m,
-                                  &singularity);
-            cudaStreamSynchronize(pStream);
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-              printf("Chol %s\n", cudaGetErrorString(err));
-
-            cusolverSpDestroy(handle);
-            cudaStreamDestroy(pStream);
-        }
-    }
-    cudaDeviceSynchronize();
-    auto stop = std::chrono::high_resolution_clock::now();
-
-    // Calculate calculatiom time
-    std::chrono::duration<double> duration = (stop - start);
-    FILE *temp = fopen("time.log", "a");
-
-    time_t current_time;
-    current_time = time(NULL);
-    fprintf(temp, "Run on %s %s\n", ctime(&current_time));
-
-    fprintf(temp, "Duration perf %.5lf\n", duration.count() / REPET);
-    fflush(temp);
-    fclose(temp);
-
-    // Copy results back to host
-    cudaMemcpy(x, d_x, sizeof(double) * m * ncol, cudaMemcpyDeviceToHost);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-        printf("Copy back %s\n", cudaGetErrorString(err));
-
-    // Free memory and overhead objects
-    cudaFree(d_x);
-    cudaFree(d_csrVal);
-    cudaFree(d_csrRowPtr);
-    cudaFree(d_csrColInd);
-
-    fflush(NULL);
-    return 0;
-}
 
 void sparse_solve_init(
-     double *V,     // Vector of matrix values (COO format)
-     int *I,        // Vector of row indices (COO format)
-     int *J,        // Vector of column indices (COO format)
-     long nnz,       // Number of nonzero values (length of V)
-     long m,         // Number of rows and columns of matrix
-     long max_ncol,  // Maximum number of columns of RHS in equation systems
-     void **GPU_obj, // Pointer in which GPU object for iterative solver will be
-                    // stored
-     int *status
-){
+    double *V,      // Vector of matrix values (COO format)
+    int *I,         // Vector of row indices (COO format)
+    int *J,         // Vector of column indices (COO format)
+    long nnz,       // Number of nonzero values (length of V)
+    long m,         // Number of rows and columns of matrix
+    long max_ncol,  // Maximum number of columns of RHS in equation systems
+    void **GPU_obj, // Pointer in which GPU object for iterative solver will be stored
+    int *status     // Holds error code
+) {
 
     // Print compile info
     printf("------------");
@@ -482,8 +381,9 @@ void sparse_solve_init(
         *status = 1;
         return;
     }
-    debug_info("Allocatingx");
+    debug_info("Allocating");
     cudaMalloc((void**)&d_pBuffer_CSC2CSR, pBufferSizeCSC2CSR);
+    
     debug_info("Sequencing");
     thrust::sequence(thrust::device, d_csrColInd, d_csrColInd + nnz);
 
@@ -728,194 +628,9 @@ void sparse_solve_init(
         return;
     }
 };
-
-
-
-void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
-                   double *B,     // Pointer to RHS matrix of size m x ncol
-                   int ncol,      // Number of columns of B and X
-                   double *X,     // Solution matrix of size size m x ncol
-                   int *status
-){
-
-    //
-    // Initialize CUDA variables
-    //
-    cusparseHandle_t handle;
-    cusparseMatDescr_t descrL, descrLt;
-    bsrsm2Info_t info_csc, info_csr;
-    cusparseStatus_t sp_status;
-    cudaError_t err;
-
-    // Check CUDA installation
-    if (checkCuda() != 0) {
-        *status = 1;
-        return;
-    }
-
-    // Get GPU storage object
-    struct GPU_sparse_storage *GPU_storage_obj =
-        (struct GPU_sparse_storage *)GPU_obj;
-
-    // Get problem dimensions
-    long m        = GPU_storage_obj->m,
-         nnz      = GPU_storage_obj->nnz;
-    int  max_ncol = GPU_storage_obj->max_ncol;
-
-    if (ncol > max_ncol) {
-        printf("Sparse solve interface has been initialized with %d columns, "
-               "but %d columns are requested by the calculation function.\n",
-               max_ncol, ncol);
-        *status = 1;
-        return;
-    }
-    debug_info("Start calc");
-    debug_info("%d %d %d", m, nnz, max_ncol);
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
-
-    // Declare device pointers
-    double *d_X           = GPU_storage_obj->d_X,
-           *d_B           = GPU_storage_obj->d_B,
-           *d_cscVal      = GPU_storage_obj->d_cscVal,
-           *d_csrVal      = GPU_storage_obj->d_csrVal ;
-    int    *d_cscColPtr   = GPU_storage_obj->d_cscColPtr,
-           *d_cscRowInd   = GPU_storage_obj->d_cscRowInd,
-           *d_csrRowPtr   = GPU_storage_obj->d_csrRowPtr,
-           *d_csrColInd   = GPU_storage_obj->d_csrColInd;
-    void   *d_pBuffer_csc = GPU_storage_obj->d_pBuffer_csc,
-           *d_pBuffer_csr = GPU_storage_obj->d_pBuffer_csr;
-
-    int numerical_zero = 0;
-    const double alpha = 1.0;
-
-    // Get CUDA auxiliary variables
-    info_csc    = GPU_storage_obj->info_csc;
-    info_csr    = GPU_storage_obj->info_csr;
-    cusparseCreate(&handle);
-
-    cusparseCreateMatDescr(&descrLt);
-    cusparseCreateMatDescr(&descrL);
-    cusparseSetMatDiagType(descrLt, CUSPARSE_DIAG_TYPE_NON_UNIT);
-    cusparseSetMatDiagType(descrL, CUSPARSE_DIAG_TYPE_NON_UNIT);
-    cusparseSetMatFillMode(descrLt, CUSPARSE_FILL_MODE_UPPER);
-    cusparseSetMatFillMode(descrL, CUSPARSE_FILL_MODE_LOWER);
-    cusparseSetMatIndexBase(descrLt, CUSPARSE_INDEX_BASE_ONE);
-    cusparseSetMatIndexBase(descrL, CUSPARSE_INDEX_BASE_ONE);
-    cusparseSetMatType(descrLt, CUSPARSE_MATRIX_TYPE_GENERAL);
-    cusparseSetMatType(descrL, CUSPARSE_MATRIX_TYPE_GENERAL);
-
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
-
-    // Reset memory for X and B on device
-    err = cudaMemset(d_B, 0.0, sizeof(double) * m * max_ncol);
-    if (checkError(__func__, __LINE__, err) != 0){
-        *status = 1;
-        return;
-    }
-    err = cudaMemset(d_X, 0.0, sizeof(double) * m * max_ncol);
-    if (checkError(__func__, __LINE__, err) != 0){
-        *status = 1;
-        return;
-    }
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
-
-    // Copy data to device
-    err = cudaMemcpy(d_B, B, sizeof(double) * m * ncol, cudaMemcpyHostToDevice);
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
-
-    //
-    // Solving equation system on device - forward substitution
-    // 
-    auto start = clock();
-
-    sp_status = cusparseDbsrsm2_solve(
-        handle, CUSPARSE_DIRECTION_ROW, CUSPARSE_OPERATION_NON_TRANSPOSE,
-        CUSPARSE_OPERATION_NON_TRANSPOSE, m, ncol, nnz, &alpha, descrL,
-        d_csrVal, d_csrRowPtr, d_csrColInd, 1, info_csr, d_B, m, d_X, m,
-        CUSPARSE_SOLVE_POLICY_NO_LEVEL, d_pBuffer_csr);
-
-    cudaDeviceSynchronize();
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-
-    sp_status = cusparseXbsrsm2_zeroPivot(handle, info_csr, &numerical_zero);
-    if (CUSPARSE_STATUS_ZERO_PIVOT == sp_status) {
-        printf("Numerical zero during solving: L(%d,%d) is zero\n", numerical_zero, numerical_zero);
-        *status = 1;
-        return;
-    }
-
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
-
-    // Backward substitution to get result of L L^T X = B
-    sp_status = cusparseDbsrsm2_solve(
-        handle, CUSPARSE_DIRECTION_ROW, CUSPARSE_OPERATION_NON_TRANSPOSE,
-        CUSPARSE_OPERATION_NON_TRANSPOSE, m, ncol, nnz, &alpha, descrLt,
-        d_cscVal, d_cscColPtr, d_cscRowInd, 1, info_csc, d_X, m, d_B, m,
-        CUSPARSE_SOLVE_POLICY_NO_LEVEL, d_pBuffer_csc);
-
-    cudaDeviceSynchronize();
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-
-    sp_status = cusparseXbsrsm2_zeroPivot(handle, info_csc, &numerical_zero);
-    if (CUSPARSE_STATUS_ZERO_PIVOT == sp_status) {
-        printf("Numerical zero during solving: L(%d,%d) is zero\n",
-               numerical_zero, numerical_zero);
-        *status = 1;
-        return;
-    }
-
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
-    printf("Time: %.3f", (double)(clock() - start) / CLOCKS_PER_SEC);
-
-    // Copy results back to device
-    err = cudaMemcpy(X, d_B, sizeof(double) * m * ncol, cudaMemcpyDeviceToHost);
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
-    
-    debug_info("Returning");
-    cusparseDestroyMatDescr(descrLt);
-    cusparseDestroyMatDescr(descrL);
-    cusparseDestroy(handle);
-};
-
-
-void sparse_solve_destroy(void **GPU_obj, int *status){
+void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
+                          int *status     // Holds error code
+) {
     cudaError_t err;
     bsrsm2Info_t info_csc, info_csr;
 
@@ -1011,6 +726,188 @@ void sparse_solve_destroy(void **GPU_obj, int *status){
     }
 };
 
+void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
+                          double *B,  // Pointer to RHS matrix of size m x ncol
+                          int ncol,   // Number of columns of B and X
+                          double *X,  // Solution matrix of size size m x ncol
+                          int *status // Holds error code
+) {
+
+    //
+    // Initialize CUDA variables
+    //
+    cusparseHandle_t handle;
+    cusparseMatDescr_t descrL, descrLt;
+    bsrsm2Info_t info_csc, info_csr;
+    cusparseStatus_t sp_status;
+    cudaError_t err;
+
+    // Check CUDA installation
+    if (checkCuda() != 0) {
+        *status = 1;
+        return;
+    }
+
+    // Get GPU storage object
+    struct GPU_sparse_storage *GPU_storage_obj =
+        (struct GPU_sparse_storage *)GPU_obj;
+
+    // Get problem dimensions
+    long m = GPU_storage_obj->m, nnz = GPU_storage_obj->nnz;
+    int max_ncol = GPU_storage_obj->max_ncol;
+
+    if (ncol > max_ncol) {
+        printf("Sparse solve interface has been initialized with %d columns, "
+               "but %d columns are requested by the calculation function.\n",
+               max_ncol, ncol);
+        *status = 1;
+        return;
+    }
+    debug_info("Start calc");
+    debug_info("%d %d %d", m, nnz, max_ncol);
+    err = cudaGetLastError();
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+
+    // Declare device pointers
+    double *d_X = GPU_storage_obj->d_X, *d_B = GPU_storage_obj->d_B,
+           *d_cscVal = GPU_storage_obj->d_cscVal,
+           *d_csrVal = GPU_storage_obj->d_csrVal;
+    int *d_cscColPtr = GPU_storage_obj->d_cscColPtr,
+        *d_cscRowInd = GPU_storage_obj->d_cscRowInd,
+        *d_csrRowPtr = GPU_storage_obj->d_csrRowPtr,
+        *d_csrColInd = GPU_storage_obj->d_csrColInd;
+    void *d_pBuffer_csc = GPU_storage_obj->d_pBuffer_csc,
+         *d_pBuffer_csr = GPU_storage_obj->d_pBuffer_csr;
+
+    int numerical_zero = 0;
+    const double alpha = 1.0;
+
+    // Get CUDA auxiliary variables
+    info_csc = GPU_storage_obj->info_csc;
+    info_csr = GPU_storage_obj->info_csr;
+    cusparseCreate(&handle);
+
+    cusparseCreateMatDescr(&descrLt);
+    cusparseCreateMatDescr(&descrL);
+    cusparseSetMatDiagType(descrLt, CUSPARSE_DIAG_TYPE_NON_UNIT);
+    cusparseSetMatDiagType(descrL, CUSPARSE_DIAG_TYPE_NON_UNIT);
+    cusparseSetMatFillMode(descrLt, CUSPARSE_FILL_MODE_UPPER);
+    cusparseSetMatFillMode(descrL, CUSPARSE_FILL_MODE_LOWER);
+    cusparseSetMatIndexBase(descrLt, CUSPARSE_INDEX_BASE_ONE);
+    cusparseSetMatIndexBase(descrL, CUSPARSE_INDEX_BASE_ONE);
+    cusparseSetMatType(descrLt, CUSPARSE_MATRIX_TYPE_GENERAL);
+    cusparseSetMatType(descrL, CUSPARSE_MATRIX_TYPE_GENERAL);
+
+    err = cudaGetLastError();
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+
+    // Reset memory for X and B on device
+    err = cudaMemset(d_B, 0.0, sizeof(double) * m * max_ncol);
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+    err = cudaMemset(d_X, 0.0, sizeof(double) * m * max_ncol);
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+    err = cudaGetLastError();
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+
+    // Copy data to device
+    err = cudaMemcpy(d_B, B, sizeof(double) * m * ncol, cudaMemcpyHostToDevice);
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+    err = cudaGetLastError();
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+
+    //
+    // Solving equation system on device - forward substitution
+    //
+    auto start = clock();
+
+    sp_status = cusparseDbsrsm2_solve(
+        handle, CUSPARSE_DIRECTION_ROW, CUSPARSE_OPERATION_NON_TRANSPOSE,
+        CUSPARSE_OPERATION_NON_TRANSPOSE, m, ncol, nnz, &alpha, descrL,
+        d_csrVal, d_csrRowPtr, d_csrColInd, 1, info_csr, d_B, m, d_X, m,
+        CUSPARSE_SOLVE_POLICY_NO_LEVEL, d_pBuffer_csr);
+
+    cudaDeviceSynchronize();
+    if (checkError(__func__, __LINE__, sp_status) != 0) {
+        *status = 1;
+        return;
+    }
+
+    sp_status = cusparseXbsrsm2_zeroPivot(handle, info_csr, &numerical_zero);
+    if (CUSPARSE_STATUS_ZERO_PIVOT == sp_status) {
+        printf("Numerical zero during solving: L(%d,%d) is zero\n",
+               numerical_zero, numerical_zero);
+        *status = 1;
+        return;
+    }
+
+    err = cudaGetLastError();
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+
+    // Backward substitution to get result of L L^T X = B
+    sp_status = cusparseDbsrsm2_solve(
+        handle, CUSPARSE_DIRECTION_ROW, CUSPARSE_OPERATION_NON_TRANSPOSE,
+        CUSPARSE_OPERATION_NON_TRANSPOSE, m, ncol, nnz, &alpha, descrLt,
+        d_cscVal, d_cscColPtr, d_cscRowInd, 1, info_csc, d_X, m, d_B, m,
+        CUSPARSE_SOLVE_POLICY_NO_LEVEL, d_pBuffer_csc);
+
+    cudaDeviceSynchronize();
+    if (checkError(__func__, __LINE__, sp_status) != 0) {
+        *status = 1;
+        return;
+    }
+
+    sp_status = cusparseXbsrsm2_zeroPivot(handle, info_csc, &numerical_zero);
+    if (CUSPARSE_STATUS_ZERO_PIVOT == sp_status) {
+        printf("Numerical zero during solving: L(%d,%d) is zero\n",
+               numerical_zero, numerical_zero);
+        *status = 1;
+        return;
+    }
+
+    err = cudaGetLastError();
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+    printf("Time: %.3f", (double)(clock() - start) / CLOCKS_PER_SEC);
+
+    // Copy results back to device
+    err = cudaMemcpy(X, d_B, sizeof(double) * m * ncol, cudaMemcpyDeviceToHost);
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+
+    debug_info("Returning");
+    cusparseDestroyMatDescr(descrLt);
+    cusparseDestroyMatDescr(descrL);
+    cusparseDestroy(handle);
+};
+
 
 __global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet)
 {
@@ -1029,7 +926,6 @@ __global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet)
     long idx = blockDim.x * blockIdx.x + threadIdx.x,
          thread = threadIdx.x;
     if (idx < *d_size) {
-        // double *d_submatrix = d_matrix + idx * (*d_size)-1;
         submatrix[thread] = d_matrix[idx * (*d_size + 1)];
     }
     __syncthreads();

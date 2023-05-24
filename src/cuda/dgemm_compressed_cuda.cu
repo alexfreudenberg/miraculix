@@ -391,7 +391,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   status = gemm_op(); // Actual gemm op
   cudaDeviceSynchronize();
   if (status != cutlass::Status::kSuccess)
-    printf("Operation error %d\n", status);
+    printf("Operation error %d\n", (int) status);
 
   // Catch all accumulated errors from previous cuda launches
   err = cudaGetLastError();

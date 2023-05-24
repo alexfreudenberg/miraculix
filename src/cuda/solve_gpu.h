@@ -37,6 +37,32 @@
 #include <cusparse.h>
 
 extern "C" {
+
+/**
+ *  \brief C - Wrapper for sparse_solve_init.
+ *
+ *  Refer to the documentation of sparse_solve_init for details.
+ */
+void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long max_ncol,
+                void **GPU_obj, int *status);
+
+/**
+ *  \brief C - Wrapper for sparse_solve_compute.
+ *
+ *  Refer to the documentation of sparse_solve_compute for details.
+ */
+void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,
+                        int *status);
+
+/**
+ *  \brief C - Wrapper for sparse_solve_destroy.
+ *
+ *  Refer to the documentation of sparse_solve_destroy for details.
+ */
+void free_sparse_gpu(void **GPU_obj, int *status);
+};
+// End extern "C"
+
 struct GPU_sparse_storage {
      int *d_cscColPtr;
      int *d_cscRowInd;
@@ -59,23 +85,46 @@ struct GPU_sparse_storage {
 // void cholGPU(bool copy, double *matrix, Uint size, double *B, Uint rhs_cols,
 //      double *LogDet, double *RESULT);
 
-void sparse2gpu(
-     double *V,     // Vector of matrix values (COO format)
-     int *I,        // Vector of row indices (COO format)
-     int *J,        // Vector of column indices (COO format)
-     long nnz,       // Number of nonzero values (length of V)
-     long m,         // Number of rows and columns of matrix
-     long max_ncol,  // Maximum number of columns of RHS in equation systems
-     void **GPU_obj, // Pointer in which GPU object for iterative solver will be
-                    // stored
-     int *status
-);
-void dcsrtrsv_solve(void *GPU_obj, // Pointer to GPU object
-                   double *B,     // Pointer to RHS matrix of size m x ncol
-                   int ncol,      // Number of columns of B and X
-                   double *X,     // Solution matrix of size size m x ncol
-                   int *status
-);
-void freegpu_sparse(void *GPU_obj, int *status);
+/**
+ *  \brief Initializes storage object with required data on the GPU.
+ *  
+ *  This function prepares the GPU for iterative solver computation by loading
+ *  the required data into the GPU memory.
+ *  
+ *  \param V A pointer to a vector of matrix values in COO format.
+ *  \param I A pointer to a vector of row indices in COO format.
+ *  \param J A pointer to a vector of column indices in COO format.
+ *  \param nnz The number of non-zero values in the matrix (length of V).
+ *  \param m The number of rows and columns in the matrix.
+ *  \param maxncol The maximum number of columns in the right-hand side 
+ * (RHS) matrix in equation systems.
+ *  \param GPUobj A pointer in which the GPU object for iterative solver will be stored.
+ *  \param status A pointer to an integer that holds the error code, if any.
+ */
+void sparse_solve_init(double *V, int *I, int *J, long nnz, long m,
+                       long maxncol, void **GPUobj, int *status);
 
-};
+/**
+ *  \brief Frees the memory in the GPU object.
+ *
+ *  This function releases the GPU memory that was allocated for the iterative solver computation.
+ *
+ *  \param GPU_obj A pointer to the GPU object.
+ *  \param status A pointer to an integer that holds the error code, if any.
+ */
+void sparse_solve_destroy(void **GPU_obj, int *status);
+
+/**
+ *  \brief Computes the solution to the equation system defined by the matrix stored in GPU_obj and B.
+ *
+ *  This function uses the GPU object to solve the equation system. The result is stored in X.
+ *
+ *  \param GPU_obj A pointer to the GPU object.
+ *  \param B A pointer to the RHS matrix of size m x ncol.
+ *  \param ncol The number of columns in B and X.
+ *  \param X A pointer to the solution matrix of size m x ncol.
+ *  \param status A pointer to an integer that holds the error code, if any.
+ */
+void sparse_solve_compute(void *GPUobj, double *B, int ncol, double *X,
+                          int *status);
+

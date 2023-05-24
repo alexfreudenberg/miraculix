@@ -13,7 +13,7 @@ CU_FLAGS_12=$(foreach i,$(cu_nums_12),--generate-code arch=compute_$(i),code=sm_
 
 
 NVCC=nvcc
-CXXFLAGS=-Xcompiler --std=c++14 -Xcompiler -fopenmp  -Xcompiler -fPIC -Xcompiler -g -x cu -DDO_PARALLEL -DJULIA_COMPILE -I$(CUTLASS_PATH) -I$(CUTLASS_UTILS) -I./ -DCOMMIT_ID=\"$(shell git rev-parse --short HEAD)\" 
+CXXFLAGS=-Xcompiler --std=c++14 -Xcompiler -fopenmp  -Xcompiler -fPIC -Xcompiler -g -x cu -DDO_PARALLEL -DJULIA_COMPILE -I$(CUTLASS_PATH) -I$(CUTLASS_UTILS) -I./ -DCOMMIT_ID=\"$(shell git rev-parse --short HEAD)\"  -Xcompiler -Wall
 LIBS=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver  -Xcompiler -fopenmp
 
 ifeq ($(DEBUG), true)
