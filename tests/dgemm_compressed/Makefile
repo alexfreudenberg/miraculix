@@ -48,11 +48,11 @@ all: $(EXE) $(EXET)
 $(LIBMIRACULIX):
 	@cd $(SRC_DIR) && make libmiraculix
 
-$(EXE): $(EXE).o $(LIBMIRACULIX) $(LIBFORTRAN)
-	$(FORTRAN) $(FFLAGS) $(EXE).o -o $@ $(LDFLAGS) 
+$(EXE): $(EXE:.out=.o) $(LIBMIRACULIX) $(LIBFORTRAN)
+	$(FORTRAN) $(FFLAGS) $< -o $@ $(LDFLAGS) 
 
-$(EXET): $(EXET).o $(LIBMIRACULIX) $(LIBFORTRAN)
-	$(FORTRAN) $(FFLAGS) $(EXET).o -o $@ $(LDFLAGS)
+$(EXET): $(EXE:.out=.o) $(LIBMIRACULIX) $(LIBFORTRAN)
+	$(FORTRAN) $(FFLAGS) $< -o $@ $(LDFLAGS)
 
 %.o: %.f90
 	$(FORTRAN) $(FFLAGS) -c $<
