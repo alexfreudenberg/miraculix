@@ -48,6 +48,9 @@ LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 DATA_FILE = ROOT_DIR * "/data/xsmall.bed"
 FREQ_FILE = ROOT_DIR * "/data/xsmall.freq"
 
+use_gpu = true
+
+
 include(MODULE_PATH)
 
 """
@@ -82,10 +85,10 @@ function GRM_vec(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, snps::Int, indiv:
 end
 
 # Set library path and load library
-miraculix.dgemm_compressed.set_library_path(LIBRARY_PATH)
-miraculix.dgemm_compressed.load_shared_library()
+miraculix.set_library_path(LIBRARY_PATH)
+miraculix.load_shared_library()
 # Set miraculix options
-miraculix.dgemm_compressed.set_options(use_gpu=!false, verbose=0)
+miraculix.dgemm_compressed.set_options(use_gpu=use_gpu, verbose=0)
 
 # Read PLINK and allele frequency files
 genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE)
@@ -115,7 +118,7 @@ begin
         global x, r, p, Gp, alpha, beta, norm_old
         norm_old = norm(r)
         # Exit if convergence criterion is reached
-        if norm_old < conv_cirt
+        if norm_old < conv_crit
             break
         end
         
