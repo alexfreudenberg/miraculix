@@ -177,6 +177,10 @@ function dgemm_compressed_main(transpose::Bool, obj_ref::Ref{Ptr{Cvoid}}, B::Mat
         error("Matrix B is not compatible with genotype matrix of $snps SNPs and $indiv individuals when operation = $trans ")
     end
 
+    if obj_ref[] == C_NULL
+        error("No valid storage object supplied")
+    end
+
     C = zeros(Float64, transpose ? snps : indiv, n_col)
 
     dgemm_compressed_sym = dlsym(LIBRARY_HANDLE[], :dgemm_compressed)
@@ -201,6 +205,11 @@ This function releases the memory allocated to the storage object that holds the
 - Throws an error if the memory cannot be properly freed.
 """
 function free_compressed(obj_ref::Ref{Ptr{Cvoid}})
+
+    if obj_ref[] == C_NULL
+        error("No valid storage object supplied")
+    end
+    
     free_sym = dlsym(LIBRARY_HANDLE[], :free_compressed)
     ccall(free_sym, Cvoid, (Ptr{Ptr{Cvoid}},), obj_ref)
 end

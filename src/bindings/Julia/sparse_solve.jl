@@ -19,5 +19,20 @@ module sparse_solve
 import ..LIBRARY_HANDLE
 using Libdl
 
+function init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64, m::Int64, max_ncol::Int64)
+    obj_ref = Ref{Ptr{Cvoid}}(C_NULL)
+    if (length(V), length(I), length(J)) != (nnz, nnz, nzz)
+        error("Unexpected length of vectors in COO format.")
+    end
+    status = 0
+
+    init_sym = dlsym(LIBRARY_HANDLE[], :sparse2gpu)
+    ccall(init_sym, Cvoid, (Ptr{Float64},Ptr{Int32},Ptr{Int32}, Int64, Int64, Int64, Ptr{Ptr{Cvoid}}, Ptr{Int32}), V, I, J, nnz, m, max_ncol, obj_ref, pointer(status))
+    if obj_ref[] == C_NULL
+        error("Routine not successful")
+    end
+    
+    return obj_ref
+end
 
 end # module
