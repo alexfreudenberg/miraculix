@@ -42,6 +42,10 @@ using Statistics
 using Libdl
 using LinearAlgebra
 
+# =====================
+# Global definitions
+# =====================
+
 ROOT_DIR = string(@__DIR__) * "/../"
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
@@ -50,8 +54,12 @@ FREQ_FILE = ROOT_DIR * "/data/xsmall.freq"
 
 use_gpu = true
 
-
 include(MODULE_PATH)
+
+
+# =====================
+# Auxiliary functions
+# =====================
 
 """
     GRM_vec(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, snps::Int, indiv::Int)

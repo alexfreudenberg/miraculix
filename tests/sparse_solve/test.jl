@@ -23,3 +23,75 @@
 # 
 # 
 #
+
+using SparseArrays;
+using LinearAlgebra;
+using Test
+
+# =====================
+# Global definitions
+# =====================
+
+ROOT_DIR = string(@__DIR__) * "/../.."
+MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
+LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
+
+tol = 1e-5;
+
+include(MODULE_PATH)
+
+# =====================
+# Auxiliary functions
+# =====================
+
+"""
+    simulate_sparse_pd(n::Int, density = 0.01)
+
+Generates a sparse, positive-definite (PD) square matrix of size `n` x `n` with specified `density`. The positive-definiteness of the matrix is ensured by constructing it to be strictly diagonally dominant.
+
+# Arguments
+- `n::Int`: The dimension of the square matrix to be generated.
+- `density::Float64=0.01`: The desired density of the matrix. Defaults to 0.01 if not specified, representing 1% density.
+
+# Returns
+- A sparse, positive-definite square matrix of size `n` x `n` with specified density.
+"""
+function simulate_sparse_pd(n::Int, density = 0.01)
+    M_sp = spdiagm(ones(n));
+    indices = rand(1:n, (Int(ceil(density/2 * n)), 2));
+ 
+    # Generate a sparse, strictly diagonally dominant matrix M_sp through sampling values such that each off-diagonal rowsum is smaller than the diagonal value 1.0
+    for k = 1:size(indices)[1]
+        i, j = indices[k,:];
+        if i == j
+            continue
+        end
+        M_sp[i,j] = M_sp[j,i] = rand(Float64) * (0.9 - sum(abs.(M_sp[i,:])));
+    end
+
+    return M_sp
+end
+
+# =====================
+# Main
+# =====================
+
+
+
+println("Load library and set options")
+miraculix.set_library_path(LIBRARY_PATH)
+miraculix.load_shared_library()
+
+@testset "Testing functionality" begin
+    n = Int(1e2);
+    ncol = 12;
+    
+    M = simulate_sparse_pd(n, 0.05);
+    B = randn(Float64, (n, ncol))
+    I, J, V = findnz(M)
+
+    obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+    X = miraculix.sparse_solve.solve(obj_ref, B, m)
+
+    @test norm(M * X - B) < tol
+end

@@ -1,7 +1,7 @@
 CUDA=true
 COMPILER=intel
 
-#Martin's includes:
+#miraculix source files:
 MK_SRC=./
 SRC=./
 include makefile.c.mk
@@ -32,7 +32,7 @@ SHARED_LIB = miraculix.so
 
 ifeq ($(CUDA), true)
 CUDA_LIB = ../cuda/
-LINK_FLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver -L$(CUDA_LIB) -ldgemm_compressed_cuda
+LINK_FLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver -L$(CUDA_LIB) -Wl,--whole-archive -ldgemm_compressed_cuda -Wl,--no-whole-archive
 
 CCFLAGS+=-DCUDA # Indicates that CUDA functions need to be linked 
 FFLAGS+=-DCUDA
@@ -60,4 +60,4 @@ vtestt: all
 
 .PHONY: clean lib
 clean: 
-	rm *.o
+	rm *.o *.a *.so

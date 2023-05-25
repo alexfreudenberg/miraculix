@@ -16,12 +16,12 @@
 #  limitations under the License.
 
 module sparse_solve
-import ..LIBRARY_HANDLE, check_storage_object
+import ..LIBRARY_HANDLE, ..check_storage_object
 using Libdl
 
 function init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64, m::Int64, max_ncol::Int64)
     obj_ref = Ref{Ptr{Cvoid}}(C_NULL)
-    if (length(V), length(I), length(J)) != (nnz, nnz, nzz)
+    if (length(V), length(I), length(J)) != (nnz, nnz, nnz)
         error("Unexpected length of vectors in COO format.")
     end
     status = Int32(0)

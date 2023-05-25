@@ -31,6 +31,11 @@ using Statistics
 using Libdl
 using Test
 
+
+# =====================
+# Global definitions
+# =====================
+
 ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
@@ -40,9 +45,14 @@ FREQ_FILE = ROOT_DIR * "/data/xsmall.freq"
 include(MODULE_PATH)
 
 
+# =====================
+# Main
+# =====================
+
 println("Load library and set options")
-miraculix.dgemm_compressed.set_library_path(LIBRARY_PATH)
-miraculix.dgemm_compressed.load_shared_library()
+miraculix.set_library_path(LIBRARY_PATH)
+miraculix.load_shared_library()
+
 miraculix.dgemm_compressed.set_options(use_gpu=!false)
 
 println("Read bed file and frequencies")

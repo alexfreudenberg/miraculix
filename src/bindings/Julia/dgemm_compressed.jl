@@ -17,7 +17,7 @@
 
 
 module dgemm_compressed
-import ..LIBRARY_HANDLE, check_storage_object
+import ..LIBRARY_HANDLE, ..check_storage_object
 using Libdl
 
 # Check if genotype matrix has correct dimensions
