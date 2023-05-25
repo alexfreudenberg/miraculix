@@ -135,7 +135,7 @@ SEXP allocObject(int type, Long len, void *x) {
     Ans->x = CALLOC(1, sizeof(void*));
     *((void**) (Ans->x)) = x;
   } else Ans->x = len == 0 ? R_NilValue : CALLOC(Memory(type), len);
-  // printf("don %ld\n", (Long) (Ans->x));
+  
   return Ans;
 }
 

@@ -44,7 +44,7 @@
 #define EXP std::exp
 #define FABS(X) std::fabs((double) X) // OK; keine Klammern um X!
 #if ! defined MALLOCX
-#define MALLOCX std::malloc
+#define MALLOCX(X) notNull(std::malloc, __LINE__, __FILE__)
 #define FLOOR std::floor
 #define SQRT(X) std::sqrt((double) X) // OK
 #define CEIL(X) std::ceil((double) X) // OK; keine Klammern um X!
@@ -62,8 +62,8 @@
 #define MEMMOVE std::memmove
 #define MEMSET std::memset  
 #define MEMCMP std::memcmp
-#define AALLOC std::aligned_alloc
-#define CALLOCX std::calloc
+#define AALLOC notNull(std::aligned_alloc, __LINE__, __FILE__)
+#define CALLOCX notNull(std::calloc, __LINE__, __FILE__)
 #define SPRINTF std::sprintf // Rprint 
 #define QSORT std::qsort
 #define RFERROR error

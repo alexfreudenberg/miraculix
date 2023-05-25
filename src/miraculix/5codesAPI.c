@@ -53,7 +53,7 @@ void setOptions_compressed(int use_gpu, // 0 == use CPU
 
 
   //  printf("floatLoop = %d \n", floatLoop); exit(99);
-    printf("get started\n");
+  //  printf("get started\n");
     getStartedOptions();
     //  printf("GPU setting options in setOptions_compressed\n");
     setOptions5(use_gpu, cores, floatLoop,	     
@@ -86,7 +86,7 @@ void plink2compressed(char *plink,
 
   // setOptions_compressed(0, 6, 0, 0, 0, 0, 0, 0, 1);
 
-   int nbytes = indiv /4;   printf("p2c snps=%d indiv=%d max_n=%d bytes/indiv=%d\n", snps, indiv, max_n, nbytes);
+  //  int nbytes = indiv /4;   printf("p2c snps=%d indiv=%d max_n=%d bytes/indiv=%d\n", snps, indiv, max_n, nbytes);
   // exit(99);
  //  printf("c byte 1:5 = %d %d %d %d %d\n", *plink, *(plink+1), *(plink+2), *(plink+3), *(plink+4));
 
@@ -95,30 +95,38 @@ void plink2compressed(char *plink,
   return; 
 }
 
-void dgemm_compressed(char *trans, // 'N', 'T'
-                      void *compressed,
-                      int n, // number of columns of the matrix B
-                      double *B,	
-                      int Ldb, // how should it be size_t ldb
-                      double *C, int Ldc) {
 
-  if (is(trans))
-    genoVector5api(compressed, B, n, Ldb, C, Ldc);
-  else
-    vectorGeno5api(compressed, B, n, Ldb, C, Ldc);
+void dgemm_compressed(char* trans, // 'N', 'T'                     //JV: would be easier if the value was passed instead of the pointer
+                      void *compressed,
+		      int n, // number of columns of the matrix B 
+		      //		      double *f,
+		      double *B,                                  //JV: should it be transposed?
+		      int Ldb,    //how should it be size_t ldb
+                      double *C,
+		      int Ldc) {
+  //   printf("%c %d %d %d \n", *trans, n, Ldb, Ldc);
+  //exit(99);
+  
+  if (is(trans)) genoVector5api(compressed, B, n, Ldb, C, Ldc);
+  else vectorGeno5api(compressed, B, n, Ldb,C, Ldc); 
   return;
 }
 
-void dgemm_plink(char* trans, // 'N', 'T'                     
+
+
+void dgemm_plink(char* trans, // 'N', 'T'                     //JV: would be easier if the value was passed instead of the pointer
 		 char *plink,      // first all indiv of one snp
 		 char *plink_transposed,// first all snps of one indiv
 		 int snps, int indiv,
 		 double *f, 
 		 int n, // number of columns of the matrix B 
-		 double *B,                               
+		 //		      double *f,
+		 double *B,             //JV: should it be transposed?
 		 int Ldb,    //how should it be size_t ldb
 		 double *C,
 		 int Ldc) {
+  //   printf("%c %d %d %d \n", *trans, n, Ldb, Ldc);
+  //exit(99);
   
   if (is(trans)) {
     int tmp = snps; snps=indiv; indiv=tmp;
@@ -147,10 +155,10 @@ void sparse_times_plink(char *transsparse,// N: matrix as is (sparse row format)
 
   if (is(transcompressed)) {
     int tmp = snps; snps=indiv; indiv=tmp;
-    plink_transposed = plink;
+    plink = plink_transposed;
   }
   
-  sparseTGenoPlinkApi(plink_transposed, snps, indiv,
+  sparseTGenoPlinkApi(plink, indiv, snps, 
 		      B, nIdx, rowIdxB, colIdxB, is(transsparse), C, Ldc);
 
   return;

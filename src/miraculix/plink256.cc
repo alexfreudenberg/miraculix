@@ -62,7 +62,7 @@ IMPORTANT FUNCTIONS IN 2bit256.cc
 
 
 vectorGeno_header(double, double, double, PlinkMatrix256) {
-  // calculates  v * t(geno)  for some geno matrix given by "code"
+  // calculates  t(v) * geno  for some geno matrix given by "code"
   // In :    V : snps x repetV
   //      code : snps x indiv
   // Out:  Ans : indiv x repetV
@@ -166,8 +166,6 @@ vectorGeno_header(double, double, double, PlinkMatrix256) {
   //  printf("bytesTV = %ld %ld\n", bytesTV, bytesTans);
   Doubles *TV = (Doubles*) MALLOC(bytesTV);
   Doubles *Tans = (Doubles*) MALLOC(bytesTans);
-  assert(TV != NULL);
-  assert(Tans != NULL);
  
 
 #define miniIndiv1 8

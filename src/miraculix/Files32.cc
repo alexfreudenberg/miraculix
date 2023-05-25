@@ -125,11 +125,9 @@ SEXP file_binary(char *file, char *file_coding, int header, bool isSNPxInd,
     matrix_size = matrixLDA * colsLDA,					
     idxIncr = isSNPxInd ? matrixLDA : 1;				
   Long lda = info[LDA];						
-  if ((matrix = (unit_t*) CALLOC(matrix_size, BytesPerUnit)) == NULL)
-    ERR0("memory space could not be acquired");
-  char *buffer0 = (char*) CALLOC(blocks * bytesperblock +// OK
-				 MaxByteAlign, 1), 
-    *buffer = (char*)((1L + (uintptr_t) buffer0 / MaxByteAlign)*MaxByteAlign);
+  matrix = (unit_t*) CALLOC(matrix_size, BytesPerUnit);
+  char *buffer0 = (char*) CALLOC(blocks * bytesperblock + MaxByteAlign, 1);// OK
+  char *buffer =(char*)((1L + (uintptr_t) buffer0 / MaxByteAlign)*MaxByteAlign);
 
   if ((fp = fopen(file, "r")) == NULL)
     ERR1("file '%.50s' could not be opened", file);

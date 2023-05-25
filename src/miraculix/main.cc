@@ -38,15 +38,29 @@
 void get_started(option_type **g, utilsoption_type **u);
 
 
-// make standalone && Wageningen/run_gcc snps=2400 ind=3800 cores=4 coding=4 mode=3 SNPmode=0 center=0 repetV=16 trials=1 variant=257 cmp=10
+
+// SPARSE
+// make standalone && make standalone && Wageningen/run_gcc snps=11200 ind=12300 cores=10 coding=4 mode=3 SNPmode=3 repetV=32 trials=10 centered=0 variant=256 sparse=100000 cmp=1 rowMode=2 colMode=2 fillMode=2
+// L 361, plinkUint pr a gma for
+//   without static:  18/100
+//   with static: 18/100
+//   with static ordered: 19/110
+
+// make standalone && make standalone && Wageningen/run_gcc snps=112000 ind=123000 cores=20 coding=4 mode=3 SNPmode=3 repetV=32 trials=10 centered=0 variant=256 sparse=1 cmp=1  ## katastrophal schlecht bei cores=20 -- mit cores=1 viel besser!
+
+// make standalone && make standalone && Wageningen/run_gcc snps=112000 ind=123000 cores=20 coding=4 mode=3 SNPmode=3 repetV=32 trials=10 centered=0 variant=256 sparse=1 cmp=1 ## katastrophal schlecht bei cores=20
 
 
 
-//make standalone && Wageningen/run_gcc snps=128000 ind=136960 cores=10 coding=5   mode=3 SNPmode=3 repetV=32 trials=1 centered=0 variant=257
+// make standalone && Wageningen/run_gcc snps=5024 ind=4100 cores=5 coding=5 mode=3 SNPmode=3 repetV=2 trials=1 cmp=9
+
+//make standalone && Wageningen/run_gcc snps=128000 ind=136960 cores=10 coding=5   mode=3 SNPmode=3 repetV=32 trials=1 centered=0 variant=256
 
 
 // make standalone && Wageningen/run_gcc snps=12800 ind=13800 cores=4 coding=4 mode=3 SNPmode=3 center=0 repetV=16 trials=1 variant=257
 
+
+// make standalone && Wageningen/run_gcc snps=2400 ind=3800 cores=4 coding=4 mode=3 SNPmode=0 center=0 repetV=16 trials=1 variant=257 cmp=10
 
 
 
@@ -67,7 +81,7 @@ void get_started(option_type **g, utilsoption_type **u);
 
 
 
-// make standalone && Wageningen/run_gcc snps=50241 ind=410000 cores=5 coding=5 mode=3 SNPmode=3 repetV=1 trials=5
+// make standalone && Wageningen/run_gcc snps=50241 ind=410000 cores=5 coding=5 mode=3 SNPmode=3 repetV=1 trials=5 
 
 
 // make standalone && Wageningen/run_gcc snps=50241 ind=410000 cores=6 coding=5 mode=3 SNPmode=3 repetV=1 trials=1 variant=128
@@ -79,7 +93,7 @@ void get_started(option_type **g, utilsoption_type **u);
 
 
 
-//  make standalone && Wageningen/run snps=102400 ind=51200 cores=2 SNPmode=5 mode=1 coding=2 cmp=0
+//  make standalone && Wageningen/run_gcc snps=102400 ind=51200 cores=2 SNPmode=5 mode=1 coding=2 cmp=0
 
 
 //  make standalone && Wageningen/run snps=262144 ind=512 variant=32 mode=1
@@ -328,7 +342,7 @@ void RandomSparse(int nIdx, int max_ncol,
       colIdxB[i]= i % 2 == 0 ? max_ncol - 1 : i % 3 == 0 ? 0 : i % max_ncol;
   }
   
-  double *B = *valueB = (double*) MALLOC(sizeof(**valueB) * total);  
+  double *B = *valueB = (double*) MALLOC(sizeof(**valueB) * total);
   switch (fillMode) {
   case 0 : for (int i=0; i<total; i++) B[i] = (double) (i + 1);
     break;
@@ -445,7 +459,7 @@ int main(int argc, char *argv[]) {
   int colMode = (int) argdefault[z++];
    int fillMode = (int) argdefault[z++];
  
-  opt->efficient = false;
+  opt->efficient = variant >= 512;
   CLOCK("starting");
   
   Long size = indiv * repetV;
@@ -559,64 +573,64 @@ int main(int argc, char *argv[]) {
       CLOCK("transforming to OrigPlink");
       UNPROTECT(1);
     }
-    assert(code != NULL);
 
     int p_nrow = sparse_nrow < 10 ? sparse_nrow : 10;
     int p_ncol = snps < 20 ? (int) snps : 20;
     int p_indiv = indiv < 10 ? (int) indiv : 10;
 
-    for (int k=0; k<30; k++)
+#define repetSparse 10
+    for (int k=0; k<repetSparse; k++)
       sparseTGeno(code, snps, indiv,
 		  true_coding == OrigPlink ? DIV_GEQ(snps,4) : infoCoded[LDA],
 		  true_coding == OrigPlink ? OrigPlink
 		                   : (coding_type) infoCoded[CODING],
 		  valueB, sparse_nrow, rowIdxB, colIdxB, false, global, utils,
 		  Ans, sparse_nrow);
-    CLOCK("Sparse multiplication");
+    CLOCK1("%d Sparse multiplications", repetSparse);
     //    BUG;
 
    
-   if (cmp && SxI != R_NilValue) {
+    if (cmp && SxI != R_NilValue) {
       Long lda = info[LDA];
       codeSxI = (Uchar*) Align(SxI, opt);
       AnsSxI = (double*) MALLOC(AnsBytes);
       sparseTGeno(codeSxI, snps, indiv, lda, (coding_type) info[CODING],
 		  valueB, sparse_nrow, rowIdxB, colIdxB, false, global, utils,
 		  AnsSxI, sparse_nrow);
-    CLOCK("Sparse multiplication using OneByte");
-   
-	if (false) {
-      for (Long j=0; j<p_ncol; j++) {
-	for (Long i=0; i<p_indiv; i++) {
-	  PRINTF("%u\t", (Uint) codeSxI[j + i * lda * sizeof(unit_t)]);
+      CLOCK("Sparse multiplication using OneByte");
+      
+      if (false) {
+	for (Long j=0; j<p_ncol; j++) {
+	  for (Long i=0; i<p_indiv; i++) {
+	    PRINTF("%u\t", (Uint) codeSxI[j + i * lda * sizeof(unit_t)]);
+	    }
+	  PRINTF("\n");
 	}
 	PRINTF("\n");
       }
-	PRINTF("\n");
-   }
-
-	if (false) {
-	  for (Long j=0; j<p_nrow; j++) {
+      
+      if (false) {
+	for (Long j=0; j<p_nrow; j++) {
 	PRINTF("%ld ", j);	
 	for (Long i=rowIdxB[j]; i<rowIdxB[j+1]; i++) {
 	  PRINTF("%d:%3.1f ", colIdxB[i], valueB[i]);
 	}
 	PRINTF("\n");
-      }
-       printf("\n");
-	}
-
-       if (false)
-      for (int k=0; k<p_nrow; k++) {
-	for (int i=0; i<p_ncol; i++) {
-	  printf("%6.1f", AnsSxI[i * sparse_nrow + k]);
-	  if (Ans[i * sparse_nrow + k] ==  AnsSxI[i * sparse_nrow + k])
-	    printf("*   ");
-	  else printf(":%3.1f ", Ans[i * sparse_nrow + k]);
-	  PRINTF("\t");
 	}
 	printf("\n");
       }
+      
+      if (false)
+	for (int k=0; k<p_nrow; k++) {
+	  for (int i=0; i<p_ncol; i++) {
+	    printf("%6.1f", AnsSxI[i * sparse_nrow + k]);
+	    if (Ans[i * sparse_nrow + k] ==  AnsSxI[i * sparse_nrow + k])
+	      printf("*   ");
+	    else printf(":%3.1f ", Ans[i * sparse_nrow + k]);
+	    PRINTF("\t");
+	  }
+	  printf("\n");
+	}
       
 
       for (int k=0; k<sparse_nrow; k++) {
@@ -630,10 +644,10 @@ int main(int argc, char *argv[]) {
 	  }
 	}
       }    	
-   }
+    }
+    
 
-
-   FREE(valueB);
+    FREE(valueB);
     FREE(rowIdxB);
     FREE(colIdxB);
     FREE(Ans);
@@ -685,6 +699,9 @@ int main(int argc, char *argv[]) {
     CLOCK("comparing...");
   }
 
+
+
+  
   CLOCK1("BEFORE STARTING TRIALS = %d\n", trials); 
   infoCoded[VARIANT] = variant;
   //

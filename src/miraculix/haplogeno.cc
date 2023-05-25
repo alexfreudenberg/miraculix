@@ -1068,8 +1068,8 @@ void do_centering(Long Snps, Long Individuals, centering_type centered,
   }
   if (transposed) centered = centered == RowMeans ? ColMeans
 		    : centered == ColMeans ? RowMeans : centered;
-  double *sums = (double *) MALLOC(sizeof(double) * cols),
-    factor = 1.0; 
+  double factor = 1.0,
+    *sums = (double *) MALLOC(sizeof(double) * cols);   
 
   switch(centered) {
   case RowMeans:
@@ -1216,7 +1216,6 @@ double *crossprod(unit_t * Code, Long snps, Long individuals,  Long lda,
 		  basic_options *opt, tuning_options *tuning) {
   // never squared here!!!
   double *A = (double *) MALLOC(individuals * individuals * sizeof(double));
-  if (A == NULL) ERR0("mem allocation");
 
   crossprodI(Code, snps, individuals, lda, coding, variant,
 	     centered, normalized, squared, Precision,
@@ -1373,7 +1372,6 @@ void allele_sum_I(SEXP SxI,
     FREE(E);
   }
 
-  assert(sum != NULL);
   if (EightByte) {
     for (Long i=0; i<rows; i++) ans[i] = sum[2 * i] + sum[2*i + 1];
     FREE(sum);
@@ -1703,7 +1701,7 @@ void sparseTGeno(Uchar *code,
   if (tSparse) BUG;
   sparseTGeno_t sTG = NULL;
   switch(coding) {
-  case Plink : case OrigPlink : sTG = sparseTGenoOrigPlink; break;    
+  case Plink : case OrigPlink : sTG = sparseTGenoPlink; break;    
   case TwoBitGeno : sTG = sparseTGeno2Bit; break;
   case OneByteGeno : sTG = sparseTGenoOneByte; break;
   default : BUG;

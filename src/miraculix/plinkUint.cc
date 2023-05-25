@@ -313,7 +313,7 @@ void getPlinkMissings(Uchar* plink, SEXP SxI, basic_options *opt) {
   if (snp##N + f + 1 <= snpsEnd) snps##N = snp##N[f];		\
   else {					\
     Uchar *S = (Uchar*) (snp##N + f);					\
-    Uchar TMP[TMP_LEN] = {						\
+    Uchar TMP[TMP_LEN] = { /* LittleEndian! */				\
       S + 0 < (Uchar*) snpsEnd ? S[0] : (Uchar) 0,			\
       S + 1 < (Uchar*) snpsEnd ? S[1] : (Uchar) 0,			\
       S + 2 < (Uchar*) snpsEnd ? S[2] : (Uchar) 0,			\
@@ -349,7 +349,8 @@ void getPlinkMissings(Uchar* plink, SEXP SxI, basic_options *opt) {
   iChunk+=miniIndivChunk;					\
   nonzeros-=miniIndivChunk
 
-sparseTGeno_start(OrigPlink)
+sparseTGeno_start(Plink)
+  // sparse * t(code)
   // NOTE: for better readability only, redefine nrow & ncol by their 
   //       typical meaning in (sparse) %*% t(code), namely snps and individuals
   const Long snps = nrow_code;       
@@ -367,7 +368,7 @@ sparseTGeno_start(OrigPlink)
     double *ans = Ans + iRchunk * ldAns;
     assert(sizeof(Ulong) == TMP_LEN);
 #ifdef DO_PARALLEL
-#pragma omp parallel for num_threads(cores) schedule(static,staticSize) ordered 
+#pragma omp parallel for num_threads(cores) // schedule(static) // schedule(static,staticSize) ordered
 #endif 
     for (int j=0; j<nIdx; j++) {
       int nonzeros = rowIdxB[j+1] - rowIdxB[j]; // CSR/CSR/Yale

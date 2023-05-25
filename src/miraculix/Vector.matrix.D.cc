@@ -86,7 +86,7 @@ void gV_vG_means_double(SEXP SxI,
   //
   if (centered != NoCentering || meanV || meanSxI ||
       normalized != NoNormalizing) {
-    if(PL) CLOCK("before getFreq");
+    CLOCK("before getFreq");
     getFreq(SxI, global, utils);
     freq =        gV ? getFreq(SxI)       : getPseudoFreq(SxI);
     sxiOne =      gV ? getSum(SxI)       : getPseudoSum(SxI);
@@ -95,7 +95,7 @@ void gV_vG_means_double(SEXP SxI,
     sqTotalSum =   gV ? getSqTotalSum(SxI) : getPseudoSqTotalSum(SxI);
     pseudoSumFreq =gV ? getPseudoSumFreq(SxI) : getSumFreq(SxI);
     m = getTotalSum(SxI);
-    if(PL) CLOCK("getFreq");
+    CLOCK("getFreq");
  }
 
   bool meanOrCZ  = meanV || cMinusZ != 0.0;

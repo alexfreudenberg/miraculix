@@ -50,14 +50,17 @@ typedef void (*coding_t)(unit_t *, Long, Long, Long, Long, Long,
 
 #define vector_header(TYPE, ENDTYPE)					\
   /* !!! not snps / indivduals for FiveCodesTransposed !!! */		\
-  (unit_t *code, Long rows, Long cols, Long lda,			\
+  (unit_t VARIABLE_IS_NOT_USED  *code,					\
+   Long VARIABLE_IS_NOT_USED rows, Long VARIABLE_IS_NOT_USED cols,	\
+   Long VARIABLE_IS_NOT_USED lda,					\
    coding_type VARIABLE_IS_NOT_USED coding,				\
    int VARIABLE_IS_NOT_USED variant,					\
    LongDouble VARIABLE_IS_NOT_USED * pseudoFreq,			\
-   TYPE *V, Long repetV, Long ldV,					\
+   TYPE VARIABLE_IS_NOT_USED *V, Long VARIABLE_IS_NOT_USED repetV,	\
+   Long VARIABLE_IS_NOT_USED ldV,					\
    basic_options VARIABLE_IS_NOT_USED *opt,				\
    tuning_options VARIABLE_IS_NOT_USED *tuning,				\
-   ENDTYPE *Ans, Long ldAns)
+   ENDTYPE VARIABLE_IS_NOT_USED *Ans, Long VARIABLE_IS_NOT_USED ldAns)
 
 
 typedef void (*vector_double_t) vector_header(double, double);
@@ -121,11 +124,12 @@ typedef void (*gV_vG_Ulong_t) gV_vG_header0(Ulong);
 #define CodesPerLong ((int) (sizeof(Long) * BitsPerByte / BitsPerCode))
 #define sparseTGeno_start(NAME)						\
   sparseTGeno_header(NAME){						\
-  if (nrow_code > (Long)MAXINT || nrow_code < (Long)CodesPerLong ||	\
-      ncol_code > (Long)MAXINT) BUG;					\
+  if (nrow_code > (Long)MAXINT || ncol_code > (Long)MAXINT) BUG;	\
   const basic_options *opt = &(utils->basic);				\
   const int cores = GreaterZero(opt->cores);
  
+// || nrow_code < (Long)CodesPerLong
+
   
 typedef void (*sparseTGeno_t) sparseTGeno_Header;
 		 

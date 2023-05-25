@@ -78,3 +78,10 @@ void stopIfNotAnyIntI(Long i, Long line, const char *file) {
     ERR3("value (%ld) not an integer at line %ld in %s\n", i, line, file);
 }
   
+
+
+void *notNull(void *X, int line, const char *file) {
+  if (X!=NULL) return X;
+  ERR2("No memory was allocated at line %d of %s.\n", line, file);
+  return NULL;
+}

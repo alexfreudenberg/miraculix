@@ -81,8 +81,8 @@ POPCNT_EMUL64(BlockType0 v) { // sizeof(Long)=64
 #if defined AVX512
 
 static inline Ulong HORIZ_ADD64(BlockType0 A) {
-  uni256 z = _mm256_add_epi64(_mm512_extractf64x4_epi64(A, 1),
-			      _mm512_extractf64x4_epi64(A, 0));
+ __m256i z = _mm256_add_epi64(_mm512_extracti64x4_epi64(A, 1),
+			      _mm512_extracti64x4_epi64(A, 0));
   uni128 x;
   x.vi = _mm_add_epi64(_mm256_extracti128_si256(z, 1),
 		       _mm256_extracti128_si256(z, 0));

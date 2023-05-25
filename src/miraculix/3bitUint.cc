@@ -56,8 +56,8 @@ void initiate_tableI(table_type **table, int tableSize,
 
   int d;
   int *nx = (int *) CALLOC(codesPerPartUnit, sizeof(int));
-  
   *table = (table_type*) CALLOC(tableSize, sizeof(table_type));
+  
   table_type* pt = *table;
 
   while (true) {

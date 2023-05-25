@@ -36,7 +36,7 @@ vectorGeno_header(double, double, double, Plink);
 vectorGeno_header(LongDouble, LongDouble, LongDouble, Plink);
 sumGeno_header(Plink);
 
-sparseTGeno_header(OrigPlink);
+sparseTGeno_header(Plink);
 vectorGeno_header(double, double, double, PlinkMatrix256);
 
 void getPlinkMissings(Uchar* plink, SEXP SxI, basic_options *opt);
