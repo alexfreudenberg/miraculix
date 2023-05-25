@@ -13,6 +13,8 @@
 *.freq
 *.bed
 *.mem
+*.cc~
+
 
 *.optrpt
 *.tgz
