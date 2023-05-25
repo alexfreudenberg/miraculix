@@ -643,7 +643,7 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
 
     // Get GPU storage object
     struct GPU_sparse_storage *GPU_storage_obj =
-        (struct GPU_sparse_storage *)GPU_obj;
+        (struct GPU_sparse_storage *)(*GPU_obj);
 
     // Declare device pointers
     double *d_X           = GPU_storage_obj->d_X,
@@ -893,7 +893,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
         *status = 1;
         return;
     }
-    printf("Time: %.3f", (double)(clock() - start) / CLOCKS_PER_SEC);
+    debug_info("Time: %.3f", (double)(clock() - start) / CLOCKS_PER_SEC);
 
     // Copy results back to device
     err = cudaMemcpy(X, d_B, sizeof(double) * m * ncol, cudaMemcpyDeviceToHost);

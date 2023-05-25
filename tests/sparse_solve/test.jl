@@ -72,26 +72,32 @@ function simulate_sparse_pd(n::Int, density = 0.01)
     return M_sp
 end
 
+
 # =====================
 # Main
 # =====================
-
-
 
 println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
 @testset "Testing functionality" begin
-    n = Int(1e2);
-    ncol = 12;
-    
-    M = simulate_sparse_pd(n, 0.05);
-    B = randn(Float64, (n, ncol))
-    I, J, V = findnz(M)
+    for n in Vector{Int64}([1e2,5e2,5e3])
+        for ncol in [1, 5, 20]
+            # Simulate LHS and RHS
+            M = simulate_sparse_pd(n, 0.05);
+            B = randn(Float64, (n, ncol));
+            # Convert M to COO format
+            I, J, V = findnz(M)
 
-    obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
-    X = miraculix.sparse_solve.solve(obj_ref, B, n)
+            # Initialize GPU storage object from COO 
+            obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+            # Compute the solution to M X = B
+            X = miraculix.sparse_solve.solve(obj_ref, B, n)
+            # Free GPU memory
+            miraculix.sparse_solve.free(obj_ref)
 
-    @test norm(M * X - B)/norm(B) < tol
+            @test norm(M * X - B)/norm(B) < tol
+        end
+    end
 end

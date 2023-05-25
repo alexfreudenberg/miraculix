@@ -46,13 +46,14 @@ void debug_info(const char *s, ...) {
   char *print_level_env = getenv("PRINT_LEVEL");
   if (print_level_env != NULL) {
     int print_level = atoi(print_level_env);
-
-    va_list argptr;
-    va_start(argptr, s);
-    printf("\033[36m\t ");
-    vprintf(s, argptr);
-    printf(" \033[37m\n");
-    va_end(argptr);
+    if (print_level > 0) {
+      va_list argptr;
+      va_start(argptr, s);
+      printf("\033[36m\t ");
+      vprintf(s, argptr);
+      printf(" \033[37m\n");
+      va_end(argptr);
+    }
   }
 }
 
