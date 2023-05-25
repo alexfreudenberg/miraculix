@@ -43,7 +43,7 @@ extern "C" {
  *
  *  Refer to the documentation of sparse_solve_init for details.
  */
-__attribute__((used)) void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long max_ncol,
+void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long max_ncol,
                 void **GPU_obj, int *status);
 
 /**
@@ -51,7 +51,7 @@ __attribute__((used)) void sparse2gpu(double *V, int *I, int *J, long nnz, long 
  *
  *  Refer to the documentation of sparse_solve_compute for details.
  */
-__attribute__((used)) void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,
+void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,
                         int *status);
 
 /**
@@ -59,7 +59,7 @@ __attribute__((used)) void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol
  *
  *  Refer to the documentation of sparse_solve_destroy for details.
  */
-__attribute__((used)) void free_sparse_gpu(void **GPU_obj, int *status);
+void free_sparse_gpu(void **GPU_obj, int *status);
 };
 // End extern "C"
 

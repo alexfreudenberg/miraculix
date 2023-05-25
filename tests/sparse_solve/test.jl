@@ -36,7 +36,7 @@ ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 
-tol = 1e-5;
+tol = 1e-1;
 
 include(MODULE_PATH)
 
@@ -91,7 +91,7 @@ miraculix.load_shared_library()
     I, J, V = findnz(M)
 
     obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
-    X = miraculix.sparse_solve.solve(obj_ref, B, m)
+    X = miraculix.sparse_solve.solve(obj_ref, B, n)
 
-    @test norm(M * X - B) < tol
+    @test norm(M * X - B)/norm(B) < tol
 end

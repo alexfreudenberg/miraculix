@@ -24,12 +24,13 @@ function init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64
     if (length(V), length(I), length(J)) != (nnz, nnz, nnz)
         error("Unexpected length of vectors in COO format.")
     end
-    status = Int32(0)
+    status = zeros(Int32,1)
 
     init_sym = dlsym(LIBRARY_HANDLE[], :sparse2gpu)
-    ccall(init_sym, Cvoid, (Ptr{Float64},Ptr{Int32},Ptr{Int32}, Int64, Int64, Int64, Ptr{Ptr{Cvoid}}, Ptr{Int32}), V, I, J, nnz, m, max_ncol, obj_ref, pointer(status))
+    ccall(init_sym, Cvoid, (Ptr{Float64},Ptr{Int32},Ptr{Int32}, Int64, Int64, Int64, Ptr{Ptr{Cvoid}}, Ptr{Int32}), V, I, J, nnz, m, max_ncol, obj_ref, status)
 
-    if status != 0
+    if status[1] != 0
+        println("Status ", status)
         error("Routine not successful")
     end
     check_storage_object(obj_ref)
@@ -43,16 +44,18 @@ function solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
     if size(B,1) != m
         error("B must have $m rows to be compatible with the sparse matrix.")
     end
-    ncols = Int32(size(B, 2))
+    ncol = Int32(size(B, 2))
     X = zeros(Float64, (m, ncol))
 
-    status = Int32(0)
+    status = zeros(Int32,1)
     solve_sym = dlsym(LIBRARY_HANDLE[], :dcsrtrsv_solve_gpu)
-    ccall(solve_sym, Cvoid, (Ptr{Cvoid},Ptr{Float64}, Int32, Ptr{Float64}, Ptr{Int32}), obj_ref[], B, ncols, X, pointer(status))
+    ccall(solve_sym, Cvoid, (Ptr{Cvoid},Ptr{Float64}, Int32, Ptr{Float64}, Ptr{Int32}), obj_ref[], B, ncol, X, status)
 
-    if (obj_ref[] == C_NULL) || (status != 0)
-        error("Solve routine not successful")
+    if status[1] != 0
+        println("Status ", status)
+        error("Routine not successful")
     end
+    check_storage_object(obj_ref)
 
     return X
 end
@@ -60,12 +63,13 @@ end
 function free(obj_ref::Ref{Ptr{Cvoid}})
     check_storage_object(obj_ref)
 
-    status = Int32(0)
+    status = zeros(Int32,1)
     free_sym = dlsym(LIBRARY_HANDLE[], :free_sparse_gpu)
-    ccall(free_sym, Cvoid, (Ptr{Ptr{Cvoid}}, Ptr{Int32}), obj_ref, pointer(status))
+    ccall(free_sym, Cvoid, (Ptr{Ptr{Cvoid}}, Ptr{Int32}), obj_ref, status)
     
-    if status != 0
-        error("Free routine not successful")
+    if status[1] != 0
+        println("Status ", status)
+        error("Routine not successful")
     end
 end
 

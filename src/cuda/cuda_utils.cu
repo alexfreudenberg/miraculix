@@ -104,7 +104,7 @@ int checkCuda(){
 
   err = cudaDriverGetVersion(&driverVersion);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   if (driverVersion == 0) { // Check if there's a CUDA driver on the system
     printf("No CUDA driver detected.");
     return 1;
