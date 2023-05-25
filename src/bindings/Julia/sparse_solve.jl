@@ -16,7 +16,7 @@
 #  limitations under the License.
 
 module sparse_solve
-import ..LIBRARY_HANDLE
+import ..LIBRARY_HANDLE, check_storage_object
 using Libdl
 
 function init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64, m::Int64, max_ncol::Int64)
@@ -24,15 +24,49 @@ function init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64
     if (length(V), length(I), length(J)) != (nnz, nnz, nzz)
         error("Unexpected length of vectors in COO format.")
     end
-    status = 0
+    status = Int32(0)
 
     init_sym = dlsym(LIBRARY_HANDLE[], :sparse2gpu)
     ccall(init_sym, Cvoid, (Ptr{Float64},Ptr{Int32},Ptr{Int32}, Int64, Int64, Int64, Ptr{Ptr{Cvoid}}, Ptr{Int32}), V, I, J, nnz, m, max_ncol, obj_ref, pointer(status))
-    if obj_ref[] == C_NULL
+
+    if status != 0
         error("Routine not successful")
     end
+    check_storage_object(obj_ref)
     
     return obj_ref
+end
+
+function solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
+    check_storage_object(obj_ref)
+
+    if size(B,1) != m
+        error("B must have $m rows to be compatible with the sparse matrix.")
+    end
+    ncols = Int32(size(B, 2))
+    X = zeros(Float64, (m, ncol))
+
+    status = Int32(0)
+    solve_sym = dlsym(LIBRARY_HANDLE[], :dcsrtrsv_solve_gpu)
+    ccall(solve_sym, Cvoid, (Ptr{Cvoid},Ptr{Float64}, Int32, Ptr{Float64}, Ptr{Int32}), obj_ref[], B, ncols, X, pointer(status))
+
+    if (obj_ref[] == C_NULL) || (status != 0)
+        error("Solve routine not successful")
+    end
+
+    return X
+end
+
+function free(obj_ref::Ref{Ptr{Cvoid}})
+    check_storage_object(obj_ref)
+
+    status = Int32(0)
+    free_sym = dlsym(LIBRARY_HANDLE[], :free_sparse_gpu)
+    ccall(free_sym, Cvoid, (Ptr{Ptr{Cvoid}}, Ptr{Int32}), obj_ref, pointer(status))
+    
+    if status != 0
+        error("Free routine not successful")
+    end
 end
 
 end # module

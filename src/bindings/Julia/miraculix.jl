@@ -17,7 +17,7 @@
 
 
 module miraculix
-export LIBRARY_HANDLE, LIBRARY_PATH
+export LIBRARY_HANDLE, LIBRARY_PATH, check_storage_object
 
 using Base
 using Libdl
@@ -25,6 +25,11 @@ using Libdl
 const LIBRARY_PATH = Ref{String}()  # Reference to store the library path
 const LIBRARY_HANDLE = Ref{Ptr{Cvoid}}() # Reference to store the library handle returned by Libdl
 
+function check_storage_object(obj_ref::Ref{Ptr{Cvoid}})
+    if obj_ref[] == C_NULL
+        error("No valid storage object supplied")
+    end
+end
 
 """
     set_library_path(path::AbstractString)

@@ -17,7 +17,7 @@
 
 
 module dgemm_compressed
-import ..LIBRARY_HANDLE
+import ..LIBRARY_HANDLE, check_storage_object
 using Libdl
 
 # Check if genotype matrix has correct dimensions
@@ -144,6 +144,7 @@ function init_compressed(plink::Matrix{UInt8}, snps::Int, indiv::Int, freq::Vect
     init_sym = dlsym(LIBRARY_HANDLE[], :plink2compressed)
     ccall(init_sym,  Cvoid,  (Ptr{UInt8}, Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint, Ptr{Ptr{Cvoid}}), plink, plink_transposed, Int32(snps), Int32(indiv), freq, Int32(max_ncol), obj_ref)
 
+    check_storage_object(obj_ref)
     return obj_ref
 end
 
@@ -176,10 +177,7 @@ function dgemm_compressed_main(transpose::Bool, obj_ref::Ref{Ptr{Cvoid}}, B::Mat
     if n_row != (transpose ? indiv : snps)
         error("Matrix B is not compatible with genotype matrix of $snps SNPs and $indiv individuals when operation = $trans ")
     end
-
-    if obj_ref[] == C_NULL
-        error("No valid storage object supplied")
-    end
+    check_storage_object(obj_ref)
 
     C = zeros(Float64, transpose ? snps : indiv, n_col)
 
@@ -205,10 +203,7 @@ This function releases the memory allocated to the storage object that holds the
 - Throws an error if the memory cannot be properly freed.
 """
 function free_compressed(obj_ref::Ref{Ptr{Cvoid}})
-
-    if obj_ref[] == C_NULL
-        error("No valid storage object supplied")
-    end
+    check_storage_object(obj_ref)
     
     free_sym = dlsym(LIBRARY_HANDLE[], :free_compressed)
     ccall(free_sym, Cvoid, (Ptr{Ptr{Cvoid}},), obj_ref)
