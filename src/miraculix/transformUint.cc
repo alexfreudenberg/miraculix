@@ -466,7 +466,6 @@ void transform(unit_t *Old, Long OldSnps, Long OldIndiv, Long OldLDA,
   tmp = (unit_t*) algn_generalL( (int*)(tmp##_unaligned = (unit_t*)	\
 				      CALLOC((inUnits)+safety, BytesPerUnit)), \
 			       MAX_LDA_BITALIGN )
- 
 
   if (isHaplo(OldCoding)) {
     // printf("!!haplo\n");
@@ -987,6 +986,7 @@ void transposeIntern(unit_t * Code, Long snps, Long individuals,
     //    printf("k=%d %d\n", k, rest_indiv > 0);
     if (k) {
       zeros = (unit_t*) CALLOC(real_units[0] + 1, BytesPerUnit); //real_units=[0]=0 moeglich!
+      assert(zeros != NULL);
       Code0 = Code + Lda * indiv ;
       Code1 = codePerByte > 1 ? Code0 + Lda : zeros;
       Code2 = codePerByte > 2 ? Code1 + Lda :  zeros;

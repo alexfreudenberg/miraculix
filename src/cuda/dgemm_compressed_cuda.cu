@@ -291,7 +291,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   long k1          = (k - 1) / 4 + 1;
 
 
-  printf("\tEntering GPU multiplication\n");
+  debug_info("\tEntering GPU multiplication\n");
   debug_info("Pointer: d_M %d, Dimensions: m %ld, k %ld, k1 %ld, n %ld", d_M, m, k, k1, n);
   const double alpha = 1.0,
          alpha_n2 = -2.0,

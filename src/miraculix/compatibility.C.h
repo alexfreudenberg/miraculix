@@ -67,7 +67,7 @@ extern int errno ;
 #define EXP exp
 #define FABS(X) fabs((double) X) // OK; keine Klammern um X!
 #if ! defined MALLOCX
-#define MALLOCX malloc
+#define MALLOCX(X) notNull(malloc(X), __LINE__, __FILE__)
 #define FLOOR floor
 #define SQRT(X) sqrt((double) X) // OK
 #define CEIL(X) ceil((double) X) // OK; keine Klammern um X!
@@ -85,8 +85,8 @@ extern int errno ;
 #define MEMMOVE memmove
 #define MEMSET memset  
 #define MEMCMP memcmp
-#define AALLOC aligned_alloc
-#define CALLOCX calloc
+#define AALLOC(X) notNull(aligned_alloc(X), __LINE__, __FILE__)
+#define CALLOCX(X,N) notNull(calloc(X,N), __LINE__, __FILE__)
 #define SPRINTF sprintf // Rprintf
 #define QSORT qsort
 #define RFERROR(X) {fprintf(stderr, "%s", X); exit(EXIT_FAILURE); }

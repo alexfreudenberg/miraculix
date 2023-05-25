@@ -6,7 +6,7 @@ program test_5codesAPI_t
                          , c_get_freq => c_get_compressed_freq&
                          , c_setOptions_compressed
  use modtestplink, only: tgeno
- use modplink, only: transpose_integermatrix
+ use modplink_miraculix, only: transpose_integermatrix
  !$ use omp_lib
  implicit none
 
@@ -156,7 +156,6 @@ program test_5codesAPI_t
  !Start repetition
  if(.not.lcenter)freq = 0._real64
  !$ c_ttot = 0
- !$ f_ttot = 0
  !$ ttot = 0
  err = 0
 

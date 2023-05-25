@@ -121,7 +121,7 @@ void dgemm_plink(char* trans, // 'N', 'T'                     //JV: would be eas
 		 double *f, 
 		 int n, // number of columns of the matrix B 
 		 //		      double *f,
-		 double *B,                                  //JV: should it be transposed?
+		 double *B,             //JV: should it be transposed?
 		 int Ldb,    //how should it be size_t ldb
 		 double *C,
 		 int Ldc) {
@@ -155,10 +155,10 @@ void sparse_times_plink(char *transsparse,// N: matrix as is (sparse row format)
 
   if (is(transcompressed)) {
     int tmp = snps; snps=indiv; indiv=tmp;
-    plink_transposed = plink;
+    plink = plink_transposed;
   }
   
-  sparseTGenoPlinkApi(plink_transposed, snps, indiv,
+  sparseTGenoPlinkApi(plink, indiv, snps, 
 		      B, nIdx, rowIdxB, colIdxB, is(transsparse), C, Ldc);
 
   return;

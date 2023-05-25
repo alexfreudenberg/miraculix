@@ -152,6 +152,7 @@ union uni512 {
 #define BlockType __m512i ALIGNED
 #define UnionType0 uni512
 #define Doubles __m512d
+#define Floats __m512
 
 #define LOADuDOUBLE _mm512_loadu_pd
 #define LOADuFLOAT _mm512_loadu_ps
@@ -218,7 +219,7 @@ union uni512 {
   #define ADD8 _mm512_add_epi8
   #define SAD8  _mm512_sad_epu8
   #define SHUFFLE8 _mm512_shuffle_epi8
-#elif
+#else
   #define LOWER256(A) (__m256i) _mm512_extractf64x4_pd((__m512d) (A), 0)
   #define UPPER256(A) (__m256i) _mm512_extractf64x4_pd((__m512d) (A), 1)
   #define DO_256(X, A, B) \
@@ -227,7 +228,7 @@ union uni512 {
 
   #define ADD8(A, B) DO_256(_mm256_add_epi8, A, B)		
   #define SAD8(A, B) DO_256(_mm256_sad_epu8, A, B)
-  #define SHUFFLE8 DO_256(_mm256_shuffle_epi8, A, B)
+  #define SHUFFLE8(A, B) DO_256(_mm256_shuffle_epi8, A, B) 
 #endif
 
 

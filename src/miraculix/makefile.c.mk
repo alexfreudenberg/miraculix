@@ -17,8 +17,8 @@ SSE41_FLAG=-msse4.1
 AVX_FLAG=-mavx
 #AVX2_FLAG=-mavx2 
 AVX2_FLAG=-mavx2
-AVX512_FLAG=-mavx512 
-MAX_AVX512_FLAG=-mavx512
+AVX512_FLAG=-mavx512f
+MAX_AVX512_FLAG=-mavx512f
 LINKER=-std=gnu++14 -L/usr/local/lib -L/usr/lib64
 
 else ifeq ($(COMPILER), intel)
@@ -123,6 +123,9 @@ intrinsics.o: $(SRC)/intrinsics.cc
 
 %avx.o: $(SRC)/%avx.cc
 	$(CC) -c $< -o $@ $(CCFLAGS) $(AVX_FLAG)
+
+#%512.o: $(SRC)/%512.cc
+#	$(CC) -c $< -o $@ $(CCFLAGS) $(AVX512_FLAG) 
 
 %256.o: $(SRC)/%256.cc
 	$(CC) -c $< -o $@ $(CCFLAGS) $(AVX2_FLAG)

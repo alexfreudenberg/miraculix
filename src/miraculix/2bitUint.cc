@@ -305,7 +305,7 @@ if (gV) vD = variant < 256 ? genoVector2_double : genoVector2v256_double;
 sparseTGeno_header(2Bit) {
   BUG;
   // unsinns aufruf!!:
-   sparseTGenoOrigPlink(code, nrow_code, ncol_code,
+   sparseTGenoPlink(code, nrow_code, ncol_code,
 		    ldaInByte, coding,
 		    valueB, nIdx, rowIdxB, colIdxB, tSparse,
 		    global, utils, 

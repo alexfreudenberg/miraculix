@@ -13,7 +13,7 @@ MY_AVX2=rfu_avx2.o
 MY_AVX512F=
 MY_CU_FILES=solve_RFU_61.o gpu_info_61.o
 
-MY_CC_FILES=AutoRandomFieldsUtils.o  extern_rfu.o maths.o options_rfu.o solve_rfu.o sort.o sortLong.o utils.o win_linux_aux.o xport_import_rfu.o    
+MY_CC_FILES=AutoRandomFieldsUtils.o  extern_rfu.o maths.o options_rrfu.o solve_rrfu.o sort.o sortLong.o utils.o win_linux_aux.o xport_import_rrfu.o    
 
 MY_CC_FOR_R_FILES=brdomain_R.o kleinkram.R.o maths.R.o options_RFU.o RFoptions_RFU.o solve_RFU.o sort.R.o utils.R.o xport_import_RFU.o gpu_info_R.o 
 

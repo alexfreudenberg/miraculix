@@ -232,19 +232,19 @@ gV5_start(32, longD, LongDouble, LongDouble, LongDouble, double)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif
-gV5_LoopOne(longD, LongDouble, LongDouble, LongDouble, double)
+gV5_CreateHash(longD, LongDouble, LongDouble, LongDouble, double)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif
-gV5_LoopTwo(longD, LongDouble, LongDouble, LongDouble, double)
+gV5_MainLoop(longD, LongDouble, LongDouble, LongDouble, double)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif
-gV5_LoopSum(longD, LongDouble, LongDouble, LongDouble, double)
+gV5_SumUp(longD, LongDouble, LongDouble, LongDouble, double)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif
-gV5_LoopEnd(longD, LongDouble, LongDouble, LongDouble, double)
+gV5_Sort(longD, LongDouble, LongDouble, LongDouble, double)
 
 
 
@@ -252,19 +252,19 @@ gV5_start(32, LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif
-gV5_LoopOne(LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
+gV5_CreateHash(LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif 
-gV5_LoopTwo(LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
+gV5_MainLoop(LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif
-gV5_LoopSum(LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
+gV5_SumUp(LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif
-gV5_LoopEnd(LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
+gV5_Sort(LongDouble, LongDouble, LongDouble, LongDouble, LongDouble)
 
 
    
@@ -272,19 +272,19 @@ gV5_start(32, Ulong, Ulong, Ulong, Ulong, Ulong)
 #ifdef DO_PARALLEL 
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif 
-gV5_LoopOne(Ulong, Ulong, Ulong, Ulong, Ulong) 
+gV5_CreateHash(Ulong, Ulong, Ulong, Ulong, Ulong) 
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif 
-gV5_LoopTwo(Ulong, Ulong, Ulong, Ulong, Ulong)
+gV5_MainLoop(Ulong, Ulong, Ulong, Ulong, Ulong)
 #ifdef DO_PARALLEL 
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif 
-gV5_LoopSum(Ulong, Ulong, Ulong, Ulong, Ulong)
+gV5_SumUp(Ulong, Ulong, Ulong, Ulong, Ulong)
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(cores) schedule(static) 
 #endif
-gV5_LoopEnd(Ulong, Ulong, Ulong, Ulong, Ulong)
+gV5_Sort(Ulong, Ulong, Ulong, Ulong, Ulong)
 
 
 

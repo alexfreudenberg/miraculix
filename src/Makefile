@@ -32,6 +32,11 @@ all: $(OBJECTS)
 solve: solve_gpu.cu cuda_utils.cu
 	$(NVCC) $(CXXFLAGS) $(LIBS) --shared $^ -o solve_gpu.so
 
+.PHONY: shared_lib
+shared_lib:
+	cp Makefile_miraculix ./miraculix/Makefile
+	cd miraculix && make shared_lib
+
 .PHONY: libmiraculix
 libmiraculix:
 	cp Makefile_miraculix ./miraculix/Makefile
@@ -42,7 +47,7 @@ standalone: $(CUSTANDALONE)
 	$(NVCC) -Xcompiler -w -DSTANDALONE  $(CXXFLAGS) $(LIBS) $^ -o ./main.o
 
 .PHONY: libdgemm
-libdgemm:
+libmiraculixGPU:
 	cd cuda && make lib
 
 .PHONY: libfortran
@@ -52,3 +57,4 @@ libfortran:
 .PHONY: clean
 clean:
 	$(RM) $(OBJECTS) $(CUOBJECTS) *.a *.out *.o 
+	$(RM) miraculix/*.o miraculix/*.a
