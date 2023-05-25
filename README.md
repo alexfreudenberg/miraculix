@@ -17,7 +17,7 @@ For compilation, the following software is required:
 * GNU's gcc or Intel's icc compiler
 
 Additionally, to compile the CUDA code, you need
-* a CUDA installation (11.0 or newer)
+* a CUDA installation (11.3 or newer)
   
 
 ## Compilation
