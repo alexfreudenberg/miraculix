@@ -81,7 +81,8 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
-@testset "Testing functionality" begin
+# Check if routine returns right results
+@testset "Consistency" begin
     for n in Vector{Int64}([1e2,5e2,5e3])
         for ncol in [1, 5, 20]
             # Simulate LHS and RHS
@@ -99,5 +100,40 @@ miraculix.load_shared_library()
 
             @test norm(M * X - B)/norm(B) < tol
         end
+    end
+end
+
+# Check if routine is resilient - uncaught memory allocations would cause this to fail
+@testset "Resilience" begin
+    iter = 1e2
+    n = Int(1e4)
+    ncol = 12
+    M = simulate_sparse_pd(n, 0.05);
+    B = randn(Float64, (n, ncol));
+    # Convert M to COO format
+    I, J, V = findnz(M)
+
+     
+    # Initialize GPU storage object from COO 
+    obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+    # Repeat solve call a lot of times
+    for _ in 1:iter
+        miraculix.sparse_solve.solve(obj_ref, B, n)
+    end
+    # Compute the solution to M X = B
+    X = miraculix.sparse_solve.solve(obj_ref, B, n)
+    # Free GPU memory
+    miraculix.sparse_solve.free(obj_ref)
+    @test norm(M * X - B)/norm(B) < tol
+
+    # Repeat solve call a lot of times
+    for _ in 1:iter
+            # Initialize GPU storage object from COO 
+        obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+        # Compute the solution to M X = B
+        X = miraculix.sparse_solve.solve(obj_ref, B, n)
+        # Free GPU memory
+        miraculix.sparse_solve.free(obj_ref)
+        @test norm(M * X - B)/norm(B) < tol
     end
 end
