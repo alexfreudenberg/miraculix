@@ -16,8 +16,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# This is a test file for the miraculix.jl module that provides an interface to the miraculix shared library, a tool that enables highly-efficient computations on compressed SNP data stored in PLINK format. The functions being tested perform operations such as setting computation options, preprocessing and transposing a PLINK .bed matrix, performing matrix multiplication, and freeing memory resources.
-# The tests in this file aim to ensure the consistency and correctness of these functions.
+# This is a test file for the miraculix.jl module that provides an 
+# interface to the miraculix shared library, a tool that enables 
+# highly-efficient computations on compressed SNP data stored in PLINK
+# format. 
+
+# The functions being tested perform operations such as setting computation
+# options, preprocessing and transposing a PLINK .bed matrix, performing 
+# matrix multiplication, and freeing memory resources.
+# The tests in this file aim to ensure the consistency and correctness of
+# these functions.
 
 using Statistics
 using Libdl
