@@ -1,20 +1,35 @@
 /*
- Authors 
- Alexander Freudenberg, alexander.freudenberg@stads.de
+   Authors
+   Alexander Freudenberg, alexander.freudenberg@stads.de
 
- Copyright (C) 2022-2023 Alexander Freudenberg
+   Copyright (C) 2020-2023 Alexander Freudenberg
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+      http://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+   This file provides interfaces to the solving functionality in the cuSOLVER
+   and cuSPARSE libraries by NVIDIA. It aims at providing convenience wrappers
+   to these functions to alleviate the burden of CUDA memory management and
+   other low-level details.
+
+   Functionality:
+   -   Dense Solve: Solves an equation system defined by a dense matrix once
+   through the Cholesky decomposition and optionally compute the log-determinant
+   of the matrix.
+   -   Sparse Solve: Prepares a sparse matrix to be solved multiple times for
+   use in, e.g., iterative solver algorithms.
+
+   cuSPARSE and cuSOLVER are released as part of the CUDA toolkit under the
+   copyright Copyright (C) 2012 -- 2023, NVIDIA Corporation & Affiliates.
 */
 
 #pragma once
@@ -82,14 +97,29 @@ struct GPU_sparse_storage {
 };
 
 
-// void cholGPU(bool copy, double *matrix, Uint size, double *B, Uint rhs_cols,
-//      double *LogDet, double *RESULT);
+/**
+ * Solves an equation system defined by the square matrix A and the right-hand side B.
+ * 
+ * @param A         Pointer to the input matrix A in row-major order.
+ * @param input_size The dimension of the square matrix A.
+ * @param B         Pointer to the input matrix B in row-major order.
+ * @param rhs_cols  The number of columns in the right-hand side matrix B.
+ * @param X         Pointer to the result matrix X in row-major order.
+ * @param logdet    Pointer to store the log-determinant of A.
+ * @param oversubscribe Controls whether to use managed memory for device oversubscription (1: true, 0: false).
+ * 
+ * @return          Returns an integer indicating the success (0) or failure (-1) of the solve operation.
+ * 
+ * @note            The pointer to X can be equal to the one for B.
+ */
+int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_cols,
+    double* X, double *logdet, int oversubscribe);
 
 /**
  *  \brief Initializes storage object with required data on the GPU.
  *  
  *  This function prepares the GPU for iterative solver computation by loading
- *  the required data into the GPU memory.
+ *  the sparse matrix into the GPU memory.
  *  
  *  \param V A pointer to a vector of matrix values in COO format.
  *  \param I A pointer to a vector of row indices in COO format.

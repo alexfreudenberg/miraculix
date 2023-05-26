@@ -17,10 +17,21 @@
     limitations under the License.
 
 
-    This file provides interfaces to the solving functionality in the cuSOLVER and cuSPARSE libraries by NVIDIA. These libraries are released as part of the CUDA toolkit under the copyright
-    Copyright (C) 2012 -- 2023, NVIDIA Corporation & Affiliates.
-*/
+    This file provides interfaces to the solving functionality in the cuSOLVER
+   and cuSPARSE libraries by NVIDIA. It aims at providing convenience wrappers
+   to these functions to alleviate the burden of CUDA memory management and
+   other low-level details.
 
+    Functionality:
+    -   Dense Solve: Solves an equation system defined by a dense matrix once
+   through the Cholesky decomposition and optionally compute the log-determinant
+   of the matrix.
+    -   Sparse Solve: Prepares a sparse matrix to be solved multiple times for
+   use in, e.g., iterative solver algorithms.
+
+    cuSPARSE and cuSOLVER are released as part of the CUDA toolkit under the
+   copyright Copyright (C) 2012 -- 2023, NVIDIA Corporation & Affiliates.
+*/
 
 #include <cusolverDn.h>
 #include <cusolverMg.h>
@@ -59,204 +70,217 @@
 
 __global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet);
 
-int potrs_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_cols,
-    double* X, double *logdet, int oversubscribe)
-{
+int dense_solve(double *A, // Pointer to the input matrix A in row-major order
+                unsigned int input_size, // The dimension of the square matrix A
+                double *B, // Pointer to the input matrix B in row-major order
+                unsigned int rhs_cols, // The number of columns in the
+                                       // right-hand side matrix B
+                double *X, // Pointer to the result matrix X in row-major order
+                double *logdet,   // Pointer to store the log-determinant of A
+                int oversubscribe // Controls whether to use managed memory for
+                                  // device oversubscription (1: true, 0: false)
+) {
 
-    // Initialize process variables
-    unsigned     long size         = (unsigned long)input_size;
-    size_t       bufferSize_device = 0,
-                 bufferSize_host   = 0;
-    cudaDataType dataTypeA         = CUDA_R_64F;
-    int*         info              = NULL;
-    int          h_info            = 0;
-    
-    cublasFillMode_t   uplo   = CUBLAS_FILL_MODE_LOWER;
-    cusolverDnHandle_t handle = NULL;
-    cusolverDnParams_t params = NULL;
-    cudaStream_t       stream = NULL;
-    cusolverStatus_t   status = CUSOLVER_STATUS_SUCCESS;
-    cudaError_t        err    = cudaSuccess;
+  // Initialize process variables
+  unsigned long size = (unsigned long)input_size;
+  size_t bufferSize_device = 0, bufferSize_host = 0;
+  cudaDataType dataTypeA = CUDA_R_64F;
+  int *info = NULL;
+  int h_info = 0;
 
-    double *buffer_device = NULL,
-           *buffer_host   = NULL,
-           *d_matrix      = NULL,
-           *d_B           = NULL,
-           *d_logdet      = NULL;
-    long*  d_size         = NULL;
+  cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+  cusolverDnHandle_t handle = NULL;
+  cusolverDnParams_t params = NULL;
+  cudaStream_t stream = NULL;
+  cusolverStatus_t status = CUSOLVER_STATUS_SUCCESS;
+  cudaError_t err = cudaSuccess;
 
-    // Start time measurement
-    clock_t start, start_potrf, start_potrs, start_logdet; 
-    start = clock();
-    
-    // Switch to requested CUDA device
-    int device = switchDevice();
+  double *buffer_device = NULL, *buffer_host = NULL, *d_matrix = NULL,
+         *d_B = NULL, *d_logdet = NULL;
+  long *d_size = NULL;
 
-    // Initialize handle and stream, calculate buffer size needed for cholesky
-    cusolverDnCreate(&handle);
-    cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-    cusolverDnSetStream(handle, stream);
-    cusolverDnCreateParams(&params);
+  // Start time measurement
+  clock_t start, start_potrf, start_potrs, start_logdet;
+  start = clock();
 
-    //
-    // Allocate memory on device
-    //
-    cudaMalloc(&info, sizeof(int));
+  // Switch to requested CUDA device
+  int device = switchDevice();
 
-    if (oversubscribe == 1) {
-      int managed_available = 0;
-      cudaDeviceGetAttribute(&managed_available, cudaDevAttrManagedMemory, device);
-      if (managed_available != 1) {
-        printf("This GPU does not suppport managed memory.\n");
-      }
-      err = cudaMallocManaged((void **)&d_matrix, sizeof(double) * size * size);
-    } else {
-      err = cudaMalloc((void **)&d_matrix, sizeof(double) * size * size);
+  // Initialize handle and stream, calculate buffer size needed for cholesky
+  cusolverDnCreate(&handle);
+  cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+  cusolverDnSetStream(handle, stream);
+  cusolverDnCreateParams(&params);
+
+  //
+  // Allocate memory on device
+  //
+  cudaMalloc(&info, sizeof(int));
+
+  if (oversubscribe == 1) {
+    int managed_available = 0;
+    cudaDeviceGetAttribute(&managed_available, cudaDevAttrManagedMemory,
+                           device);
+    if (managed_available != 1) {
+      printf("This GPU does not suppport managed memory.\n");
     }
-    if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
+    err = cudaMallocManaged((void **)&d_matrix, sizeof(double) * size * size);
+  } else if (oversubscribe == 0) {
+    err = cudaMalloc((void **)&d_matrix, sizeof(double) * size * size);
+  } else {
+    checkError(__func__, __LINE__, cudaErrorInvalidValue);
+    return 1;
+  }
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
 
-    err = cudaMalloc((void**)&d_B, sizeof(double) * size * rhs_cols);
-    if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
+  err = cudaMalloc((void **)&d_B, sizeof(double) * size * rhs_cols);
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
 
-    cudaMemset(info, 0, sizeof(int));
+  cudaMemset(info, 0, sizeof(int));
 
-    //
-    // Copy data to device
-    //
-    err = cudaMemcpy(d_matrix, A, sizeof(double) * size * size, cudaMemcpyHostToDevice);
-    if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
-    err = cudaMemcpy(d_B, B, sizeof(double) * size * rhs_cols, cudaMemcpyHostToDevice);
-    if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
+  //
+  // Copy data to device
+  //
+  err = cudaMemcpy(d_matrix, A, sizeof(double) * size * size,
+                   cudaMemcpyHostToDevice);
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
+  err = cudaMemcpy(d_B, B, sizeof(double) * size * rhs_cols,
+                   cudaMemcpyHostToDevice);
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
 
-    // Check for uncaught errors
+  // Check for uncaught errors
+  err = cudaGetLastError();
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
+
+  start_potrf = clock();
+  debug_info("Time for initializing: %.3fs", difftime(start_potrf, start));
+
+  //
+  // Calculate buffer size
+  //
+  status = cusolverDnXpotrf_bufferSize(handle, params, uplo, size, dataTypeA,
+                                       d_matrix, size, dataTypeA,
+                                       &bufferSize_device, &bufferSize_host);
+  cudaDeviceSynchronize();
+  if (checkError(__func__, __LINE__, status) != 0)
+    return (1);
+
+  err = cudaMalloc(&buffer_device, sizeof(double) * bufferSize_device);
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
+  err = cudaMallocHost(&buffer_host, sizeof(double) * bufferSize_host);
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
+
+  //
+  // Calculate cholesky factorization and store it in d_matrix
+  //
+  status = cusolverDnXpotrf(handle, params, uplo, size, dataTypeA, d_matrix,
+                            size, dataTypeA, buffer_device, bufferSize_device,
+                            buffer_host, bufferSize_host, info);
+  cudaDeviceSynchronize(); // Synchronize is necessary, otherwise error code
+                           // "info" returns nonsense
+  if (checkError(__func__, __LINE__, status) != 0)
+    return (1);
+  err = cudaGetLastError();
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
+
+  // Check for errors
+  cudaMemcpy(&h_info, info, sizeof(int), cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
+
+  if (0 != h_info) {
+    if (h_info > 0)
+      printf("Error: Cholesky factorization failed at minor %d \n", h_info);
+    if (h_info < 0)
+      printf("Error: Wrong parameter in cholesky factorization at %d entry\n",
+             h_info);
+    err = cudaDeviceReset();
+    if (err != cudaSuccess)
+      printf("Device reset not successful");
+    return (1);
+  }
+
+  start_potrs = clock();
+  debug_info("Time for potrf: %.3fs", difftime(start_potrs, start_potrf));
+
+  //
+  // Calculate x = A\b
+  //
+  status = cusolverDnXpotrs(handle, params, uplo, size, rhs_cols, dataTypeA,
+                            d_matrix, size, dataTypeA, d_B, size, info);
+  cudaDeviceSynchronize();
+  if (checkError(__func__, __LINE__, status) != 0)
+    return (1);
+  err = cudaGetLastError();
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
+
+  start_logdet = clock();
+  debug_info("Time for potrs: %.3fs", difftime(start_logdet, start_potrs));
+
+  //
+  // Calculate log determinant of A through its Cholesky root
+  //
+  if (logdet != NULL) {
+    cudaMalloc((void **)&d_logdet, sizeof(double));
+    cudaMalloc((void **)&d_size, sizeof(long));
     err = cudaGetLastError();
     if (checkError(__func__, __LINE__, err) != 0)
       return (1);
 
-    start_potrf = clock();
-    debug_info("Time for initializing: %.3fs", difftime(start_potrf, start));
-
-    //
-    // Calculate buffer size
-    //
-    status = cusolverDnXpotrf_bufferSize(handle, params, uplo, size, dataTypeA, d_matrix,
-        size, dataTypeA, &bufferSize_device, &bufferSize_host);
+    cudaMemcpy(d_size, &size, sizeof(long), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
-    if (checkError(__func__, __LINE__, status) != 0)
-      return (1);
-
-    err = cudaMalloc(&buffer_device, sizeof(double) * bufferSize_device);
-    if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
-    err = cudaMallocHost(&buffer_host, sizeof(double) * bufferSize_host);
-    if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
-
-    //
-    // Calculate cholesky factorization and store it in d_matrix
-    //
-    status = cusolverDnXpotrf(handle, params, uplo, size, dataTypeA, d_matrix,
-                              size, dataTypeA, buffer_device, bufferSize_device,
-                              buffer_host, bufferSize_host, info);
-    cudaDeviceSynchronize(); // Synchronize is necessary, otherwise error code "info" returns nonsense
-    if (checkError(__func__, __LINE__, status) != 0)
-      return (1);
     err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0)
+    if (checkError(__func__, __LINE__, status) != 0)
       return (1);
 
-    // Check for errors
-    cudaMemcpy(&h_info, info, sizeof(int), cudaMemcpyDeviceToHost);
+    logdet_kernel<<<(size - 1) / THREADS_PER_BLOCK + 1, THREADS_PER_BLOCK>>>(
+        d_matrix, d_size, d_logdet);
     cudaDeviceSynchronize();
-
-    if (0 != h_info) {
-        if (h_info > 0)
-            printf("Error: Cholesky factorization failed at minor %d \n", h_info);
-        if (h_info < 0)
-            printf("Error: Wrong parameter in cholesky factorization at %d entry\n", h_info);
-        err = cudaDeviceReset();
-        if (err != cudaSuccess)
-            printf("Device reset not successful");
-        return (1);
-    }
-
-    start_potrs = clock();
-    debug_info("Time for potrf: %.3fs", difftime(start_potrs, start_potrf));
-
-    //
-    // Calculate x = A\b
-    //
-    status = cusolverDnXpotrs(handle, params, uplo, size, rhs_cols, dataTypeA,
-        d_matrix, size, dataTypeA, d_B, size, info);
-    cudaDeviceSynchronize();
-    if (checkError(__func__, __LINE__, status) != 0)
-      return (1);
     err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
-
-    start_logdet = clock();
-    debug_info("Time for potrs: %.3fs", difftime(start_logdet, start_potrs));
-    
-    //
-    // Calculate log determinant of A through its Cholesky root
-    //
-    if (logdet != NULL) {
-      cudaMalloc((void **)&d_logdet, sizeof(double));
-      cudaMalloc((void **)&d_size, sizeof(long));
-      err = cudaGetLastError();
-      if (checkError(__func__, __LINE__, err) != 0)
-            return (1);
-      
-      cudaMemcpy(d_size, &size, sizeof(long), cudaMemcpyHostToDevice);
-      cudaDeviceSynchronize();
-      err = cudaGetLastError();
-      if (checkError(__func__, __LINE__, status) != 0)
-            return (1);
-      
-      logdet_kernel<<<(size - 1) / THREADS_PER_BLOCK + 1, THREADS_PER_BLOCK>>>(
-          d_matrix, d_size, d_logdet);
-      cudaDeviceSynchronize();
-      err = cudaGetLastError();
-       if (checkError(__func__, __LINE__, status) != 0)
-            return (1);
-      
-      err = cudaMemcpy(logdet, d_logdet, sizeof(double), cudaMemcpyDeviceToHost);
-      if (checkError(__func__, __LINE__, status) != 0)
-            return (1);
-      cudaFree(d_size);
-      cudaFree(d_logdet);
-    }
-
-    debug_info("Time for logdet calculation: %.3fs", difftime(clock(), start_logdet));
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
-  
-    //
-    // Copy  solution from device to vector on host
-    //
-    err = cudaMemcpy(X, d_B, sizeof(double) * size * rhs_cols, cudaMemcpyDeviceToHost);
     if (checkError(__func__, __LINE__, status) != 0)
       return (1);
 
-    debug_info("Total time: %.3fs", difftime(clock(), start));
-    
-    // Free allocated memory
-    cudaFree(info);
-    cudaFree(buffer_device);
-    cudaFree(buffer_host);
-    cudaFree(d_matrix);
-    cudaFree(d_B);
-    cusolverDnDestroy(handle);
-    cudaStreamDestroy(stream);
-    return 0;
+    err = cudaMemcpy(logdet, d_logdet, sizeof(double), cudaMemcpyDeviceToHost);
+    if (checkError(__func__, __LINE__, status) != 0)
+      return (1);
+    cudaFree(d_size);
+    cudaFree(d_logdet);
+  }
+
+  debug_info("Time for logdet calculation: %.3fs",
+             difftime(clock(), start_logdet));
+  err = cudaGetLastError();
+  if (checkError(__func__, __LINE__, err) != 0)
+    return (1);
+
+  //
+  // Copy  solution from device to vector on host
+  //
+  err = cudaMemcpy(X, d_B, sizeof(double) * size * rhs_cols,
+                   cudaMemcpyDeviceToHost);
+  if (checkError(__func__, __LINE__, status) != 0)
+    return (1);
+
+  debug_info("Total time: %.3fs", difftime(clock(), start));
+
+  // Free allocated memory
+  cudaFree(info);
+  cudaFree(buffer_device);
+  cudaFree(buffer_host);
+  cudaFree(d_matrix);
+  cudaFree(d_B);
+  cusolverDnDestroy(handle);
+  cudaStreamDestroy(stream);
+  return 0;
 };
-
 
 void sparse_solve_init(
     double *V,      // Vector of matrix values (COO format)
@@ -953,7 +977,7 @@ extern "C" {
  * the same functionalities and behaviors as their original C++ counterparts.
  */
 
-int dense_solve(double *A, unsigned int input_size, double *B,
+int potrs_solve(double *A, unsigned int input_size, double *B,
                 unsigned int rhs_cols, double *X, double *logdet,
                 int oversubscribe) {
     return potrs_solve(A, input_size, B, rhs_cols, X, logdet, oversubscribe);
