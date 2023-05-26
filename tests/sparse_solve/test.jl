@@ -145,7 +145,7 @@ end
         miraculix.solve.sparse_solve(obj_ref, B, n)
         miraculix.solve.dense_solve(M, B)
     end
-    # Compute the solution to M X = B
+    # Compute the solution to M_sp X_sp = B and M X = B
     X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
     X = miraculix.solve.dense_solve(M, B)
 
