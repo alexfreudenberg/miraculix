@@ -366,8 +366,7 @@ SEXP file_intern(SEXP file, coding_type coding, int variant,
 
   // printf("\n########### matrixLDA %d %d %d\n", matrixLDA, DeltaMatrix, isHaplo(coding));
   
-  if ((matrix = (unit_t*) CALLOC(matrix_size, BytesPerUnit)) == NULL)
-    ERR0("memory space could not be acquired");
+  matrix = (unit_t*) CALLOC(matrix_size, BytesPerUnit);
 
   // jump header lines
   fp = fopen(filename, "r");

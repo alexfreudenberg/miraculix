@@ -18,12 +18,11 @@
 */
 
 
-
 #ifndef parallel_omp__H
 #define parallel_omp__H 1
 
 // #define NEVER_OMP 1
-#define NEVER_AVX512 1
+#define DO_AVX512F 1
 // #define NEVER_AVX 1
 // #define NEVER_SSE 1
 

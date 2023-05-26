@@ -32,10 +32,10 @@
 #include "5codes.h"
 
 
-#if defined AVX2    
+#if defined AVX512
 
 
-ASSERT_SIMD(5codes512, avx2);
+ASSERT_SIMD(5codes512, avx512f);
 
 #include "MX.h"
 #include "haplogeno.h" 
@@ -47,13 +47,13 @@ ASSERT_SIMD(5codes512, avx2);
 
 #else
 #include "avx_miss.h"
-  
+
    
 gV5_header(512, floatD, LongDouble, float, double) Sv
 gV5_header(512, double, LongDouble, double, double) Sv
 
 
-SIMD_MISS(5codes512, avx2);
+SIMD_MISS(5codes512, avx512f);
 
 #endif  // defined AVX
 // trafo2Geno1Geno128

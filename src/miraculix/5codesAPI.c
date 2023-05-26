@@ -86,7 +86,7 @@ void plink2compressed(char *plink,
 
   // setOptions_compressed(0, 6, 0, 0, 0, 0, 0, 0, 1);
 
-   int nbytes = indiv /4;   printf("p2c snps=%d indiv=%d max_n=%d bytes/indiv=%d\n", snps, indiv, max_n, nbytes);
+   int nbytes = indiv /4;   //printf("p2c snps=%d indiv=%d max_n=%d bytes/indiv=%d\n", snps, indiv, max_n, nbytes);
   // exit(99);
  //  printf("c byte 1:5 = %d %d %d %d %d\n", *plink, *(plink+1), *(plink+2), *(plink+3), *(plink+4));
 
@@ -147,10 +147,10 @@ void sparse_times_plink(char *transsparse,// N: matrix as is (sparse row format)
 
   if (is(transcompressed)) {
     int tmp = snps; snps=indiv; indiv=tmp;
-    plink_transposed = plink;
+    plink = plink_transposed;
   }
   
-  sparseTGenoPlinkApi(plink_transposed, snps, indiv,
+  sparseTGenoPlinkApi(plink, indiv, snps, 
 		      B, nIdx, rowIdxB, colIdxB, is(transsparse), C, Ldc);
 
   return;

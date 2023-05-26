@@ -383,7 +383,6 @@ void XCXt(double *X, double *C, double *V, Long nrow, Long dim /* dim of C */, i
   double  
     *endpX = X + nrow,
     *tmp = (double*) MALLOC(sizeof(double) * size); // tmp = XC
-  if (tmp == NULL) RFERROR("XCXt: memory allocation error in XCXt");
  
 #ifdef DO_PARALLEL
 #pragma omp parallel for num_threads(GreaterZero(cores))  schedule(static)
