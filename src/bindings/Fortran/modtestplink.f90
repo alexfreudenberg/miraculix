@@ -3,7 +3,7 @@
 ! Authors 
 ! Jeremie Vandenplas, jeremie.vandenplas@wur.nl
 !
-! Copyright (C) 2022-2023 Jermie Vandenplas
+! Copyright (C) 2022-2023 Jeremie Vandenplas
 !
 
 module modtestplink
@@ -29,7 +29,7 @@ module modtestplink
  type tgeno
 !   private
    integer(int32)::ngen,nsnp
-   character(len=30)::genfile
+   character(len=50)::genfile
    type(covariable)::cov
   contains
    private

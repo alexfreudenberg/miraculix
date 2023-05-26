@@ -14,6 +14,8 @@
 *.freq
 *.bed
 *.mem
+*.*~
+
 
 *.optrpt
 *.tgz

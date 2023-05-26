@@ -60,6 +60,7 @@ static inline  uintptr_t algn_generalL(int *X, Long LDAbitalign) {
   assert(ROUND_GEQ((uintptr_t) X, f) >= (uintptr_t) X);
   return ROUND_GEQ((uintptr_t) X, f);
 }
+
 static inline void *algn_generalS(SEXP Code, Long LDAbitalign) {
   assert(getAttribPointer(Code, Information) == R_NilValue);
   uintptr_t X = (uintptr_t) INTEGER(Code);

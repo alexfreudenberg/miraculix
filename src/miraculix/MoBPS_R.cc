@@ -650,8 +650,6 @@ SEXP compute(SEXP popul, SEXP Generation, SEXP Sex, SEXP Nr,
     memInUnits = (Long) individuals * ldaHPL,
     mem = calculateAlignedMem(memInUnits, TwoBitHaplo);
   int *G = (int *) CALLOC(mem, BytesPerUnit);
-  if (G == NULL) ERR1("mem allocation (%u bytes)",
-		      (Uint) (mem * BytesPerUnit));
 
   unit_t *g = (unit_t*) algn_generalL(G, MY_LDABITALIGN);
   if ((Uint) LENGTH(Vec) != individuals) ERR0("'vec' not of correct length");

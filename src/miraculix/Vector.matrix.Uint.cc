@@ -281,7 +281,7 @@ gV_raw(LongDouble)
 void VectorRelMatrix( SEXP SxI, SEXP SxI2, double *V, Long repetV, int compare,
 		     option_type *global, utilsoption_type *utils,
 		     double *ans) {
-  const int debug =  false;
+  const int debug =  !false;
 
   //  if (false) {   printINFO(SxI); BUG; }
  

@@ -80,5 +80,6 @@ typedef long double LongDouble;
 #define ASSERT_SOLVE(sp) if (sp == NULL) sp = &(OPTIONS.solve); else {}
 #endif
 
-
+void *notNull(void *X, int line, const char *file);
+  
 #endif
