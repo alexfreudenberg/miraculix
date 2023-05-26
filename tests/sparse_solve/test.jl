@@ -24,6 +24,7 @@
 # 
 #
 
+using Distances;
 using SparseArrays;
 using LinearAlgebra;
 using Test
@@ -51,10 +52,10 @@ Generates a sparse, positive-definite (PD) square matrix of size `n` x `n` with 
 
 # Arguments
 - `n::Int`: The dimension of the square matrix to be generated.
-- `density::Float64=0.01`: The desired density of the matrix. Defaults to 0.01 if not specified, representing 1% density.
+- `density::Float64=0.01`: Roughly the density of the matrix. Defaults to 0.01 if not specified, representing 1% density.
 
 # Returns
-- A sparse, positive-definite square matrix of size `n` x `n` with specified density.
+- A sparse, positive-definite square matrix of size `n` x `n` with approx. specified density.
 """
 function simulate_sparse_pd(n::Int, density = 0.01)
     M_sp = spdiagm(ones(n));
@@ -72,6 +73,22 @@ function simulate_sparse_pd(n::Int, density = 0.01)
     return M_sp
 end
 
+"""
+    simulate_dense_pd(n::Int)
+
+Simulates a positive definite matrix of dimension n.
+
+Parameters:
+- n::Int: The dimension of the square matrix.
+
+Returns:
+- M: Simulated positive definite matrix of size n x n.
+"""
+function simulate_dense_pd(n::Int)
+    R = pairwise(Euclidean(),1:n);
+    M = exp.(- R ./n);
+    return M
+end
 
 # =====================
 # Main
@@ -86,18 +103,23 @@ miraculix.load_shared_library()
     for n in Vector{Int64}([1e2,5e2,5e3])
         for ncol in [1, 5, 20]
             # Simulate LHS and RHS
-            M = simulate_sparse_pd(n, 0.05);
+            M_sp = simulate_sparse_pd(n, 0.05);
+            M = simulate_dense_pd(n);
             B = randn(Float64, (n, ncol));
             # Convert M to COO format
-            I, J, V = findnz(M)
+            I, J, V = findnz(M_sp)
 
             # Initialize GPU storage object from COO 
-            obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
-            # Compute the solution to M X = B
-            X = miraculix.sparse_solve.solve(obj_ref, B, n)
+            obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+            # Compute the solution to M_sp X_sp = B
+            X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
             # Free GPU memory
-            miraculix.sparse_solve.free(obj_ref)
+            miraculix.solve.sparse_free(obj_ref)
 
+            # Compute the solution to M X = B
+            X = miraculix.solve.dense_solve(M, B)
+
+            @test norm(M_sp * X_sp - B)/norm(B) < tol
             @test norm(M * X - B)/norm(B) < tol
         end
     end
@@ -108,32 +130,28 @@ end
     iter = 1e2
     n = Int(1e4)
     ncol = 12
-    M = simulate_sparse_pd(n, 0.05);
+    M_sp = simulate_sparse_pd(n, 0.05);
+    M = simulate_dense_pd(n);
     B = randn(Float64, (n, ncol));
     # Convert M to COO format
-    I, J, V = findnz(M)
+    I, J, V = findnz(M_sp)
 
+    ENV["PRINT_LEVEL"] = "-1";
      
     # Initialize GPU storage object from COO 
-    obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+    obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
     # Repeat solve call a lot of times
     for _ in 1:iter
-        miraculix.sparse_solve.solve(obj_ref, B, n)
+        miraculix.solve.sparse_solve(obj_ref, B, n)
+        miraculix.solve.dense_solve(M, B)
     end
     # Compute the solution to M X = B
-    X = miraculix.sparse_solve.solve(obj_ref, B, n)
+    X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
+    X = miraculix.solve.dense_solve(M, B)
+
     # Free GPU memory
-    miraculix.sparse_solve.free(obj_ref)
+    miraculix.solve.sparse_free(obj_ref)
+    @test norm(M_sp * X_sp - B)/norm(B) < tol
     @test norm(M * X - B)/norm(B) < tol
 
-    # Repeat solve call a lot of times
-    for _ in 1:iter
-            # Initialize GPU storage object from COO 
-        obj_ref = miraculix.sparse_solve.init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
-        # Compute the solution to M X = B
-        X = miraculix.sparse_solve.solve(obj_ref, B, n)
-        # Free GPU memory
-        miraculix.sparse_solve.free(obj_ref)
-        @test norm(M * X - B)/norm(B) < tol
-    end
 end

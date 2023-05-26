@@ -75,6 +75,15 @@ void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,
  *  Refer to the documentation of sparse_solve_destroy for details.
  */
 void free_sparse_gpu(void **GPU_obj, int *status);
+
+/**
+ *  \brief C - Wrapper for dense_solve.
+ *
+ *  Refer to the documentation of dense_solve for details.
+ */
+void potrs_solve_gpu(double *A, unsigned int input_size, double *B,
+                     unsigned int rhs_cols, double *X, double *logdet,
+                     int oversubscribe, int *status);
 };
 // End extern "C"
 
@@ -130,6 +139,8 @@ int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
  * (RHS) matrix in equation systems.
  *  \param GPUobj A pointer in which the GPU object for iterative solver will be stored.
  *  \param status A pointer to an integer that holds the error code, if any.
+ * 
+ *  \note The compile message can be switched off by setting the environment variable PRINT_LEVEL to -1.
  */
 void sparse_solve_init(double *V, int *I, int *J, long nnz, long m,
                        long maxncol, void **GPUobj, int *status);

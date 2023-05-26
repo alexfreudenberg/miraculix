@@ -58,23 +58,8 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   */
 
   // Print compile info 
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------\n");
-  printf("\tmiraculix - libdgemmcuda\n");
-#if defined COMMIT_ID
-  printf("Compiled on %s %s, git commit %s\n", __DATE__, __TIME__, COMMIT_ID);
-#endif
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------\n");
-
+  print_compile_info("dgemm_compressed");
+  
   //
   // Initialize CUDA variables
   //

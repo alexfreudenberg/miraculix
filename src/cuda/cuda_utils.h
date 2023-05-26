@@ -38,6 +38,7 @@
 
 
 void debug_info(const char *s, ...);
+void print_compile_info(const char *message);
 
 int checkCuda();
 int checkDevMemory(size_t required_mem);

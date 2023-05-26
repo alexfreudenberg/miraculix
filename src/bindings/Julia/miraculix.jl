@@ -98,7 +98,7 @@ end
 
 include("dgemm_compressed.jl")
 include("read_plink.jl")
-include("sparse_solve.jl")
+include("solve.jl")
 
 
 end

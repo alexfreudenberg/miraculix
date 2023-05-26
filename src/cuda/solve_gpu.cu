@@ -58,15 +58,12 @@
 #include "cuda_utils.h"
 
 
-#define THREADS_PER_BLOCK 1024 // 2048 / 32
-#define BLOCKS 1024
-
-
 /*
  *
  * C++
  *
  */
+#define THREADS_PER_BLOCK 1024
 
 __global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet);
 
@@ -294,20 +291,8 @@ void sparse_solve_init(
 ) {
 
     // Print compile info
-    printf("------------");
-    printf("------------");
-    printf("------------");
-    printf("------------");
-    printf("------------\n");
-    printf("\tmiraculix - cuSPARSE triangular solve interface\n");
-#if defined COMMIT_ID
-    printf("Compiled on %s %s, git commit %s\n", __DATE__, __TIME__, COMMIT_ID);
-#endif
-    printf("------------");
-    printf("------------");
-    printf("------------");
-    printf("------------");
-    printf("------------\n");
+    print_compile_info("cuSPARSE triangular solve interface");
+
 
     //
     // Initialize CUDA variables
@@ -942,7 +927,6 @@ __global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet)
     Output:
         d_logdet pointer to logdeterminant on device
     */
-
     __shared__ double logdet_loc;
     __shared__ double submatrix[THREADS_PER_BLOCK];
     logdet_loc = 0.0;
@@ -996,4 +980,11 @@ void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,
 void free_sparse_gpu(void **GPU_obj, int *status) {
     sparse_solve_destroy(GPU_obj, status);
 };
+
+void potrs_solve_gpu(double *A, unsigned int input_size, double *B,
+                     unsigned int rhs_cols, double *X, double *logdet,
+                     int oversubscribe, int *status) {
+    *status = dense_solve(A, input_size, B, rhs_cols, X, logdet, oversubscribe);
+};
+
 }

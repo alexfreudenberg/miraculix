@@ -41,19 +41,43 @@
 #define STR(x) XSTR(x)
 #define XSTR(x) #x
 
-void debug_info(const char *s, ...) {
-
+int get_print_level(){
   char *print_level_env = getenv("PRINT_LEVEL");
   if (print_level_env != NULL) {
-    int print_level = atoi(print_level_env);
-    if (print_level > 0) {
-      va_list argptr;
-      va_start(argptr, s);
-      printf("\033[36m\t ");
-      vprintf(s, argptr);
-      printf(" \033[37m\n");
-      va_end(argptr);
-    }
+    return atoi(print_level_env);
+  }
+  else {
+    return 0;
+  }
+}
+
+void debug_info(const char *s, ...) {
+  if (get_print_level() > 0) {
+    va_list argptr;
+    va_start(argptr, s);
+    printf("\033[36m\t ");
+    vprintf(s, argptr);
+    printf(" \033[37m\n");
+    va_end(argptr);
+  }
+}
+
+void print_compile_info(const char *message){
+  if (get_print_level() >= 0) {
+    printf("------------");
+    printf("------------");
+    printf("------------");
+    printf("------------");
+    printf("------------\n");
+    printf("\tmiraculix - %s\n", message);
+#if defined COMMIT_ID
+    printf("Compiled on %s %s, git commit %s\n", __DATE__, __TIME__, COMMIT_ID);
+#endif
+    printf("------------");
+    printf("------------");
+    printf("------------");
+    printf("------------");
+    printf("------------\n");
   }
 }
 
@@ -171,13 +195,19 @@ int switchDevice(){
   int device = 0;
   int device_available = 0;
   char *requested_device = getenv("CUDA_DEVICE");
+  bool verbose = get_print_level() >= 0;
+
   if (requested_device != NULL) {
     device = atoi(requested_device);
-    printf("Environment variable CUDA_DEVICE is set to %s, switching to device %d.\n",
+    if(verbose){
+      printf("Environment variable CUDA_DEVICE is set to %s, switching to device %d.\n",
            requested_device, device);
+    }
   }
   else {
+    if(verbose){
     printf("Environment variable CUDA_DEVICE is not set, using device 0.\n");
+    }
   }
 
 
