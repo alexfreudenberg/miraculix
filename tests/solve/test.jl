@@ -150,26 +150,29 @@ println("Check if routine is resilient - uncaught memory allocations would cause
     end
     # Compute the solution to M_sp X_sp = B and M X = B
     X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
-    X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
+    X, logdet_own = miraculix.solve.dense_solve(M, B, calc_logdet = true, oversubscribe = false)
 
     # Free GPU memory
     miraculix.solve.sparse_free(obj_ref)
     @test norm(M_sp * X_sp - B)/norm(B) < tol
     @test norm(M * X - B)/norm(B) < tol
+    @test abs(logdet(M) - logdet_own) < tol 
+
 end
 
 println("Check if oversubscription and logdet calculation works -- this test needs to be adjusted to actual device memory available")
 @testset "Oversubscription" begin
-    for n in Vector{Int64}([1e4,3e4,5e4])
+    for n in Vector{Int64}([1e4,3e4,7e4])
+        println("Testing size $n")
         ncol = 1
         # Simulate LHS and RHS
         M = simulate_dense_pd(n);
         B = randn(Float64, (n, ncol));
         
         # Compute the solution to M X = B
-        X, logdet_own = miraculix.solve.dense_solve(M, B, calc_logdet = true, oversubscribe = true)
+        X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = true)
 
+        println("Test correctness")
         @test norm(M * X - B)/norm(B) < tol
-        @test abs(logdet(M) - logdet_own) < tol 
     end
 end
