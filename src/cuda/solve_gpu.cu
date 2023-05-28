@@ -654,6 +654,13 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     struct GPU_sparse_storage *GPU_storage_obj =
         (struct GPU_sparse_storage *)(*GPU_obj);
 
+    debug_info("Pointer value %d", GPU_storage_obj);
+    if((GPU_obj == NULL) || (GPU_storage_obj == NULL)){
+        checkError(__func__, __LINE__, cudaErrorIllegalAddress);
+        *status = 1;
+        return;
+    }
+
     // Declare device pointers
     double *d_X           = GPU_storage_obj->d_X,
            *d_B           = GPU_storage_obj->d_B,
@@ -725,6 +732,7 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     cusparseDestroyBsrsm2Info(info_csc);
     cusparseDestroyBsrsm2Info(info_csr);
     free(GPU_storage_obj);
+    *GPU_obj = NULL;
 
     cudaDeviceReset();
 

@@ -27,7 +27,8 @@
 using Distances;
 using SparseArrays;
 using LinearAlgebra;
-using Test
+using Test;
+using Random;
 
 # =====================
 # Global definitions
@@ -38,6 +39,7 @@ MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 
 tol = 1e-1;
+Random.seed!(0);
 
 include(MODULE_PATH)
 
@@ -98,7 +100,7 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
-# Check if routine returns right results
+println("Check if routine returns right results")
 @testset "Consistency" begin
     for n in Vector{Int64}([1e2,5e2,5e3])
         for ncol in [1, 5, 20]
@@ -115,9 +117,10 @@ miraculix.load_shared_library()
             X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
             # Free GPU memory
             miraculix.solve.sparse_free(obj_ref)
-
+            @test_throws "No valid storage object" miraculix.solve.sparse_free(obj_ref)
+           
             # Compute the solution to M X = B
-            X = miraculix.solve.dense_solve(M, B)
+            X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
 
             @test norm(M_sp * X_sp - B)/norm(B) < tol
             @test norm(M * X - B)/norm(B) < tol
@@ -125,7 +128,7 @@ miraculix.load_shared_library()
     end
 end
 
-# Check if routine is resilient - uncaught memory allocations would cause this to fail
+println("Check if routine is resilient - uncaught memory allocations would cause this to fail")
 @testset "Resilience" begin
     iter = 1e2
     n = Int(1e4)
@@ -143,15 +146,30 @@ end
     # Repeat solve call a lot of times
     for _ in 1:iter
         miraculix.solve.sparse_solve(obj_ref, B, n)
-        miraculix.solve.dense_solve(M, B)
+        miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
     end
     # Compute the solution to M_sp X_sp = B and M X = B
     X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
-    X = miraculix.solve.dense_solve(M, B)
+    X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
 
     # Free GPU memory
     miraculix.solve.sparse_free(obj_ref)
     @test norm(M_sp * X_sp - B)/norm(B) < tol
     @test norm(M * X - B)/norm(B) < tol
+end
 
+println("Check if oversubscription and logdet calculation works -- this test needs to be adjusted to actual device memory available")
+@testset "Oversubscription" begin
+    for n in Vector{Int64}([1e4,3e4,5e4])
+        ncol = 1
+        # Simulate LHS and RHS
+        M = simulate_dense_pd(n);
+        B = randn(Float64, (n, ncol));
+        
+        # Compute the solution to M X = B
+        X, logdet_own = miraculix.solve.dense_solve(M, B, calc_logdet = true, oversubscribe = true)
+
+        @test norm(M * X - B)/norm(B) < tol
+        @test abs(logdet(M) - logdet_own) < tol 
+    end
 end

@@ -149,7 +149,7 @@ Throws an error if M is not a square matrix, B is not of correct dimension or th
 # Note
 If `oversubscribe` is `true`, this might come with a performance penalty. This function is an interface to the `dense_solve` function in the `miraculix.so` library.
 """
-function dense_solve(M::Matrix{Float64}, B::Matrix{Float64}, calc_logdet::Bool = true, oversubscribe::Bool = false)
+function dense_solve(M::Matrix{Float64}, B::Matrix{Float64}; calc_logdet::Bool = true, oversubscribe::Bool = false)
     n = size(M,1)
     if n != size(M,2)
         error("M not a square matrix.")
@@ -170,7 +170,11 @@ function dense_solve(M::Matrix{Float64}, B::Matrix{Float64}, calc_logdet::Bool =
     solve_sym = dlsym(LIBRARY_HANDLE[], :potrs_solve_gpu)
     ccall(solve_sym, Cvoid, (Ptr{Float64}, Int32, Ptr{Float64}, Int32, Ptr{Float64}, Ptr{Float64}, Int32, Ptr{Int32}), M, n, B, ncol, X, logdet, oversubscribe, status)
 
-    return X
+    if calc_logdet
+        return X, logdet[1]
+    else
+        return X
+    end
 end # function
 
 
