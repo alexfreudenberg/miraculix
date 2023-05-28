@@ -49,9 +49,9 @@ include(MODULE_PATH)
 # Main
 # =====================
 
-println("Load library and set options")
-miraculix.dgemm_compressed.set_library_path(LIBRARY_PATH)
-miraculix.dgemm_compressed.load_shared_library()
+println("Load library and set dgemm_compressed options")
+miraculix.set_library_path(LIBRARY_PATH)
+miraculix.load_shared_library()
 miraculix.dgemm_compressed.set_options(use_gpu=false, verbose=0)
 
 println("Read bed file and frequencies")

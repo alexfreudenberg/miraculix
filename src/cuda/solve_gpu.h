@@ -119,7 +119,8 @@ struct GPU_sparse_storage {
  * 
  * @return          Returns an integer indicating the success (0) or failure (-1) of the solve operation.
  * 
- * @note            The pointer to X can be equal to the one for B.
+ * @note            The pointer to X can be equal to the one for B. 
+ * @note            This function uses the potrs and potrf routines in the cuSOLVER library.
  */
 int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_cols,
     double* X, double *logdet, int oversubscribe);
@@ -141,6 +142,7 @@ int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
  *  \param status A pointer to an integer that holds the error code, if any.
  * 
  *  \note The compile message can be switched off by setting the environment variable PRINT_LEVEL to -1.
+ *  \note This function uses the sparse matrix routines in the cuSPARSE library, in particular the analysis routine of the bsrsm2 collection.
  */
 void sparse_solve_init(double *V, int *I, int *J, long nnz, long m,
                        long maxncol, void **GPUobj, int *status);
@@ -165,6 +167,8 @@ void sparse_solve_destroy(void **GPU_obj, int *status);
  *  \param ncol The number of columns in B and X.
  *  \param X A pointer to the solution matrix of size m x ncol.
  *  \param status A pointer to an integer that holds the error code, if any.
+ * 
+ *  \note This function uses the solve function in the bsrsm2 function collection in the cuSPARSE library. 
  */
 void sparse_solve_compute(void *GPUobj, double *B, int ncol, double *X,
                           int *status);

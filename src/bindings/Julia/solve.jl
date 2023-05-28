@@ -19,6 +19,28 @@ module solve
 import ..LIBRARY_HANDLE, ..check_storage_object
 using Libdl
 
+"""
+    sparse_init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64, m::Int64, max_ncol::Int64)
+
+Initializes the GPU storage object for the sparse matrix specified by the vectors V, I, J in COO format.
+
+# Arguments
+- `V`: Vector of matrix values in COO format.
+- `I`: Vector of row indices in COO format.
+- `J`: Vector of column indices in COO format.
+- `nnz`: The number of non-zero values in the matrix (length of V).
+- `m`: The number of rows and columns in the matrix.
+- `max_ncol`: The maximum number of columns in the right-hand side (RHS) matrix in equation systems.
+
+# Returns 
+A reference to the GPU storage object (`Ref{Ptr{Cvoid}}`).
+
+# Exceptions
+Throws an error if the initialization fails.
+
+# Note
+This function is an interface to the `sparse_solve_init` function in the `miraculix.so` library.
+"""
 function sparse_init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64, m::Int64, max_ncol::Int64)
     obj_ref = Ref{Ptr{Cvoid}}(C_NULL)
     if (length(V), length(I), length(J)) != (nnz, nnz, nnz)
@@ -38,7 +60,25 @@ function sparse_init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz
     return obj_ref
 end # function
 
+"""
+    sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
 
+Computes the solution to the equation system defined by the matrix in obj_ref and the RHS in B on the GPU.
+
+# Arguments
+- `obj_ref`: A reference to the GPU storage object.
+- `B`: Right-hand side (RHS) matrix of size m x n.
+- `m`: The number of rows in the RHS matrix.
+
+# Returns 
+The solution to the equation system.
+
+# Exceptions
+Throws an error if the computation fails.
+
+# Note
+This function is an interface to the `sparse_solve_compute` function in the `miraculix.so` library.
+"""
 function sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
     check_storage_object(obj_ref)
 
@@ -61,7 +101,20 @@ function sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
     return X
 end # function
 
+"""
+    sparse_free(obj_ref::Ref{Ptr{Cvoid}})
 
+Frees the GPU memory in obj_ref.
+
+# Arguments
+- `obj_ref`: A reference to the GPU storage object.
+
+# Exceptions
+Throws an error if the memory release fails.
+
+# Note
+This function is an interface to the `sparse_solve_destroy` function in the `miraculix.so` library.
+"""
 function sparse_free(obj_ref::Ref{Ptr{Cvoid}})
     check_storage_object(obj_ref)
 
@@ -75,7 +128,28 @@ function sparse_free(obj_ref::Ref{Ptr{Cvoid}})
     end
 end # function
 
-function dense_solve(M::Matrix{Float64}, B::Matrix{Float64}, calc_logdet::Bool = true, oversubscribe::Bool = true)
+
+"""
+    dense_solve(M::Matrix{Float64}, B::Matrix{Float64}, calc_logdet::Bool = true, oversubscribe::Bool = true)
+
+Computes the solution to the dense equation system defined by M and B on the GPU.
+
+# Arguments
+- `M`: The input square matrix.
+- `B`: Right-hand side (RHS) matrix with compatible number of rows with M.
+- `calc_logdet`: Flag indicating if the log-determinant of M should be computed and returned. Default is `true`.
+- `oversubscribe`: Flag indicating if CUDA unified memory addressing should be used, which allows the matrix M to be too large to fit in the GPU conventionally. Default is `false`.
+
+# Returns 
+The solution to the equation system and the log-determinant of M if `calc_logdet` is `true`.
+
+# Exceptions
+Throws an error if M is not a square matrix, B is not of correct dimension or the computation fails.
+
+# Note
+If `oversubscribe` is `true`, this might come with a performance penalty. This function is an interface to the `dense_solve` function in the `miraculix.so` library.
+"""
+function dense_solve(M::Matrix{Float64}, B::Matrix{Float64}, calc_logdet::Bool = true, oversubscribe::Bool = false)
     n = size(M,1)
     if n != size(M,2)
         error("M not a square matrix.")
