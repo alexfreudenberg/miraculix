@@ -945,7 +945,7 @@ __global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet)
         submatrix[thread] = d_matrix[idx * (*d_size + 1)];
     }
     __syncthreads();
-    atomicAdd(&logdet_loc, idx >= *d_size ? 0 : (log(submatrix[thread])));
+    atomicAdd(&logdet_loc, idx >= *d_size ? 0 : 2.0*(log(submatrix[thread])));
 
     __syncthreads();
     if (threadIdx.x == 0) {
