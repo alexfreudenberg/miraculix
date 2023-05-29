@@ -15,7 +15,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-
+# =====================================================
+# This file is heavily WIP
+# =====================================================
 using Base, Base.Libc.Libdl;
 using Distances; 
 using SparseArrays;
@@ -23,42 +25,6 @@ using LinearAlgebra;
 using Test
 using .Threads: @threads
 
-
-TOL = 1e-5;
-n = Int(1e6);
-ncol = 12;
-
-M_sp = spdiagm(ones(n));
-density = 8/4e6;
-indices = rand(1:n, (Int(density/2 * n), 2));
-y = zeros(Float64, (n,ncol));
-
-b = rand(Float64, (n,ncol));
-
-# Generate a sparse, strictly diagonally dominant matrix M_sp through sampling values such that each off-diagonal rowsum is smaller than the diagonal value 1.0
-for k = 1:size(indices)[1]
-    i, j = indices[k,:];
-    if i == j
-        continue
-    end
-    M_sp[i,j] = M_sp[j,i] = rand(Float64) * (0.9 - sum(abs.(M_sp[i,:])));
-end
-
-# Sparse Cholesky
-ccall((:cholSparse, "./src/solve_gpu.so"),Int32,(Ptr{Cdouble},Ptr{Cint}, Ptr{Cint}, Int32, Int32, Ptr{Cdouble}, Int32, Ptr{Cdouble}), M_sp.nzval, Vector{Int32}(M_sp.colptr), Vector{Int32}(M_sp.rowval), Int32(n), Int32(size(M_sp.nzval)[1]), b, ncol, y);
-
-println(sum(abs.(M_sp * y - b)))
-
-@assert false
-
-## Test CUDA-Cholesky functionality exposed through shared library
-R = pairwise(Euclidean(),1:n);
-M = exp.(- R ./n);
-
-# Dense Cholesky 
-ccall((:cholGPU, "./src/miraculixjl.so"),Int32,(Ptr{Cdouble},UInt32, Ptr{Cdouble}, UInt32, Ptr{Cdouble}), M, UInt32(n), b, UInt32(1), y);
-
-@test sum(abs.(M * y - b)) < TOL
 
 ## Test GRM functionality
 T = UInt32;
