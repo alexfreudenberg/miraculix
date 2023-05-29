@@ -1,20 +1,35 @@
 /*
- Authors 
- Alexander Freudenberg, alexander.freudenberg@stads.de
+   Authors
+   Alexander Freudenberg, alexander.freudenberg@stads.de
 
- Copyright (C) 2022-2023 Alexander Freudenberg
+   Copyright (C) 2020-2023 Alexander Freudenberg
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+      http://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+   This file provides interfaces to the solving functionality in the cuSOLVER
+   and cuSPARSE libraries by NVIDIA. It aims at providing convenience wrappers
+   to these functions to alleviate the burden of CUDA memory management and
+   other low-level details.
+
+   Functionality:
+   -   Dense Solve: Solves an equation system defined by a dense matrix once
+   through the Cholesky decomposition and optionally compute the log-determinant
+   of the matrix.
+   -   Sparse Solve: Prepares a sparse matrix to be solved multiple times for
+   use in, e.g., iterative solver algorithms.
+
+   cuSPARSE and cuSOLVER are released as part of the CUDA toolkit under the
+   copyright Copyright (C) 2012 -- 2023, NVIDIA Corporation & Affiliates.
 */
 
 #pragma once
@@ -36,12 +51,42 @@
 #include <cusolverSp.h>
 #include <cusparse.h>
 
-#define Uint unsigned int
-#define PADDIM 4L
-#define THREADS_PER_BLOCK 1024 // 2048 / 32
-#define BLOCKS 1024
-
 extern "C" {
+
+/**
+ *  \brief C - Wrapper for sparse_solve_init.
+ *
+ *  Refer to the documentation of sparse_solve_init for details.
+ */
+void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long max_ncol,
+                void **GPU_obj, int *status);
+
+/**
+ *  \brief C - Wrapper for sparse_solve_compute.
+ *
+ *  Refer to the documentation of sparse_solve_compute for details.
+ */
+void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,
+                        int *status);
+
+/**
+ *  \brief C - Wrapper for sparse_solve_destroy.
+ *
+ *  Refer to the documentation of sparse_solve_destroy for details.
+ */
+void free_sparse_gpu(void **GPU_obj, int *status);
+
+/**
+ *  \brief C - Wrapper for dense_solve.
+ *
+ *  Refer to the documentation of dense_solve for details.
+ */
+void potrs_solve_gpu(double *A, unsigned int input_size, double *B,
+                     unsigned int rhs_cols, double *X, double *logdet,
+                     int oversubscribe, int *status);
+};
+// End extern "C"
+
 struct GPU_sparse_storage {
      int *d_cscColPtr;
      int *d_cscRowInd;
@@ -61,26 +106,70 @@ struct GPU_sparse_storage {
 };
 
 
-// void cholGPU(bool copy, double *matrix, Uint size, double *B, Uint rhs_cols,
-//      double *LogDet, double *RESULT);
+/**
+ * Solves an equation system defined by the square matrix A and the right-hand side B.
+ * 
+ * @param A         Pointer to the input matrix A in row-major order.
+ * @param input_size The dimension of the square matrix A.
+ * @param B         Pointer to the input matrix B in row-major order.
+ * @param rhs_cols  The number of columns in the right-hand side matrix B.
+ * @param X         Pointer to the result matrix X in row-major order.
+ * @param logdet    Pointer to store the log-determinant of A.
+ * @param oversubscribe Controls whether to use managed memory for device oversubscription (1: true, 0: false).
+ * 
+ * @return          Returns an integer indicating the success (0) or failure (-1) of the solve operation.
+ * 
+ * @note            The pointer to X can be equal to the one for B. 
+ * @note            This function uses the potrs and potrf routines in the cuSOLVER library.
+ */
+int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_cols,
+    double* X, double *logdet, int oversubscribe);
 
-void sparse2gpu(
-     double *V,     // Vector of matrix values (COO format)
-     int *I,        // Vector of row indices (COO format)
-     int *J,        // Vector of column indices (COO format)
-     long nnz,       // Number of nonzero values (length of V)
-     long m,         // Number of rows and columns of matrix
-     long max_ncol,  // Maximum number of columns of RHS in equation systems
-     void **GPU_obj, // Pointer in which GPU object for iterative solver will be
-                    // stored
-     int *status
-);
-void dcsrtrsv_solve(void *GPU_obj, // Pointer to GPU object
-                   double *B,     // Pointer to RHS matrix of size m x ncol
-                   int ncol,      // Number of columns of B and X
-                   double *X,     // Solution matrix of size size m x ncol
-                   int *status
-);
-void freegpu_sparse(void *GPU_obj, int *status);
+/**
+ *  \brief Initializes storage object with required data on the GPU.
+ *  
+ *  This function prepares the GPU for iterative solver computation by loading
+ *  the sparse matrix into the GPU memory.
+ *  
+ *  \param V A pointer to a vector of matrix values in COO format.
+ *  \param I A pointer to a vector of row indices in COO format.
+ *  \param J A pointer to a vector of column indices in COO format.
+ *  \param nnz The number of non-zero values in the matrix (length of V).
+ *  \param m The number of rows and columns in the matrix.
+ *  \param maxncol The maximum number of columns in the right-hand side 
+ * (RHS) matrix in equation systems.
+ *  \param GPUobj A pointer in which the GPU object for iterative solver will be stored.
+ *  \param status A pointer to an integer that holds the error code, if any.
+ * 
+ *  \note The compile message can be switched off by setting the environment variable PRINT_LEVEL to -1.
+ *  \note This function uses the sparse matrix routines in the cuSPARSE library, in particular the analysis routine of the bsrsm2 collection.
+ */
+void sparse_solve_init(double *V, int *I, int *J, long nnz, long m,
+                       long maxncol, void **GPUobj, int *status);
 
-};
+/**
+ *  \brief Frees the memory in the GPU object.
+ *
+ *  This function releases the GPU memory that was allocated for the iterative solver computation.
+ *
+ *  \param GPU_obj A pointer to the GPU object.
+ *  \param status A pointer to an integer that holds the error code, if any.
+ */
+void sparse_solve_destroy(void **GPU_obj, int *status);
+
+/**
+ *  \brief Computes the solution to the equation system defined by the matrix stored in GPU_obj and B.
+ *
+ *  This function uses the GPU object to solve the equation system. The result is stored in X.
+ *
+ *  \param GPU_obj A pointer to the GPU object.
+ *  \param B A pointer to the RHS matrix of size m x ncol.
+ *  \param ncol The number of columns in B and X.
+ *  \param X A pointer to the solution matrix of size m x ncol.
+ *  \param status A pointer to an integer that holds the error code, if any.
+ * 
+ *  \note This function uses the solve function in the bsrsm2 function collection in the cuSPARSE library. 
+ */
+void sparse_solve_compute(void *GPUobj, double *B, int ncol, double *X,
+                          int *status);
+

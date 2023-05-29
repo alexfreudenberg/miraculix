@@ -16,12 +16,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# This is a test file for the miraculix.jl module that provides an interface to the miraculix shared library, a tool that enables highly-efficient computations on compressed SNP data stored in PLINK format. The functions being tested perform operations such as setting computation options, preprocessing and transposing a PLINK .bed matrix, performing matrix multiplication, and freeing memory resources.
-# The tests in this file aim to ensure the consistency and correctness of these functions.
+# This is a test file for the miraculix.jl module that provides an 
+# interface to the miraculix shared library, a tool that enables 
+# highly-efficient computations on compressed SNP data stored in PLINK
+# format. 
+
+# The functions being tested perform operations such as setting computation
+# options, preprocessing and transposing a PLINK .bed matrix, performing 
+# matrix multiplication, and freeing memory resources.
+# The tests in this file aim to ensure the consistency and correctness of
+# these functions.
 
 using Statistics
 using Libdl
 using Test
+
+
+# =====================
+# Global definitions
+# =====================
 
 ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
@@ -32,9 +45,13 @@ FREQ_FILE = ROOT_DIR * "/data/xsmall.freq"
 include(MODULE_PATH)
 
 
-println("Load library and set options")
-miraculix.dgemm_compressed.set_library_path(LIBRARY_PATH)
-miraculix.dgemm_compressed.load_shared_library()
+# =====================
+# Main
+# =====================
+
+println("Load library and set dgemm_compressed options")
+miraculix.set_library_path(LIBRARY_PATH)
+miraculix.load_shared_library()
 miraculix.dgemm_compressed.set_options(use_gpu=false, verbose=0)
 
 println("Read bed file and frequencies")

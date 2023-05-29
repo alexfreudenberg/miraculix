@@ -1,7 +1,25 @@
+#  Authors 
+#  Alexander Freudenberg, alexander.freudenberg@stads.de
+
+#  Copyright (C) 2023 Alexander Freudenberg
+
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+
 
 # This script is designed to load the dgemm_compressed.jl module defined in src/bindings/Julia, and use 
-# the genotpye matrix multiplication functionality within that module to compute the solution 
-# to the equation G^-1 x, where x is a vector and G is the genomic relationship matrix.
+# the genotpye matrix multiplication functionality within that module to iteratively compute the solution 
+# to the equation G^-1 x through the conjugate gradient algorithm, where x is a vector and G is the genomic relationship matrix.
 
 # # Usage
 # To use this script, make sure that the Julia file containing the module is in the 
@@ -24,13 +42,24 @@ using Statistics
 using Libdl
 using LinearAlgebra
 
+# =====================
+# Global definitions
+# =====================
+
 ROOT_DIR = string(@__DIR__) * "/../"
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 DATA_FILE = ROOT_DIR * "/data/xsmall.bed"
 FREQ_FILE = ROOT_DIR * "/data/xsmall.freq"
 
+use_gpu = true
+
 include(MODULE_PATH)
+
+
+# =====================
+# Auxiliary functions
+# =====================
 
 """
     GRM_vec(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, snps::Int, indiv::Int)
@@ -64,10 +93,10 @@ function GRM_vec(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, snps::Int, indiv:
 end
 
 # Set library path and load library
-miraculix.dgemm_compressed.set_library_path(LIBRARY_PATH)
-miraculix.dgemm_compressed.load_shared_library()
+miraculix.set_library_path(LIBRARY_PATH)
+miraculix.load_shared_library()
 # Set miraculix options
-miraculix.dgemm_compressed.set_options(use_gpu=!false, verbose=0)
+miraculix.dgemm_compressed.set_options(use_gpu=use_gpu, verbose=0)
 
 # Read PLINK and allele frequency files
 genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE)
@@ -97,7 +126,7 @@ begin
         global x, r, p, Gp, alpha, beta, norm_old
         norm_old = norm(r)
         # Exit if convergence criterion is reached
-        if norm_old < conv_cirt
+        if norm_old < conv_crit
             break
         end
         

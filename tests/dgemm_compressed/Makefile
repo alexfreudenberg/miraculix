@@ -18,6 +18,8 @@ else ifeq ($(COMPILER), intel)
 endif
 
 SRC_DIR=$(PWD)/../../src
+DATA_DIR=../../data
+
 FFLAGS+=-I$(SRC_DIR)/bindings/Fortran
 LDFLAGS+=-L$(SRC_DIR)/miraculix -L$(SRC_DIR)/bindings/Fortran -L$(SRC_DIR)/cuda
 LDFLAGS+= -Wl,-rpath=$(SRC_DIR)/miraculix -Wl,-rpath=$(SRC_DIR)/bindings/Fortran -Wl,-rpath=$(SRC_DIR)/cuda 
@@ -36,19 +38,21 @@ MODS = $(OBJ:.o=.mod)
 LIBFORTRAN = $(SRC_DIR)/bindings/Fortran/libfortran.a
 LIBMIRACULIX = $(SRC_DIR)/miraculix/libmiraculix.a
 
-EXE = test_5codesapi
-EXET = test_5codesapi_t
+EXE = test_5codesapi.out
+EXET = test_5codesapi_t.out
 
 
 
 all: $(EXE) $(EXET)
 
+$(LIBMIRACULIX):
+	@cd $(SRC_DIR) && make libmiraculix
 
-$(EXE): $(EXE).o $(LIBMIRACULIX) $(LIBFORTRAN)
-	$(FORTRAN) $(FFLAGS) $(EXE).o -o $@ $(LDFLAGS) 
+$(EXE): $(EXE:.out=.o) $(LIBMIRACULIX) $(LIBFORTRAN)
+	$(FORTRAN) $(FFLAGS) $< -o $@ $(LDFLAGS) 
 
-$(EXET): $(EXET).o $(LIBMIRACULIX) $(LIBFORTRAN)
-	$(FORTRAN) $(FFLAGS) $(EXET).o -o $@ $(LDFLAGS)
+$(EXET): $(EXE:.out=.o) $(LIBMIRACULIX) $(LIBFORTRAN)
+	$(FORTRAN) $(FFLAGS) $< -o $@ $(LDFLAGS)
 
 %.o: %.f90
 	$(FORTRAN) $(FFLAGS) -c $<
@@ -60,18 +64,18 @@ clean:
 	$(RM) $(OBJ) $(MODS) $(LIB) $(EXE) $(EXET) $(ALL) *.optrpt
 
 tests: all
-	./$(EXE) ../data/small.bed ../data/small.freq
+	./$(EXE) $(DATA_DIR)/small.bed $(DATA_DIR)/small.freq
 
 testm: all
-	./$(EXE) ../data/medium.bed ../data/medium.freq
+	./$(EXE) $(DATA_DIR)/medium.bed $(DATA_DIR)/medium.freq
 
 
 testl: all
-	./$(EXE) ../data/large.bed ../data/large.freq
+	./$(EXE) $(DATA_DIR)/large.bed $(DATA_DIR)/large.freq
 
 
 testt: all  
-	./$(EXET) ../data/small.bed ../data/small.freq
+	./$(EXET) $(DATA_DIR)/small.bed $(DATA_DIR)/small.freq
 
 
 vtest: all

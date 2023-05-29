@@ -41,17 +41,44 @@
 #define STR(x) XSTR(x)
 #define XSTR(x) #x
 
-void debug_info(const char *s, ...) {
-#ifdef DEBUG
+int get_print_level(){
+  char *print_level_env = getenv("PRINT_LEVEL");
+  if (print_level_env != NULL) {
+    return atoi(print_level_env);
+  }
+  else {
+    return 0;
+  }
+}
 
-  va_list argptr;
-  va_start(argptr, s);
-  printf("\033[36m\t");
-  vprintf(s, argptr);
-  printf("\033[37m\n");
-  va_end(argptr);
-  
+void debug_info(const char *s, ...) {
+  if (get_print_level() > 0) {
+    va_list argptr;
+    va_start(argptr, s);
+    printf("\033[36m\t ");
+    vprintf(s, argptr);
+    printf(" \033[37m\n");
+    va_end(argptr);
+  }
+}
+
+void print_compile_info(const char *message){
+  if (get_print_level() >= 0) {
+    printf("------------");
+    printf("------------");
+    printf("------------");
+    printf("------------");
+    printf("------------\n");
+    printf("\tmiraculix - %s\n", message);
+#if defined COMMIT_ID
+    printf("Compiled on %s %s, git commit %s\n", __DATE__, __TIME__, COMMIT_ID);
 #endif
+    printf("------------");
+    printf("------------");
+    printf("------------");
+    printf("------------");
+    printf("------------\n");
+  }
 }
 
 int checkError(const char *func, int line, cudaError_t err) {
@@ -74,12 +101,22 @@ int checkError(const char *func, int line, cublasStatus_t err) {
 
 int checkError(const char *func, int line, cusparseStatus_t err) {
   if (err != CUSPARSE_STATUS_SUCCESS) {
-    printf("Internal error in cuSPARSE function %s at line %d: %s\n", func, line,
+    printf("Error in call to cuSPARSE in function %s at line %d: %s\n", func, line,
            cusparseGetErrorString(err));
     return 1;
   }
   return 0;
 }
+
+int checkError(const char *func, int line, cusolverStatus_t err) {
+  if (err != CUSOLVER_STATUS_SUCCESS) {
+    printf("Error in call to cuSOLVER in function %s at line %d: %d\n", func, line,
+           err);
+    return 1;
+  }
+  return 0;
+}
+
 
 int checkCuda(){
   //
@@ -92,7 +129,7 @@ int checkCuda(){
 
   err = cudaDriverGetVersion(&driverVersion);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   if (driverVersion == 0) { // Check if there's a CUDA driver on the system
     printf("No CUDA driver detected.");
     return 1;
@@ -153,17 +190,24 @@ int switchDevice(){
   // Select GPU device
   // The following section switches the current context to the requested device
   // 
+
   cudaError_t err;
   int device = 0;
   int device_available = 0;
   char *requested_device = getenv("CUDA_DEVICE");
+  bool verbose = get_print_level() >= 0;
+
   if (requested_device != NULL) {
     device = atoi(requested_device);
-    printf("Environment variable CUDA_DEVICE is set to %s, switching to device %d.\n",
+    if(verbose){
+      printf("Environment variable CUDA_DEVICE is set to %s, switching to device %d.\n",
            requested_device, device);
+    }
   }
   else {
+    if(verbose){
     printf("Environment variable CUDA_DEVICE is not set, using device 0.\n");
+    }
   }
 
 

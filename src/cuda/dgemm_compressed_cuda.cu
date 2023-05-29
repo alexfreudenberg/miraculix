@@ -58,23 +58,8 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   */
 
   // Print compile info 
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------\n");
-  printf("\tmiraculix - libdgemmcuda\n");
-#if defined COMMIT_ID
-  printf("Compiled on %s %s, git commit %s\n", __DATE__, __TIME__, COMMIT_ID);
-#endif
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------");
-  printf("------------\n");
-
+  print_compile_info("dgemm_compressed");
+  
   //
   // Initialize CUDA variables
   //
@@ -193,6 +178,9 @@ int freegpu(void **GPU_obj){
   if(checkCuda() != 0){
     return 1;
   }
+  if(*GPU_obj == NULL){
+    return 1;
+  }  
   
   // Free device memory and derefence storage object
   struct GPU_gemm_storage *GPU_storage_obj = (struct GPU_gemm_storage *) (*GPU_obj);
@@ -388,7 +376,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   status = gemm_op(); // Actual gemm op
   cudaDeviceSynchronize();
   if (status != cutlass::Status::kSuccess)
-    printf("Operation error %d\n", status);
+    printf("Operation error %d\n", (int) status);
 
   // Catch all accumulated errors from previous cuda launches
   err = cudaGetLastError();
