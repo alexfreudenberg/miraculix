@@ -29,6 +29,10 @@ SRC = \
       modplink_miraculix.f90 \
       modtestplink.f90
 
+ifeq ($(CUDA), true)
+ SRC += modmiraculix_gpu.f90
+endif
+
 OBJ = $(SRC:.f90=.o)
 MODS = $(OBJ:.o=.mod)
 
