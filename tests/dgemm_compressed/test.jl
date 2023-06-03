@@ -39,8 +39,8 @@ using Test
 ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
-DATA_FILE = ROOT_DIR * "/data/xsmall.bed"
-FREQ_FILE = ROOT_DIR * "/data/xsmall.freq"
+DATA_FILE = ROOT_DIR * "/data/small.bed"
+FREQ_FILE = ROOT_DIR * "/data/small.freq"
 
 include(MODULE_PATH)
 
@@ -55,9 +55,10 @@ miraculix.load_shared_library()
 miraculix.dgemm_compressed.set_options(use_gpu=false, verbose=0)
 
 println("Read bed file and frequencies")
-genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE)
-freq = miraculix.read_plink.read_freq(FREQ_FILE)
+@time genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,true)
+@time genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,false)
 
+freq = miraculix.read_plink.read_freq(FREQ_FILE)
 println("Transpose matrix")
 genotype_data_transposed = miraculix.dgemm_compressed.transpose_genotype_matrix(genotype_data, n_snps, n_indiv)
 
