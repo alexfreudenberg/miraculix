@@ -93,7 +93,7 @@ module mod5codesapi
    integer(c_int), value, intent(in) :: nIdx  !2nd dimension of sparse; =length(rowIdxB)-1
    integer(c_int), intent(in) :: rowIdxB(*)   !cf. CSR/CSR/Yale 
    integer(c_int), intent(in) :: colIdxB(*)   !cf. CSR/CSR/Yale 
-   real(c_double), intent(in) :: B(:)         !values of sparse
+   real(c_double), intent(in) :: B(*)         !values of sparse
    real(c_double), intent(inout) :: C(ldc, *)  !result (nIdx x snps)
    integer(c_int), value, intent(in) :: ldc   !typically =nIdx
   end subroutine
