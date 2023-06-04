@@ -32,13 +32,15 @@ SHARED_LIB = miraculix.so
 
 ifeq ($(CUDA), true)
 CUDA_LIB = ../cuda/
-LINK_FLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver -L$(CUDA_LIB) -Wl,--whole-archive -ldgemm_compressed_cuda -Wl,--no-whole-archive
+LINK_FLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver 
+# To expose CUDA functions which aren't use by core miraculix, we need to link the library as a whole archive
+LINK_FLAGS+=-L$(CUDA_LIB) -Wl,--whole-archive -ldgemm_compressed_cuda -Wl,--no-whole-archive 
 
-CCFLAGS+=-DCUDA # Indicates that CUDA functions need to be linked 
+
+CCFLAGS+=-DCUDA
 FFLAGS+=-DCUDA
 LINK=$(CC)
 endif
-
 
 
 shared_lib: $(SHARED_LIB)
@@ -50,14 +52,7 @@ $(SHARED_LIB): $(ALL)
 $(LIB): $(ALL)
 	ar cr $@ $(ALL)
 
-
-vtest: all
-	valgrind --tool=memcheck --leak-check=full --num-callers=20 ./$(EXE) data/small.bed data/small.freq
-
-
-vtestt: all
-	valgrind --tool=memcheck --leak-check=full --num-callers=20 ./$(EXET) data/small.bed data/small.freq
-
-.PHONY: clean lib
 clean: 
 	rm *.o *.a *.so
+
+.PHONY: clean lib shared_lib

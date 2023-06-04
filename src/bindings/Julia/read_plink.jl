@@ -21,6 +21,22 @@ module read_plink
 
 using Base;
 using DelimitedFiles;
+using StaticArrays;
+
+# This lookup table for converting PLINK binary format to 2bit format has been created with the help of the create_conversion_table function below -- see its documentation for details
+const CONVERSION_TABLE_UINT8 = SVector{typemax(UInt8)+1,UInt8}(
+    [0, 255, 1, 2, 255, 255, 255, 255, 4, 255, 5, 6, 8, 255, 9, 10, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 16, 255, 17, 18, 255, 255, 255, 255, 20, 255, 21, 22, 24, 255, 25, 26, 32, 255, 33, 34, 255, 255, 255, 255, 36, 255, 37, 38, 40, 255, 41, 42, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 64, 255, 65, 66, 255, 255, 255, 255, 68, 255, 69, 70, 72, 255, 73, 74, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 80, 255, 81, 82, 255, 255, 255, 255, 84, 255, 85, 86, 88, 255, 89, 90, 96, 255, 97, 98, 255, 255, 255, 255, 100, 255, 101, 102, 104, 255, 105, 106, 128, 255, 129, 130, 255, 255, 255, 255, 132, 255, 133, 134, 136, 255, 137, 138, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 144, 255, 145, 146, 255, 255, 255, 255, 148, 255, 149, 150, 152, 255, 153, 154, 160, 255, 161, 162, 255, 255, 255, 255, 164, 255, 165, 166, 168, 255, 169, 170]
+)
+
+"""
+    convert_plink2twobit(entry::UInt8)::UInt8
+
+Converts a single entry from the PLINK binary format (.bed) to a compressed 2-bit binary format using a predefined conversion table. The conversion table CONVERSION_TABLE_UINT8 should be previously defined.
+"""
+@inline function convert_plink2twobit(entry::UInt8)::UInt8   
+    @inbounds result::UInt8 = CONVERSION_TABLE_UINT8[entry + 1];
+    return result
+end #function
 
 """
     read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{Int32}
@@ -76,25 +92,11 @@ function read_bed(file::String, coding_twobit::Bool=false)
     @assert eof(io) "Too large .bed file"
     close(io);
 
+    # Convert to 2bit format if requested
     if coding_twobit
-        # Conversion to TwoBit format
-        @inbounds for i = 1:n_row, j = 1:n_indiv
-            index_str = bitstring(result[i,j]);
-            new_entry = UInt8(0);
-            @inbounds for substr_index = 1:2:size_in_bits
-                new_entry <<= 2;
-                substr = index_str[substr_index : (substr_index +1)];
-                # For documentation of values, see https://www.cog-genomics.org/plink/1.9/formats#bed
-                if substr == "10"
-                    new_entry |= 1
-                elseif substr == "11"
-                    new_entry |= 2
-                elseif substr == "01"
-                    error("Missings in .bed not supported")
-                end
-            end
-            result[i,j] = new_entry;
-        end            
+        result .= convert_plink2twobit.(result)
+        # Test for missing values in original bed file
+        @assert all(result .!= typemax(UInt8)) "No missings in PLINK file permitted."
     end # coding
 
     return result, n_snps, n_indiv
@@ -122,6 +124,63 @@ Each row represents an allele with a specific frequency in the population.
 function read_freq(file::String)
     freq = readdlm(file)[:,2]
     return freq
-end 
+end #function 
+
+"""
+    print_conversion_table(::Type{T}, NaN_code = typemax(T), verbose = true)
+
+Prints a lookup table for converting the PLINK binary format (.bed) to a compressed 2-bit binary format where:
+
+- 0 represents homozygous for the major allele,
+- 1 represents heterozygous,
+- 2 represents homozygous for the minor allele.
+Missing values are not supported and are coded as NaN_code.
+
+# Arguments
+- T: The type of the conversion table. Only UInt8 has been thoroughly tested.
+- NaN_code: The code to use for missing values. Defaults to the maximum possible value of the type T.
+- verbose: If true, then the conversion for every value from 0:typemax(T) is printed explicitly.
+
+#Returns
+- The conversion table as a vector.
+
+# Exceptions
+An error will be thrown if a non-supported type T is supplied.
+
+# Examples
+print_conversion_table(UInt8, NaN_code = 255, verbose = true)
+"""
+function create_conversion_table(::Type{T}, NaN_code = typemax(T), verbose = true) where{T}
+    max_val = typemax(T)
+    conversion_table = zeros(T, max_val+1)
+    
+    substr = Vector{String}(["00"])
+    size_in_bits = sizeof(T) * 8;
+
+    # Conversion to TwoBit format
+    for i in 0:max_val
+        index_str = bitstring(T(i));
+        new_entry = T(0);
+         @inbounds for substr_index = 1:2:size_in_bits
+            new_entry <<= 2;
+            substr[1] = view(index_str, substr_index : (substr_index + 1));
+            # For documentation of values, see https://www.cog-genomics.org/plink/1.9/formats#bed
+            if substr[1] == "10"
+                new_entry |= 1
+            elseif substr[1] == "11"
+                new_entry |= 2
+            elseif substr[1] == "01"
+                new_entry = T(NaN_code)
+                break
+            end
+        end
+        verbose && println(index_str, " -> ",new_entry)
+        conversion_table[i + 1] = new_entry;
+    end
+    str_conversion_table = join(string.(conversion_table), ", ")
+    
+    verbose && println("[", str_conversion_table, "]")
+    return conversion_table
+end #function
 
 end #module
