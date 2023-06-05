@@ -29,6 +29,7 @@ using SparseArrays;
 using LinearAlgebra;
 using Test;
 using Random;
+using Printf;
 
 # =====================
 # Global definitions
@@ -40,6 +41,9 @@ LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 
 tol = 1e-1;
 Random.seed!(0);
+
+# Remove commit message verbosity
+ENV["PRINT_LEVEL"] = "-1";
 
 include(MODULE_PATH)
 
@@ -100,16 +104,13 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
-# Remove commit message verbosity
-ENV["PRINT_LEVEL"] = "-1";
-
 
 println("Check if routine returns right results")
 @testset "Consistency" begin
     for n in Vector{Int64}([1e2,5e2,5e3])
         for ncol in [1, 5, 20]
             for density in [0.05, 0.2, 0.9]
-                println("n: ", n, ", ncol: ", ncol, ", density: ", density)
+                @printf("n: %d, ncol: %d, density: %.2f\n", n, ncol, density)
                 # Simulate LHS and RHS
                 M_sp = simulate_sparse_pd(n, density);
                 M = simulate_dense_pd(n);
@@ -127,6 +128,10 @@ println("Check if routine returns right results")
             
                 # Compute the solution to M X = B
                 X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
+                
+                # Calculate deviations
+                D = abs.(M_sp * X_sp - B)
+                @printf("Absolute error: %.1e, maximum error: %.1e\n", norm(D), maximum(D))
 
                 @test norm(M_sp * X_sp - B)/norm(B) < tol
                 @test norm(M * X - B)/norm(B) < tol
