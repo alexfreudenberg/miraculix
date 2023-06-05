@@ -8,13 +8,9 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
-    - name: make
-      run: cd src && make
     - name: cuda-toolkit
       uses: Jimver/cuda-toolkit@v0.2.10
       with:
@@ -28,3 +24,5 @@ jobs:
         linux-local-args: "--toolkit" # optional, default is ["--toolkit", "--samples"]
         # Use GitHub cache to cache downloaded installer on GitHub servers
         #use-github-cache: # optional, default is true
+    - name: make
+      run: cd src && make
