@@ -24,6 +24,6 @@ jobs:
         # Use GitHub cache to cache downloaded installer on GitHub servers
         #use-github-cache: # optional, default is true
     - name: CUDA_HOME
-      run: export CUDA_HOME=$CUDA_PATH/.. && echo $CUDA_HOME
+      run: export "CUDA_HOME=$CUDA_PATH/.." >> $GITHUB_ENV && echo $CUDA_HOME
     - name: make
       run: make -C src
