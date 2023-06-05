@@ -3,7 +3,7 @@
 ! Authors 
 ! Jeremie Vandenplas, jeremie.vandenplas@wur.nl
 !
-! Copyright (C) 2022-2023 Jermie Vandenplas
+! Copyright (C) 2022-2023 Jeremie Vandenplas
 !
 
 module modmiraculix_gpu
