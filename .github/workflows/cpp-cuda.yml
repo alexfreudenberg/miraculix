@@ -26,4 +26,4 @@ jobs:
     - name: CUDA_HOME
       run: export "CUDA_HOME=$CUDA_PATH/.." >> $GITHUB_ENV && echo $CUDA_HOME
     - name: make
-      run: echo "This $CUDA_HOME" && make -C src
+      run: export "CUDA_HOME=$CUDA_PATH/.." && echo "This $CUDA_HOME" && make -C src
