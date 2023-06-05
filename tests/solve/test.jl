@@ -64,7 +64,8 @@ Generates a sparse, positive-definite (PD) square matrix of size `n` x `n` with 
 - A sparse, positive-definite square matrix of size `n` x `n` with approx. specified density.
 """
 function simulate_sparse_pd(n::Int, density = 0.01)
-    M_sp = spdiagm(ones(n));
+    diag_elements = max.(randn(n) .+ 5, 0.1);
+    M_sp = spdiagm(diag_elements);
     indices = rand(1:n, (Int(ceil(density/2 * n)), 2));
  
     # Generate a sparse, strictly diagonally dominant matrix M_sp through sampling values such that each off-diagonal rowsum is smaller than the diagonal value 1.0
@@ -113,8 +114,8 @@ println("Check if routine returns right results")
                 @printf("n: %d, ncol: %d, density: %.2f\n", n, ncol, density)
                 # Simulate LHS and RHS
                 M_sp = simulate_sparse_pd(n, density);
-                M = simulate_dense_pd(n);
-                B = randn(Float64, (n, ncol));
+                M = simulate_dense_pd(n);                
+                B = randn(Float64, (n, ncol)) .+ 5; # Add bias to avoid accidentally correct results
                 # Convert M to COO format
                 I, J, V = findnz(M_sp)
 
