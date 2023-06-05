@@ -23,5 +23,7 @@ jobs:
         linux-local-args: '["--toolkit"]' # optional, default is ["--toolkit", "--samples"]
         # Use GitHub cache to cache downloaded installer on GitHub servers
         #use-github-cache: # optional, default is true
+    - name: CUDA_HOME
+      run: export CUDA_HOME=$CUDA_PATH/..
     - name: make
-      run: cd src && make
+      run: make -c src
