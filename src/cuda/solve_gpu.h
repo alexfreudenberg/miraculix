@@ -107,7 +107,7 @@ struct GPU_sparse_storage {
 
 
 /**
- * Solves an equation system defined by the square matrix A and the right-hand side B.
+ * Solves an equation system defined by a symmetric, positive-definite matrix A and the right-hand side B.
  * 
  * @param A         Pointer to the input matrix A in row-major order.
  * @param input_size The dimension of the square matrix A.
@@ -126,14 +126,14 @@ int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
     double* X, double *logdet, int oversubscribe);
 
 /**
- *  \brief Initializes storage object with required data on the GPU.
+ *  \brief Initializes storage object with required data on the GPU for solving an equation system defined by a sparse symmetric, positive-definite matrix A. 
  *  
  *  This function prepares the GPU for iterative solver computation by loading
  *  the sparse matrix into the GPU memory.
  *  
- *  \param V A pointer to a vector of matrix values in COO format.
- *  \param I A pointer to a vector of row indices in COO format.
- *  \param J A pointer to a vector of column indices in COO format.
+ *  \param V A pointer to the vector of values of A in COO format.
+ *  \param I A pointer to the vector of row indices of A in COO format.
+ *  \param J A pointer to the vector of column indices of A in COO format.
  *  \param nnz The number of non-zero values in the matrix (length of V).
  *  \param m The number of rows and columns in the matrix.
  *  \param maxncol The maximum number of columns in the right-hand side 

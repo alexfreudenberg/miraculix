@@ -291,7 +291,7 @@ void sparse_solve_init(
 ) {
 
     // Print compile info
-    print_compile_info("cuSPARSE triangular solve interface");
+    print_compile_info("cuSPARSE sparse solve interface");
 
 
     //
@@ -431,9 +431,7 @@ void sparse_solve_init(
         handle, m, m, nnz, d_cscVal, d_cscColPtr, d_cscRowInd, d_csrVal,
         d_csrRowPtr, d_csrColInd, CUDA_R_64F, CUSPARSE_ACTION_NUMERIC,
         CUSPARSE_INDEX_BASE_ONE, CUSPARSE_CSR2CSC_ALG1,
-        &pBufferSizeCSC2CSR); // The cusparseCsr2CscAlg_t alg argument is
-                              // undocumented in the official docs -- cf
-                              // cusparse.h
+        &pBufferSizeCSC2CSR);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
@@ -648,6 +646,11 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
         *status = 1;
         return;
     }
+    // Check if valid pointer
+    if (*GPU_obj == NULL) {
+        return 1;
+    }
+
     cudaDeviceSynchronize();
 
     // Get GPU storage object
@@ -732,7 +735,7 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     cusparseDestroyBsrsm2Info(info_csc);
     cusparseDestroyBsrsm2Info(info_csr);
     free(GPU_storage_obj);
-    *GPU_obj = NULL;
+    GPU_obj = NULL;
 
     cudaDeviceReset();
 
