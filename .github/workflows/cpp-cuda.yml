@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Build using Intel OneAPI components
+      uses: neelravi/intel-oneapi-github-actions@v1.0.2
     - name: cuda-toolkit
       uses: Jimver/cuda-toolkit@v0.2.10
       with:
