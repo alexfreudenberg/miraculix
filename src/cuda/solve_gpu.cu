@@ -648,6 +648,11 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
         *status = 1;
         return;
     }
+    // Check if valid pointer
+    if (*GPU_obj == NULL) {
+        return 1;
+    }
+
     cudaDeviceSynchronize();
 
     // Get GPU storage object
@@ -732,7 +737,7 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     cusparseDestroyBsrsm2Info(info_csc);
     cusparseDestroyBsrsm2Info(info_csr);
     free(GPU_storage_obj);
-    *GPU_obj = NULL;
+    GPU_obj = NULL;
 
     cudaDeviceReset();
 
