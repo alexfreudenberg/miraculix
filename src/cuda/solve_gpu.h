@@ -59,7 +59,7 @@ extern "C" {
  *  Refer to the documentation of sparse_solve_init for details.
  */
 void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long max_ncol,
-                void **GPU_obj, int *status);
+                int is_lower, void **GPU_obj, int *status);
 
 /**
  *  \brief C - Wrapper for sparse_solve_compute.
@@ -95,10 +95,11 @@ struct GPU_sparse_storage {
   long m;
   long ncol;
   int is_lower;
-  int *d_X;
-  int *d_B;
+  double *d_X;
+  double *d_B;
   cusparseConstSpMatDescr_t *matA;
   cusparseConstDnMatDescr_t *matB;
+  cusparseConstDnMatDescr_t *matC;
   cusparseSpSMDescr_t *spsmDescr_noop;
   cusparseSpSMDescr_t *spsmDescr_trans
 };
@@ -142,7 +143,7 @@ int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
  *  \note This function uses the sparse matrix routines in the cuSPARSE library, in particular the analysis routine of the bsrsm2 collection.
  */
 void sparse_solve_init(double *V, int *I, int *J, long nnz, long m,
-                       long maxncol, void **GPUobj, int *status);
+                       long maxncol, int is_lower, void **GPUobj, int *status);
 
 /**
  *  \brief Frees the memory in the GPU object.
