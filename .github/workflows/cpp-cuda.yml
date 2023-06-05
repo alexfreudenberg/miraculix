@@ -16,7 +16,7 @@ jobs:
         | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
         echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo apt update
-        sudo apt-get install -y intel-oneapi-dpcpp-cpp-compiler-2021
+        sudo apt-get install -y intel-oneapi-dpcpp-cpp-compiler
         which icc
         
     - name: cuda-toolkit
