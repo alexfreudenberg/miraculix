@@ -18,7 +18,7 @@ jobs:
         sudo apt update
         wget https://registrationcenter-download.intel.com/akdlm/IRC_NAS/89283df8-c667-47b0-b7e1-c4573e37bd3e/l_dpcpp-cpp-compiler_p_2023.1.0.46347_offline.sh
         chmod +x l_dpcpp-cpp-compiler_p_2023.1.0.46347_offline.sh
-        ./l_dpcpp-cpp-compiler_p_2023.1.0.46347_offline.sh -s --eula=accept
+        ./l_dpcpp-cpp-compiler_p_2023.1.0.46347_offline.sh  -a -s --eula accept
         if which icc > /dev/null; then
           echo "icc is in the PATH"
         else
