@@ -88,23 +88,20 @@ void potrs_solve_gpu(double *A, unsigned int input_size, double *B,
 // End extern "C"
 
 struct GPU_sparse_storage {
-     int *d_cscColPtr;
-     int *d_cscRowInd;
-     double *d_cscVal;
-     int *d_csrRowPtr;
-     int *d_csrColInd;
-     double *d_csrVal;
-     long nnz;
-     long m;
-     long max_ncol;
-     double *d_X;
-     double *d_B;
-     void   *d_pBuffer_csc;
-     void   *d_pBuffer_csr;
-     bsrsm2Info_t info_csc;
-     bsrsm2Info_t info_csr;
+  int *d_I;
+  int *d_J;
+  double *d_V;
+  long nnz;
+  long m;
+  long ncol;
+  int is_lower;
+  int *d_X;
+  int *d_B;
+  cusparseConstSpMatDescr_t *matA;
+  cusparseConstDnMatDescr_t *matB;
+  cusparseSpSMDescr_t *spsmDescr_noop;
+  cusparseSpSMDescr_t *spsmDescr_trans
 };
-
 
 /**
  * Solves an equation system defined by a symmetric, positive-definite matrix A and the right-hand side B.

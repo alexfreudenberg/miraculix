@@ -54,27 +54,26 @@ include(MODULE_PATH)
 """
     simulate_sparse_pd(n::Int, density = 0.01)
 
-Generates a sparse, positive-definite (PD) square matrix of size `n` x `n` with specified `density`. The positive-definiteness of the matrix is ensured by constructing it to be strictly diagonally dominant.
+Generates a sparse, lower triangular square matrix of size `n` x `n` with specified `density`. 
 
 # Arguments
 - `n::Int`: The dimension of the square matrix to be generated.
 - `density::Float64=0.01`: Roughly the density of the matrix. Defaults to 0.01 if not specified, representing 1% density.
+- `bias::Float64=2.0`: Mean of the diagonal elements of the matrix.
 
 # Returns
 - A sparse, positive-definite square matrix of size `n` x `n` with approx. specified density.
 """
-function simulate_sparse_pd(n::Int, density = 0.01)
-    diag_elements = max.(randn(n) .+ 5, 0.1);
+function simulate_sparse_triangular(n::Int, density::Float64 = 0.01, bias::Float64 = 2.0)
+    diag_elements = max.(randn(n) .+ bias, 0.1);
     M_sp = spdiagm(diag_elements);
-    indices = rand(1:n, (Int(ceil(density/2 * n)), 2));
- 
+    indices = rand(1:n, (Int(2 * ceil(density * n)), 2));
     # Generate a sparse, strictly diagonally dominant matrix M_sp through sampling values such that each off-diagonal rowsum is smaller than the diagonal value 1.0
-    for k = 1:size(indices)[1]
-        i, j = indices[k,:];
-        if i == j
+    for (i,j) in eachrow(indices)
+        if i >= j
             continue
         end
-        M_sp[i,j] = M_sp[j,i] = rand(Float64) * (0.9 - sum(abs.(M_sp[i,:])));
+        M_sp[i,j] = rand(Float64) * (0.9 - sum(abs.(M_sp[i,:])));
     end
 
     return M_sp
@@ -113,7 +112,7 @@ println("Check if routine returns right results")
             for density in [0.05, 0.2, 0.9]
                 @printf("n: %d, ncol: %d, density: %.2f\n", n, ncol, density)
                 # Simulate LHS and RHS
-                M_sp = simulate_sparse_pd(n, density);
+                M_sp = simulate_sparse_triangular(n, density);
                 M = simulate_dense_pd(n);                
                 B = randn(Float64, (n, ncol)) .+ 5; # Add bias to avoid accidentally correct results
                 # Convert M to COO format
@@ -131,10 +130,10 @@ println("Check if routine returns right results")
                 X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
                 
                 # Calculate deviations
-                D = abs.(M_sp * X_sp - B)
+                D = abs.(M_sp * transpose(M_sp) * X_sp - B)
                 @printf("Absolute error: %.1e, maximum error: %.1e\n", norm(D), maximum(D))
 
-                @test norm(M_sp * X_sp - B)/norm(B) < tol
+                @test norm(D)/norm(B) < tol
                 @test norm(M * X - B)/norm(B) < tol
             end
         end
