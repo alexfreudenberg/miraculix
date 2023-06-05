@@ -3,9 +3,10 @@ program test_solve
  use modmiraculix_gpu, only: c_sparse2gpu, c_dcsrtrsv_solve_gpu&
                              , c_free_sparse_gpu
  implicit none
- integer(c_int), parameter :: I(*) = [1_c_int, 1_c_int, 2_c_int]
- integer(c_int), parameter :: J(*) = [1_c_int, 2_c_int, 2_c_int]
+ integer(c_int), parameter :: I(*) = [1_c_int, 1_c_int, 2_c_int, 2_c_int]
+ integer(c_int), parameter :: J(*) = [1_c_int, 2_c_int, 1_c_int, 2_c_int]
  real(c_double), parameter :: V(*) = [sqrt(2._c_double)&
+                                      , -(sqrt(2._c_double)/2._c_double)&
                                       , -(sqrt(2._c_double)/2._c_double)&
                                       , sqrt(2._c_double)]
  integer(c_long), parameter :: nnz = size(V)
