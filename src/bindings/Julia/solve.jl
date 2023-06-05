@@ -22,7 +22,7 @@ using Libdl
 """
     sparse_init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64, m::Int64, max_ncol::Int64)
 
-Initializes the GPU storage object for the sparse matrix specified by the vectors V, I, J in COO format.
+Initializes storage object with required data on the GPU for solving an equation system defined by a sparse symmetric, positive-definite matrix A. 
 
 # Arguments
 - `V`: Vector of matrix values in COO format.
@@ -132,7 +132,7 @@ end # function
 """
     dense_solve(M::Matrix{Float64}, B::Matrix{Float64}, calc_logdet::Bool = true, oversubscribe::Bool = true)
 
-Computes the solution to the dense equation system defined by M and B on the GPU.
+Computes the solution to the dense equation system defined by the symmetric, positive-definite M and B on the GPU.
 
 # Arguments
 - `M`: The input square matrix.
