@@ -24,4 +24,4 @@ jobs:
         # Use GitHub cache to cache downloaded installer on GitHub servers
         #use-github-cache: # optional, default is true
     - name: make
-      run: cd src && make
+      run: cd src && make 
