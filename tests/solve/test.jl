@@ -100,30 +100,37 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
+# Remove commit message verbosity
+ENV["PRINT_LEVEL"] = "-1";
+
+
 println("Check if routine returns right results")
 @testset "Consistency" begin
     for n in Vector{Int64}([1e2,5e2,5e3])
         for ncol in [1, 5, 20]
-            # Simulate LHS and RHS
-            M_sp = simulate_sparse_pd(n, 0.05);
-            M = simulate_dense_pd(n);
-            B = randn(Float64, (n, ncol));
-            # Convert M to COO format
-            I, J, V = findnz(M_sp)
+            for density in [0.05, 0.2, 0.9]
+                println("n: ", n, ", ncol: ", ncol, ", density: ", density)
+                # Simulate LHS and RHS
+                M_sp = simulate_sparse_pd(n, density);
+                M = simulate_dense_pd(n);
+                B = randn(Float64, (n, ncol));
+                # Convert M to COO format
+                I, J, V = findnz(M_sp)
 
-            # Initialize GPU storage object from COO 
-            obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
-            # Compute the solution to M_sp X_sp = B
-            X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
-            # Free GPU memory
-            miraculix.solve.sparse_free(obj_ref)
-            @test_throws "No valid storage object" miraculix.solve.sparse_free(obj_ref)
-           
-            # Compute the solution to M X = B
-            X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
+                # Initialize GPU storage object from COO 
+                obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+                # Compute the solution to M_sp X_sp = B
+                X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
+                # Free GPU memory
+                miraculix.solve.sparse_free(obj_ref)
+                @test_throws "No valid storage object" miraculix.solve.sparse_free(obj_ref)
+            
+                # Compute the solution to M X = B
+                X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
 
-            @test norm(M_sp * X_sp - B)/norm(B) < tol
-            @test norm(M * X - B)/norm(B) < tol
+                @test norm(M_sp * X_sp - B)/norm(B) < tol
+                @test norm(M * X - B)/norm(B) < tol
+            end
         end
     end
 end
@@ -138,8 +145,6 @@ println("Check if routine is resilient - uncaught memory allocations would cause
     B = randn(Float64, (n, ncol));
     # Convert M to COO format
     I, J, V = findnz(M_sp)
-
-    ENV["PRINT_LEVEL"] = "-1";
      
     # Initialize GPU storage object from COO 
     obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
