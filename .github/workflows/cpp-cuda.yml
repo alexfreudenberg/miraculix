@@ -17,7 +17,11 @@ jobs:
         echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo apt update
         sudo apt-get install -y intel-oneapi-dpcpp-cpp-compiler
-        echo $(which icc)
+         if which icc > /dev/null; then
+          echo "icc is in the PATH"
+        else
+          echo "icc is not in the PATH"
+        fi
         
     - name: cuda-toolkit
       uses: Jimver/cuda-toolkit@v0.2.10
