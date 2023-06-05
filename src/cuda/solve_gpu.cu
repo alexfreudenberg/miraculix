@@ -285,7 +285,7 @@ void sparse_solve_init(
     int *J,         // Vector of column indices (COO format)
     long nnz,       // Number of nonzero values (length of V)
     long m,         // Number of rows and columns of matrix
-    long max_ncol,  // Maximum number of columns of RHS in equation systems
+    long ncol,  // Maximum number of columns of RHS in equation systems
     int is_lower, 
     void **GPU_obj, // Pointer in which GPU object for iterative solver will be stored
     int *status     // Holds error code
@@ -299,33 +299,33 @@ void sparse_solve_init(
     // Initialize CUDA variables
     //
     cusparseHandle_t handle;
-    bsrsm2Info_t info_csc, info_csr;
     cudaError_t err;
     cusparseStatus_t sp_status;
-    cusparseFillMode_t fill =
+    cusparseFillMode_t fill_mode =
         is_lower ? CUSPARSE_FILL_MODE_LOWER : CUSPARSE_FILL_MODE_UPPER;
     cusparseDiagType_t        diag_type        = CUSPARSE_DIAG_TYPE_NON_UNIT;
-    cusparseConstSpMatDescr_t *matA             = NULL;
-    cusparseConstDnMatDescr_t *matB             = NULL;
+    cusparseConstSpMatDescr_t *matA            = NULL;
+    cusparseConstDnMatDescr_t *matB            = NULL;
+    cusparseDnMatDescr_t      *matC            = NULL;
     cusparseSpSMDescr_t       *spsmDescr_noop  = NULL,
                               *spsmDescr_trans = NULL;
 
     spsmDescr_noop  = (cusparseSpSMDescr_t *)malloc(sizeof(cusparseSpSMDescr_t));
-    spsmDescr_trans = 
+    spsmDescr_trans =
         (cusparseSpSMDescr_t *)malloc(sizeof(cusparseSpSMDescr_t));
-    matA = (cusparseConstSpMatDescr_t *) malloc(sizeof(cusparseConstSpMatDescr_t));
-    matB = (cusparseConstDnMatDescr_t *) malloc(sizeof(cusparseConstDnMatDescr_t));
-    
+    matA = (cusparseConstSpMatDescr_t *)malloc(sizeof(cusparseSpMatDescr_t));
+    matB = (cusparseConstDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
+    matC = (cusparseDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
+
     // Declare device pointers
     double *d_X            = NULL,
            *d_V            = NULL,
-           *d_B            = NULL,
+           *d_B            = NULL;
     int    *d_I            = NULL,
-           *d_J            = NULL,
+           *d_J            = NULL;
     void   *d_buffer_noop  = NULL,
            *d_buffer_trans = NULL;
 
-    int    structural_zero  = 0;
     size_t bufferSize_noop  = 0,
            bufferSize_trans = 0;
     const  double alpha     = 1.0;
@@ -336,7 +336,7 @@ void sparse_solve_init(
         return;
     }
 
-    size_t required_mem = (2 * m * max_ncol + nnz) * sizeof(double) +
+    size_t required_mem = (2 * m * ncol + nnz) * sizeof(double) +
                           sizeof(int) * (2 * nnz + (m + 1));
     
     if(checkDevMemory(required_mem) != 0){
@@ -344,8 +344,8 @@ void sparse_solve_init(
         return;
     }
     // Allocate memory for device objects
-    cudaMalloc((void**)&d_X, sizeof(double) * m * max_ncol);
-    cudaMalloc((void**)&d_B, sizeof(double) * m * max_ncol);
+    cudaMalloc((void**)&d_X, sizeof(double) * m * ncol);
+    cudaMalloc((void**)&d_B, sizeof(double) * m * ncol);
     cudaMalloc((void**)&d_I, sizeof(int) * nnz);
     cudaMalloc((void**)&d_J, sizeof(int) * nnz);
     cudaMalloc((void**)&d_V, sizeof(double) * nnz);
@@ -357,6 +357,7 @@ void sparse_solve_init(
     }
 
     // Copy I J V data to device
+    debug_info("Copying");
     cudaMemcpy(d_I, I, sizeof(int) * nnz, cudaMemcpyHostToDevice);
     cudaMemcpy(d_J, J, sizeof(int) * nnz, cudaMemcpyHostToDevice);
     cudaMemcpy(d_V, V, sizeof(double) * nnz, cudaMemcpyHostToDevice);
@@ -374,16 +375,16 @@ void sparse_solve_init(
     // Set matrix description holding all the information required for the solve
     // routine
     //
-    debug_info("Calculating buffer");
+    debug_info("Creating mat descriptions");
     sp_status =
         cusparseCreateConstCoo(matA, // sparse matrix description to be filled
-                               m,     // Number of rows
-                               m,     // Number of columns
-                               nnz,   // Number of non-zeros
-                               d_I,   // Vector of rows
-                               d_J,   // Vector of columns
-                               d_V,   // Vector of values
-                               CUSPARSE_INDEX_64I,      // Index type
+                               m,    // Number of rows
+                               m,    // Number of columns
+                               nnz,  // Number of non-zeros
+                               d_I,  // Vector of rows
+                               d_J,  // Vector of columns
+                               d_V,  // Vector of values
+                               CUSPARSE_INDEX_32I,      // Index type
                                CUSPARSE_INDEX_BASE_ONE, // Index base
                                CUDA_R_64F);             // Value type
     if (checkError(__func__, __LINE__, sp_status) != 0) {
@@ -392,7 +393,7 @@ void sparse_solve_init(
     }
 
     sp_status =
-        cusparseSpMatSetAttribute(*matA, CUSPARSE_SPMAT_FILL_MODE,
+        cusparseSpMatSetAttribute((cusparseSpMatDescr_t) *matA, CUSPARSE_SPMAT_FILL_MODE,
                                   &fill_mode, sizeof(cusparseFillMode_t));
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
@@ -400,20 +401,20 @@ void sparse_solve_init(
     }
 
     sp_status =
-        cusparseSpMatSetAttribute(*matA, CUSPARSE_SPMAT_DIAG_TYPE,
+        cusparseSpMatSetAttribute((cusparseSpMatDescr_t) *matA, CUSPARSE_SPMAT_DIAG_TYPE,
                                   &diag_type, sizeof(cusparseDiagType_t));
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
     }
 
-    sp_status = cusparseCreateConstDnMat(matB, m, max_ncol, m, d_B, CUDA_R_64F, CUSPARSE_ORDER_COL);
+    sp_status = cusparseCreateConstDnMat(matB, m, ncol, m, d_B, CUDA_R_64F, CUSPARSE_ORDER_COL);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
     }
 
-    sp_status = cusparseCreateDnMat(matC, m, max_ncol, m, d_X, CUDA_R_64F, CUSPARSE_ORDER_COL);
+    sp_status = cusparseCreateDnMat(matC, m, ncol, m, d_X, CUDA_R_64F, CUSPARSE_ORDER_COL);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
@@ -437,7 +438,7 @@ void sparse_solve_init(
     sp_status = cusparseSpSM_bufferSize(
         handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
         CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
-        CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop, bufferSize_noop);
+        CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop, &bufferSize_noop);
     cudaDeviceSynchronize();
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
@@ -447,7 +448,7 @@ void sparse_solve_init(
     sp_status = cusparseSpSM_bufferSize(
         handle, CUSPARSE_OPERATION_TRANSPOSE,
         CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
-        CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_trans, bufferSize_trans);
+        CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_trans, &bufferSize_trans);
     cudaDeviceSynchronize();
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
@@ -467,7 +468,14 @@ void sparse_solve_init(
         *status = 1;
         return;
     }
-    
+    cudaMalloc((void**)&d_buffer_noop, bufferSize_noop);
+    cudaMalloc((void**)&d_buffer_trans, bufferSize_trans);
+
+    err = cudaGetLastError();
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
 
     //
     // Analysis phase for triangular solve
@@ -481,6 +489,10 @@ void sparse_solve_init(
         *status = 1;
         return;
     }
+    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
+        *status = 1;
+        return;
+    }
 
     sp_status = cusparseSpSM_analysis(
         handle, CUSPARSE_OPERATION_TRANSPOSE,
@@ -491,9 +503,7 @@ void sparse_solve_init(
         *status = 1;
         return;
     }
-
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
+    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
         *status = 1;
         return;
     }
@@ -518,7 +528,6 @@ void sparse_solve_init(
     GPU_storage_obj->spsmDescr_noop  = spsmDescr_noop;
     GPU_storage_obj->spsmDescr_trans = spsmDescr_trans;
 
-    debug_info("Pointer pBuffer_csc %d", d_pBuffer_csc);
 
     // Set pointer to initialized object
     *GPU_obj = (void *)GPU_storage_obj;
@@ -545,12 +554,12 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     cusparseStatus_t sp_status;
     cusparseConstSpMatDescr_t *matA            = NULL;
     cusparseConstDnMatDescr_t *matB            = NULL;
-    cusparseConstDnMatDescr_t *matC            = NULL;
+    cusparseDnMatDescr_t *matC            = NULL;
     cusparseSpSMDescr_t       *spsmDescr_noop  = NULL,
                               *spsmDescr_trans = NULL;
 
     double *d_X, *d_B, *d_V;
-    int *d_I, *d_J, 
+    int *d_I, *d_J; 
 
     // Check CUDA installation
     if (checkCuda() != 0) {
@@ -662,12 +671,11 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
 
     cusparseConstSpMatDescr_t *matA;
     cusparseConstDnMatDescr_t *matB;
-    cusparseConstDnMatDescr_t *matC;
+    cusparseDnMatDescr_t *matC;
     cusparseSpSMDescr_t *spsmDescr_noop;
     cusparseSpSMDescr_t *spsmDescr_trans;
 
-    int *d_I, *d_J; 
-    double *d_V, *d_X, *d_B;
+    double *d_X, *d_B;
 
     // Check CUDA installation
     if (checkCuda() != 0) {
@@ -681,17 +689,16 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
 
     // Get problem dimensions
     long m = GPU_storage_obj->m, nnz = GPU_storage_obj->nnz;
-    int max_ncol = GPU_storage_obj->max_ncol;
 
-    if (ncol > max_ncol) {
+    if (ncol != GPU_storage_obj->ncol) {
         printf("Sparse solve interface has been initialized with %d columns, "
                "but %d columns are requested by the calculation function.\n",
-               max_ncol, ncol);
+               GPU_storage_obj->ncol, ncol);
         *status = 1;
         return;
     }
     debug_info("Start calc");
-    debug_info("%d %d %d", m, nnz, max_ncol);
+    debug_info("%d %d %d", m, nnz, ncol);
     err = cudaGetLastError();
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
@@ -699,18 +706,14 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     }
 
     // Declare device pointers
-    d_V             = GPU_storage_obj->d_V;
     d_B             = GPU_storage_obj->d_B;
-    d_B             = GPU_storage_obj->d_B;
-    d_I             = GPU_storage_obj->d_I;
-    d_J             = GPU_storage_obj->d_J;
+    d_X             = GPU_storage_obj->d_X;
     matA            = GPU_storage_obj->matA;
     matB            = GPU_storage_obj->matB;
     matC            = GPU_storage_obj->matC;
     spsmDescr_noop  = GPU_storage_obj->spsmDescr_noop;
     spsmDescr_trans = GPU_storage_obj->spsmDescr_trans;
 
-    int numerical_zero = 0;
     const double alpha = 1.0;
 
     // Get CUDA auxiliary variables
@@ -723,12 +726,12 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     }
 
     // Reset memory for X and B on device
-    err = cudaMemset(d_B, 0.0, sizeof(double) * m * max_ncol);
+    err = cudaMemset(d_B, 0.0, sizeof(double) * m * ncol);
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
         return;
     }
-    err = cudaMemset(d_X, 0.0, sizeof(double) * m * max_ncol);
+    err = cudaMemset(d_X, 0.0, sizeof(double) * m * ncol);
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
         return;
@@ -740,12 +743,13 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     }
 
     // Copy data to device
+    debug_info("Copying");
     err = cudaMemcpy(d_B, B, sizeof(double) * m * ncol, cudaMemcpyHostToDevice);
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
         return;
     }
-    sp_status = cusparseDnMatSetValues(*matB, d_B);
+    sp_status = cusparseDnMatSetValues((cusparseDnMatDescr_t) *matB, d_B);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
@@ -766,7 +770,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     sp_status = cusparseSpSM_solve(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
                                    CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
                                    *matA, *matB, *matC, CUDA_R_64F,
-                                   CUSPARSE_SPSM_ALG_DEFAULT, spsmDescr_noop);
+                                   CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
@@ -774,7 +778,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     sp_status = cusparseSpSM_solve(handle, CUSPARSE_OPERATION_TRANSPOSE,
                                    CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
                                    *matA, *matB, *matC, CUDA_R_64F,
-                                   CUSPARSE_SPSM_ALG_DEFAULT, spsmDescr_trans);
+                                   CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_trans);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
@@ -796,8 +800,6 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     }
 
     debug_info("Returning");
-    cusparseDestroyMatDescr(descrLt);
-    cusparseDestroyMatDescr(descrL);
     cusparseDestroy(handle);
 };
 
@@ -851,9 +853,9 @@ int potrs_solve(double *A, unsigned int input_size, double *B,
     return potrs_solve(A, input_size, B, rhs_cols, X, logdet, oversubscribe);
 };
 
-void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long max_ncol,
+void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long ncol,
                 int is_lower, void **GPU_obj, int *status) {
-    sparse_solve_init(V, I, J, nnz, m, max_ncol, is_lower, GPU_obj, status);
+    sparse_solve_init(V, I, J, nnz, m, ncol, is_lower, GPU_obj, status);
 };
 
 void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,

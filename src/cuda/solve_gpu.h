@@ -58,7 +58,7 @@ extern "C" {
  *
  *  Refer to the documentation of sparse_solve_init for details.
  */
-void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long max_ncol,
+void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long ncol,
                 int is_lower, void **GPU_obj, int *status);
 
 /**
@@ -99,9 +99,9 @@ struct GPU_sparse_storage {
   double *d_B;
   cusparseConstSpMatDescr_t *matA;
   cusparseConstDnMatDescr_t *matB;
-  cusparseConstDnMatDescr_t *matC;
+  cusparseDnMatDescr_t *matC;
   cusparseSpSMDescr_t *spsmDescr_noop;
-  cusparseSpSMDescr_t *spsmDescr_trans
+  cusparseSpSMDescr_t *spsmDescr_trans;
 };
 
 /**
@@ -134,7 +134,7 @@ int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
  *  \param J A pointer to the vector of column indices of A in COO format.
  *  \param nnz The number of non-zero values in the matrix (length of V).
  *  \param m The number of rows and columns in the matrix.
- *  \param maxncol The maximum number of columns in the right-hand side 
+ *  \param ncol The number of columns in the right-hand side 
  * (RHS) matrix in equation systems.
  *  \param GPUobj A pointer in which the GPU object for iterative solver will be stored.
  *  \param status A pointer to an integer that holds the error code, if any.
@@ -143,7 +143,7 @@ int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
  *  \note This function uses the sparse matrix routines in the cuSPARSE library, in particular the analysis routine of the bsrsm2 collection.
  */
 void sparse_solve_init(double *V, int *I, int *J, long nnz, long m,
-                       long maxncol, int is_lower, void **GPUobj, int *status);
+                       long ncol, int is_lower, void **GPUobj, int *status);
 
 /**
  *  \brief Frees the memory in the GPU object.

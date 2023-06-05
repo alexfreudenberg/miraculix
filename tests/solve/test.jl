@@ -43,7 +43,7 @@ tol = 1e-1;
 Random.seed!(0);
 
 # Remove commit message verbosity
-ENV["PRINT_LEVEL"] = "-1";
+ENV["PRINT_LEVEL"] = "1";
 
 include(MODULE_PATH)
 
@@ -119,7 +119,7 @@ println("Check if routine returns right results")
                 I, J, V = findnz(M_sp)
 
                 # Initialize GPU storage object from COO 
-                obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+                obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol, false)
                 # Compute the solution to M_sp X_sp = B
                 X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
                 # Free GPU memory
