@@ -58,7 +58,7 @@ extern "C" {
  *
  *  Refer to the documentation of sparse_solve_init for details.
  */
-void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long ncol,
+void sparse2gpu(double *V, long *I, long *J, long nnz, long m, long ncol,
                 int is_lower, void **GPU_obj, int *status);
 
 /**
@@ -66,7 +66,7 @@ void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long ncol,
  *
  *  Refer to the documentation of sparse_solve_compute for details.
  */
-void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,
+void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, long ncol, double *X,
                         int *status);
 
 /**
@@ -88,8 +88,8 @@ void potrs_solve_gpu(double *A, unsigned int input_size, double *B,
 // End extern "C"
 
 struct GPU_sparse_storage {
-  int *d_I;
-  int *d_J;
+  long *d_I;
+  long *d_J;
   double *d_V;
   long nnz;
   long m;
@@ -142,7 +142,7 @@ int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
  *  \note The compile message can be switched off by setting the environment variable PRINT_LEVEL to -1.
  *  \note This function uses the sparse matrix routines in the cuSPARSE library, in particular the analysis routine of the bsrsm2 collection.
  */
-void sparse_solve_init(double *V, int *I, int *J, long nnz, long m,
+void sparse_solve_init(double *V, long *I, long *J, long nnz, long m,
                        long ncol, int is_lower, void **GPUobj, int *status);
 
 /**
@@ -168,6 +168,6 @@ void sparse_solve_destroy(void **GPU_obj, int *status);
  * 
  *  \note This function uses the solve function in the bsrsm2 function collection in the cuSPARSE library. 
  */
-void sparse_solve_compute(void *GPUobj, double *B, int ncol, double *X,
+void sparse_solve_compute(void *GPUobj, double *B, long ncol, double *X,
                           int *status);
 

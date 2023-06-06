@@ -281,8 +281,8 @@ int dense_solve(double *A, // Pointer to the input matrix A in row-major order
 
 void sparse_solve_init(
     double *V,      // Vector of matrix values (COO format)
-    int *I,         // Vector of row indices (COO format)
-    int *J,         // Vector of column indices (COO format)
+    long *I,         // Vector of row indices (COO format)
+    long *J,         // Vector of column indices (COO format)
     long nnz,       // Number of nonzero values (length of V)
     long m,         // Number of rows and columns of matrix
     long ncol,  // Maximum number of columns of RHS in equation systems
@@ -293,7 +293,7 @@ void sparse_solve_init(
 
     // Print compile info
     print_compile_info("cuSPARSE triangular solve interface");
-
+    debug_info("Init params: m %d nnz %d ncol %d is_lower %d", m, nnz, ncol, is_lower);
 
     //
     // Initialize CUDA variables
@@ -321,7 +321,7 @@ void sparse_solve_init(
     double *d_X            = NULL,
            *d_V            = NULL,
            *d_B            = NULL;
-    int    *d_I            = NULL,
+    long   *d_I            = NULL,
            *d_J            = NULL;
     void   *d_buffer_noop  = NULL,
            *d_buffer_trans = NULL;
@@ -337,7 +337,7 @@ void sparse_solve_init(
     }
 
     size_t required_mem = (2 * m * ncol + nnz) * sizeof(double) +
-                          sizeof(int) * (2 * nnz + (m + 1));
+                          sizeof(long) * (2 * nnz + (m + 1));
     
     if(checkDevMemory(required_mem) != 0){
         *status = 1;
@@ -346,8 +346,8 @@ void sparse_solve_init(
     // Allocate memory for device objects
     cudaMalloc((void**)&d_X, sizeof(double) * m * ncol);
     cudaMalloc((void**)&d_B, sizeof(double) * m * ncol);
-    cudaMalloc((void**)&d_I, sizeof(int) * nnz);
-    cudaMalloc((void**)&d_J, sizeof(int) * nnz);
+    cudaMalloc((void**)&d_I, sizeof(long) * nnz);
+    cudaMalloc((void**)&d_J, sizeof(long) * nnz);
     cudaMalloc((void**)&d_V, sizeof(double) * nnz);
 
     err = cudaGetLastError();
@@ -358,8 +358,8 @@ void sparse_solve_init(
 
     // Copy I J V data to device
     debug_info("Copying");
-    cudaMemcpy(d_I, I, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_J, J, sizeof(int) * nnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_I, I, sizeof(long) * nnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_J, J, sizeof(long) * nnz, cudaMemcpyHostToDevice);
     cudaMemcpy(d_V, V, sizeof(double) * nnz, cudaMemcpyHostToDevice);
 
     err = cudaGetLastError();
@@ -384,7 +384,7 @@ void sparse_solve_init(
                                d_I,  // Vector of rows
                                d_J,  // Vector of columns
                                d_V,  // Vector of values
-                               CUSPARSE_INDEX_32I,      // Index type
+                               CUSPARSE_INDEX_64I,      // Index type
                                CUSPARSE_INDEX_BASE_ONE, // Index base
                                CUDA_R_64F);             // Value type
     if (checkError(__func__, __LINE__, sp_status) != 0) {
@@ -559,7 +559,7 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
                               *spsmDescr_trans = NULL;
 
     double *d_X, *d_B, *d_V;
-    int *d_I, *d_J; 
+    long *d_I, *d_J; 
 
     // Check CUDA installation
     if (checkCuda() != 0) {
@@ -657,7 +657,7 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
 
 void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
                           double *B,  // Pointer to RHS matrix of size m x ncol
-                          int ncol,   // Number of columns of B and X
+                          long ncol,   // Number of columns of B and X
                           double *X,  // Solution matrix of size size m x ncol
                           int *status // Holds error code
 ) {
@@ -688,17 +688,17 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
         (struct GPU_sparse_storage *)GPU_obj;
 
     // Get problem dimensions
-    long m = GPU_storage_obj->m, nnz = GPU_storage_obj->nnz;
+    long m   = GPU_storage_obj->m,
+         nnz = GPU_storage_obj->nnz;
 
     if (ncol != GPU_storage_obj->ncol) {
         printf("Sparse solve interface has been initialized with %d columns, "
-               "but %d columns are requested by the calculation function.\n",
+               "but %d columns are requested by the compute function.\n",
                GPU_storage_obj->ncol, ncol);
         *status = 1;
         return;
     }
-    debug_info("Start calc");
-    debug_info("%d %d %d", m, nnz, ncol);
+    debug_info("Compute params: m %d nnz %d ncol %d", m, nnz, ncol);
     err = cudaGetLastError();
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
@@ -754,13 +754,13 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
         *status = 1;
         return;
     }
+    cudaDeviceSynchronize();
 
     err = cudaGetLastError();
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
         return;
     }
-    
 
     //
     // Solving equation system on device - forward substitution
@@ -771,18 +771,19 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
                                    CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
                                    *matA, *matB, *matC, CUDA_R_64F,
                                    CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop);
+    cudaDeviceSynchronize();
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
     }
-    sp_status = cusparseSpSM_solve(handle, CUSPARSE_OPERATION_TRANSPOSE,
-                                   CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
-                                   *matA, *matB, *matC, CUDA_R_64F,
-                                   CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_trans);
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
+    // sp_status = cusparseSpSM_solve(handle, CUSPARSE_OPERATION_TRANSPOSE,
+    //                                CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
+    //                                *matA, *matB, *matC, CUDA_R_64F,
+    //                                CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_trans);
+    // if (checkError(__func__, __LINE__, sp_status) != 0) {
+    //     *status = 1;
+    //     return;
+    // }
 
 
     err = cudaGetLastError();
@@ -793,7 +794,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     debug_info("Time: %.3f", (double)(clock() - start) / CLOCKS_PER_SEC);
 
     // Copy results back to device
-    err = cudaMemcpy(X, d_B, sizeof(double) * m * ncol, cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(X, d_X, sizeof(double) * m * ncol, cudaMemcpyDeviceToHost);
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
         return;
@@ -853,12 +854,12 @@ int potrs_solve(double *A, unsigned int input_size, double *B,
     return potrs_solve(A, input_size, B, rhs_cols, X, logdet, oversubscribe);
 };
 
-void sparse2gpu(double *V, int *I, int *J, long nnz, long m, long ncol,
+void sparse2gpu(double *V, long *I, long *J, long nnz, long m, long ncol,
                 int is_lower, void **GPU_obj, int *status) {
     sparse_solve_init(V, I, J, nnz, m, ncol, is_lower, GPU_obj, status);
 };
 
-void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, int ncol, double *X,
+void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, long ncol, double *X,
                         int *status) {
     sparse_solve_compute(GPU_obj, B, ncol, X, status);
 };

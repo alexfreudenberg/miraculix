@@ -41,7 +41,7 @@ Throws an error if the initialization fails.
 # Note
 This function is an interface to the `sparse_solve_init` function in the `miraculix.so` library.
 """
-function sparse_init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz::Int64, m::Int64, max_ncol::Int64, is_lower::Bool)
+function sparse_init(V::Vector{Float64}, I::Vector{Int64}, J::Vector{Int64}, nnz::Int64, m::Int64, max_ncol::Int64, is_lower::Bool)
     obj_ref = Ref{Ptr{Cvoid}}(C_NULL)
     if (length(V), length(I), length(J)) != (nnz, nnz, nnz)
         error("Unexpected length of vectors in COO format.")
@@ -49,7 +49,7 @@ function sparse_init(V::Vector{Float64}, I::Vector{Int32}, J::Vector{Int32}, nnz
     status = zeros(Int32,1)
 
     init_sym = dlsym(LIBRARY_HANDLE[], :sparse2gpu)
-    ccall(init_sym, Cvoid, (Ptr{Float64},Ptr{Int32},Ptr{Int32}, Int64, Int64, Int64, Int32, Ptr{Ptr{Cvoid}}, Ptr{Int32}), V, I, J, nnz, m, max_ncol, Int(is_lower), obj_ref, status)
+    ccall(init_sym, Cvoid, (Ptr{Float64},Ptr{Int64},Ptr{Int64}, Int64, Int64, Int64, Int32, Ptr{Ptr{Cvoid}}, Ptr{Int32}), V, I, J, nnz, m, max_ncol, Int(is_lower), obj_ref, status)
 
     if status[1] != 0
         println("Status ", status)
@@ -85,12 +85,12 @@ function sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
     if size(B,1) != m
         error("B must have $m rows to be compatible with the sparse matrix.")
     end
-    ncol = Int32(size(B, 2))
+    ncol = Int(size(B, 2))
     X = zeros(Float64, (m, ncol))
 
     status = zeros(Int32,1)
     solve_sym = dlsym(LIBRARY_HANDLE[], :dcsrtrsv_solve_gpu)
-    ccall(solve_sym, Cvoid, (Ptr{Cvoid},Ptr{Float64}, Int32, Ptr{Float64}, Ptr{Int32}), obj_ref[], B, ncol, X, status)
+    ccall(solve_sym, Cvoid, (Ptr{Cvoid},Ptr{Float64}, Int64, Ptr{Float64}, Ptr{Int32}), obj_ref[], B, ncol, X, status)
 
     if status[1] != 0
         println("Status ", status)

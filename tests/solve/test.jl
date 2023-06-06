@@ -104,6 +104,12 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
+M_sp = simulate_sparse_triangular(5000, 0.05)
+B = randn(Float64, (5000, 20)) .+ 5; 
+I, J, V = findnz(M_sp)
+obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), 5000, 20, false)
+X_sp = miraculix.solve.sparse_solve(obj_ref, B, 5000)
+miraculix.solve.sparse_free(obj_ref)
 
 println("Check if routine returns right results")
 @testset "Consistency" begin
@@ -130,7 +136,7 @@ println("Check if routine returns right results")
                 X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
                 
                 # Calculate deviations
-                D = abs.(M_sp * transpose(M_sp) * X_sp - B)
+                D = abs.(M_sp * X_sp - B)
                 @printf("Absolute error: %.1e, maximum error: %.1e\n", norm(D), maximum(D))
 
                 @test norm(D)/norm(B) < tol
