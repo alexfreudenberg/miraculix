@@ -107,7 +107,7 @@ struct GPU_sparse_storage {
 };
 
 /**
- * Solves an equation system defined by a symmetric, positive-definite matrix A and the right-hand side B.
+ * \brief Solves an equation system defined by a symmetric, positive-definite matrix A and the right-hand side B.
  * 
  * @param A         Pointer to the input matrix A in row-major order.
  * @param input_size The dimension of the square matrix A.
@@ -138,11 +138,15 @@ int dense_solve(double* A, unsigned int input_size, double* B, unsigned int rhs_
  *  \param m The number of rows and columns in the matrix.
  *  \param ncol The number of columns in the right-hand side 
  * (RHS) matrix in equation systems.
- *  \param GPUobj A pointer in which the GPU object for iterative solver will be stored.
+ *  \param is_lower If matrix A is lower triangular (is_lower=1) or
+ *  upper_triangular (is_lower= 0)
+ *  \param GPUobj A pointer to the pointer in which the GPU object for 
+ * sparse_solve_compute will be stored.
  *  \param status A pointer to an integer that holds the error code, if any.
  * 
  *  \note The compile message can be switched off by setting the environment variable PRINT_LEVEL to -1.
- *  \note This function uses the sparse matrix routines in the cuSPARSE library, in particular the analysis routine of the bsrsm2 collection.
+ *  \note This function uses the spSM routines in the cuSPARSE library for solving
+ *  triangular matrices
  */
 void sparse_solve_init(double *V, long *I, long *J, long nnz, long m,
                        long ncol, int is_lower, void **GPUobj, int *status);
@@ -158,18 +162,19 @@ void sparse_solve_init(double *V, long *I, long *J, long nnz, long m,
 void sparse_solve_destroy(void **GPU_obj, int *status);
 
 /**
- *  \brief Computes the solution to the equation system defined by the matrix stored in GPU_obj and B.
+ *  \brief Computes the solution to the equation system op(A) * C = B, with data stored in GPU_obj and B.
  *
  *  This function uses the GPU object to solve the equation system. The result is stored in X.
  *
  *  \param GPU_obj A pointer to the GPU object.
+ *  \param transA If op(A) = A^T (transA='t') or op(A)=A (transA='n')
  *  \param B A pointer to the RHS matrix of size m x ncol.
  *  \param ncol The number of columns in B and X.
  *  \param X A pointer to the solution matrix of size m x ncol.
  *  \param status A pointer to an integer that holds the error code, if any.
  * 
- *  \note This function uses the solve function in the bsrsm2 function collection in the cuSPARSE library. 
+ *  \note This function uses the cuSPARSE spSM solve function.
+ *  \note The number of columns of B must match the value supplied to the init function. 
  */
 void sparse_solve_compute(void *GPUobj, char transA, double *B, long ncol, double *X,
                           int *status);
-

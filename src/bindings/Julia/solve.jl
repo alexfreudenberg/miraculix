@@ -31,6 +31,7 @@ Initializes storage object with required data on the GPU for solving an equation
 - `nnz`: The number of non-zero values in the matrix (length of V).
 - `m`: The number of rows and columns in the matrix.
 - `max_ncol`: The maximum number of columns in the right-hand side (RHS) matrix in equation systems.
+- `is_lower`: Bool indicating if A is lower triangular (true) or upper triangular (false).
 
 # Returns 
 A reference to the GPU storage object (`Ref{Ptr{Cvoid}}`).
@@ -63,10 +64,11 @@ end # function
 """
     sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
 
-Computes the solution to the equation system defined by the matrix in obj_ref and the RHS in B on the GPU.
+Computes the solution to the equation system op(A) * C = B, with data stored in GPU_obj and B on the GPU via the cuSPARSE interface in the miraculix library.
 
 # Arguments
 - `obj_ref`: A reference to the GPU storage object.
+- `transA`: If A should be transposed (transA='t') or not (transA='n')
 - `B`: Right-hand side (RHS) matrix of size m x n.
 - `m`: The number of rows in the RHS matrix.
 

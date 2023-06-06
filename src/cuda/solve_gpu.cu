@@ -368,7 +368,7 @@ void sparse_solve_init(
         return;
     }
 
-    // Set up auxiliary stuff
+    // Create handle
     cusparseCreate(&handle);
 
     //
@@ -384,14 +384,14 @@ void sparse_solve_init(
                                d_I,  // Vector of rows
                                d_J,  // Vector of columns
                                d_V,  // Vector of values
-                               CUSPARSE_INDEX_64I,      // Index type
+                               CUSPARSE_INDEX_64I,      // Index data type
                                CUSPARSE_INDEX_BASE_ONE, // Index base
                                CUDA_R_64F);             // Value type
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
     }
-
+    // Set matrix fill mode - lower or upper depending on input
     sp_status =
         cusparseSpMatSetAttribute((cusparseSpMatDescr_t) *matA, CUSPARSE_SPMAT_FILL_MODE,
                                   &fill_mode, sizeof(cusparseFillMode_t));
@@ -399,7 +399,7 @@ void sparse_solve_init(
         *status = 1;
         return;
     }
-
+    // Set matrix diag type
     sp_status =
         cusparseSpMatSetAttribute((cusparseSpMatDescr_t) *matA, CUSPARSE_SPMAT_DIAG_TYPE,
                                   &diag_type, sizeof(cusparseDiagType_t));
@@ -407,13 +407,13 @@ void sparse_solve_init(
         *status = 1;
         return;
     }
-
+    // Set matrix B descriptor
     sp_status = cusparseCreateConstDnMat(matB, m, ncol, m, d_B, CUDA_R_64F, CUSPARSE_ORDER_COL);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
         return;
     }
-
+    // Set matrix C descriptor
     sp_status = cusparseCreateDnMat(matC, m, ncol, m, d_X, CUDA_R_64F, CUSPARSE_ORDER_COL);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
@@ -421,8 +421,8 @@ void sparse_solve_init(
     }
 
     //
-    // Buffer size for triangular solve
-    //    
+    // Set up triangular solve descriptors which include storage information
+    //
     sp_status = cusparseSpSM_createDescr(spsmDescr_noop);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
@@ -434,7 +434,7 @@ void sparse_solve_init(
         return;
     }
 
-    // Get required buffer size of triangular solve
+    // Get required buffer sizes for triangular solve
     sp_status = cusparseSpSM_bufferSize(
         handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
         CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
@@ -455,8 +455,7 @@ void sparse_solve_init(
         return;
     }
 
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
+    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
         *status = 1;
         return;
     }
@@ -471,8 +470,7 @@ void sparse_solve_init(
     cudaMalloc((void**)&d_buffer_noop, bufferSize_noop);
     cudaMalloc((void**)&d_buffer_trans, bufferSize_trans);
 
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
+    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
         *status = 1;
         return;
     }
@@ -593,6 +591,7 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     d_buffer_noop   = GPU_storage_obj->d_buffer_noop;
     d_buffer_trans  = GPU_storage_obj->d_buffer_trans;
 
+    // Free device memory
     err = cudaFree(d_buffer_noop);
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
@@ -628,6 +627,7 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
         *status = 1;
         return;
     }
+    // Destory cuSPARSE descriptors
     sp_status = cusparseDestroySpMat(*matA);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
@@ -667,12 +667,13 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     }
 };
 
-void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
-                          char transA,   // If A should be transpoed
-                          double *B,  // Pointer to RHS matrix of size m x ncol
-                          long ncol,  // Number of columns of B and X
-                          double *X,  // Solution matrix of size size m x ncol
-                          int *status // Holds error code
+void sparse_solve_compute(
+    void *GPU_obj, // Pointer to GPU object
+    char transA,   // If A should be transposed ('T', 't') or not ('N', 'n's)
+    double *B,     // Pointer to RHS matrix of size m x ncol
+    long ncol,     // Number of columns of B and X
+    double *X,     // Solution matrix of size size m x ncol
+    int *status    // Holds error code
 ) {
 
     //
@@ -690,6 +691,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
 
     double *d_X, *d_B;
     bool trans;
+    const double alpha = 1.0;
 
     switch (transA) {
     case 'T':
@@ -710,6 +712,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
         *status = 1;
         return;
     }
+
     // Check CUDA installation
     if (checkCuda() != 0) {
         *status = 1;
@@ -724,6 +727,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     long m   = GPU_storage_obj->m,
          nnz = GPU_storage_obj->nnz;
 
+    // Validate correct problem dimension
     if (ncol != GPU_storage_obj->ncol) {
         printf("Sparse solve interface has been initialized with %d columns, "
                "but %d columns are requested by the compute function.\n",
@@ -738,7 +742,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
         return;
     }
 
-    // Declare device pointers
+    // Get device pointers
     d_B             = GPU_storage_obj->d_B;
     d_X             = GPU_storage_obj->d_X;
     matA            = GPU_storage_obj->matA;
@@ -747,16 +751,9 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     spsmDescr_noop  = GPU_storage_obj->spsmDescr_noop;
     spsmDescr_trans = GPU_storage_obj->spsmDescr_trans;
 
-    const double alpha = 1.0;
 
-    // Get CUDA auxiliary variables
+    // Set-up cuSPARSE handle
     cusparseCreate(&handle);
-
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
 
     // Reset memory for X and B on device
     err = cudaMemset(d_B, 0.0, sizeof(double) * m * ncol);
@@ -769,13 +766,8 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
         *status = 1;
         return;
     }
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
 
-    // Copy data to device
+    // Copy data to device and set values
     debug_info("Copying");
     err = cudaMemcpy(d_B, B, sizeof(double) * m * ncol, cudaMemcpyHostToDevice);
     if (checkError(__func__, __LINE__, err) != 0) {
@@ -796,7 +788,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     }
 
     //
-    // Solving equation system on device - forward substitution
+    // Solving triangular equation system on device
     //
     auto start = clock();
 
@@ -818,15 +810,6 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
         *status = 1;
         return;
     }
-    // sp_status = cusparseSpSM_solve(handle, CUSPARSE_OPERATION_TRANSPOSE,
-    //                                CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
-    //                                *matA, *matB, *matC, CUDA_R_64F,
-    //                                CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_trans);
-    // if (checkError(__func__, __LINE__, sp_status) != 0) {
-    //     *status = 1;
-    //     return;
-    // }
-
 
     err = cudaGetLastError();
     if (checkError(__func__, __LINE__, err) != 0) {
@@ -835,7 +818,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     }
     debug_info("Time: %.3f", (double)(clock() - start) / CLOCKS_PER_SEC);
 
-    // Copy results back to device
+    // Copy results back to host
     err = cudaMemcpy(X, d_X, sizeof(double) * m * ncol, cudaMemcpyDeviceToHost);
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
