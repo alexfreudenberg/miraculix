@@ -706,6 +706,7 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
         break;
     default:
         checkError(__func__, __LINE__, cudaErrorInvalidValue);
+        debug_info("transA: %c", transA);
         *status = 1;
         return;
     }
@@ -799,10 +800,19 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     //
     auto start = clock();
 
-    sp_status = cusparseSpSM_solve(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
-                                   CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
-                                   *matA, *matB, *matC, CUDA_R_64F,
-                                   CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop);
+    sp_status = cusparseSpSM_solve(
+        handle, // cuSPARSE handle
+        trans ? CUSPARSE_OPERATION_TRANSPOSE
+              : CUSPARSE_OPERATION_NON_TRANSPOSE, // Op(A)
+        CUSPARSE_OPERATION_NON_TRANSPOSE,         // Op(B)
+        &alpha,                    // alpha value for equation system
+        *matA,                     // matA descriptor
+        *matB,                     // matB descriptor
+        *matC,                     // matC descriptor
+        CUDA_R_64F,                // value type
+        CUSPARSE_SPSM_ALG_DEFAULT, // cuSPARSE algorithm
+        trans ? *spsmDescr_trans : *spsmDescr_noop // spsm storage object
+    );
     cudaDeviceSynchronize();
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;

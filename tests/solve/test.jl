@@ -43,7 +43,7 @@ tol = 1e-1;
 Random.seed!(0);
 
 # Remove commit message verbosity
-ENV["PRINT_LEVEL"] = "1";
+ENV["PRINT_LEVEL"] = "-1";
 
 include(MODULE_PATH)
 
@@ -104,17 +104,10 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
-n = 5000
-M_sp = simulate_sparse_triangular(n, 0.05)
-B = randn(Float64, (n, 20)) .+ 5; 
-I, J, V = findnz(M_sp)
-obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), n, 20, false)
-X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', B, n)
-miraculix.solve.sparse_free(obj_ref)
 
 println("Check if routine returns right results")
 @testset "Consistency" begin
-    for n in Vector{Int64}([1e2,5e2,5e3])
+    for n in Vector{Int64}([1e2,5e2,5e3, 15e3])
         for ncol in [1, 5, 20]
             for density in [0.05, 0.2, 0.9]
                 @printf("n: %d, ncol: %d, density: %.2f\n", n, ncol, density)
@@ -127,8 +120,10 @@ println("Check if routine returns right results")
 
                 # Initialize GPU storage object from COO 
                 obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), n, ncol, false)
-                # Compute the solution to M_sp X_sp = B
-                X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', B, n)
+                # Compute the solution to M_sp^T Y_sp = B
+                Y_sp = miraculix.solve.sparse_solve(obj_ref, 't', B, n)
+                # Compute the solution to M_sp X_sp = Y_sp
+                X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', Y_sp, n)
                 # Free GPU memory
                 miraculix.solve.sparse_free(obj_ref)
                 @test_throws "No valid storage object" miraculix.solve.sparse_free(obj_ref)
@@ -137,7 +132,7 @@ println("Check if routine returns right results")
                 X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
                 
                 # Calculate deviations
-                D = abs.(M_sp * X_sp - B)
+                D = abs.(transpose(M_sp) * M_sp  *  X_sp - B)
                 @printf("Absolute error: %.1e, maximum error: %.1e\n", norm(D), maximum(D))
 
                 @test norm(D)/norm(B) < tol
@@ -152,29 +147,30 @@ println("Check if routine is resilient - uncaught memory allocations would cause
     iter = 1e2
     n = Int(1e4)
     ncol = 12
-    M_sp = simulate_sparse_pd(n, 0.05);
+    M_sp = simulate_sparse_triangular(n, 0.05);
     M = simulate_dense_pd(n);
     B = randn(Float64, (n, ncol));
     # Convert M to COO format
     I, J, V = findnz(M_sp)
      
     # Initialize GPU storage object from COO 
-    obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+    obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), n, ncol, false)
+   
     # Repeat solve call a lot of times
     for _ in 1:iter
-        miraculix.solve.sparse_solve(obj_ref, B, n)
+        miraculix.solve.sparse_solve(obj_ref, 't', B, n)
+        miraculix.solve.sparse_solve(obj_ref, 'n', B, n)
         miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
     end
-    # Compute the solution to M_sp X_sp = B and M X = B
-    X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
+    Y_sp = miraculix.solve.sparse_solve(obj_ref, 't', B, n)
+    X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', Y_sp, n)
     X, logdet_own = miraculix.solve.dense_solve(M, B, calc_logdet = true, oversubscribe = false)
 
     # Free GPU memory
     miraculix.solve.sparse_free(obj_ref)
-    @test norm(M_sp * X_sp - B)/norm(B) < tol
+    @test norm(transpose(M_sp) * M_sp * X_sp - B)/norm(B) < tol
     @test norm(M * X - B)/norm(B) < tol
-    @test abs(logdet(M) - logdet_own) < tol 
-
+    @test abs(logdet(M) - logdet_own) < tol
 end
 
 println("Check if oversubscription and logdet calculation works -- this test needs to be adjusted to actual device memory available")
@@ -187,7 +183,7 @@ println("Check if oversubscription and logdet calculation works -- this test nee
         B = randn(Float64, (n, ncol));
         
         # Compute the solution to M X = B
-        X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = true)
+        @time X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = true)
 
         println("Test correctness")
         @test norm(M * X - B)/norm(B) < tol

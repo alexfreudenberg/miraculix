@@ -90,7 +90,7 @@ function sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, transA::Char, B::Matrix{Float64}
 
     status = zeros(Int32,1)
     solve_sym = dlsym(LIBRARY_HANDLE[], :dcsrtrsv_solve_gpu)
-    ccall(solve_sym, Cvoid, (Ptr{Cvoid}, Char, Ptr{Float64}, Int64, Ptr{Float64}, Ptr{Int32}), obj_ref[], transA, B, ncol, X, status)
+    ccall(solve_sym, Cvoid, (Ptr{Cvoid}, Cchar, Ptr{Float64}, Int64, Ptr{Float64}, Ptr{Int32}), obj_ref[], Cchar(transA), B, ncol, X, status)
 
     if status[1] != 0
         println("Status ", status)
