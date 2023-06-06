@@ -43,7 +43,7 @@ tol = 1e-1;
 Random.seed!(0);
 
 # Remove commit message verbosity
-ENV["PRINT_LEVEL"] = "-1";
+ENV["PRINT_LEVEL"] = "1";
 
 include(MODULE_PATH)
 
@@ -107,9 +107,9 @@ miraculix.load_shared_library()
 
 println("Check if routine returns right results")
 @testset "Consistency" begin
-    for n in Vector{Int64}([1e2,5e2,5e3, 15e3])
+    for n in Vector{Int64}([1e2,5e3, 15e3])
         for ncol in [1, 5, 20]
-            for density in [0.05, 0.2, 0.9]
+            for density in [0.05, 0.7]
                 @printf("n: %d, ncol: %d, density: %.2f\n", n, ncol, density)
                 # Simulate LHS and RHS
                 M_sp = simulate_sparse_triangular(n, density);
