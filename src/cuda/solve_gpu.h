@@ -66,8 +66,8 @@ void sparse2gpu(double *V, long *I, long *J, long nnz, long m, long ncol,
  *
  *  Refer to the documentation of sparse_solve_compute for details.
  */
-void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, long ncol, double *X,
-                        int *status);
+void dcsrtrsv_solve_gpu(void *GPU_obj, char transA, double *B, long ncol,
+                        double *X, int *status);
 
 /**
  *  \brief C - Wrapper for sparse_solve_destroy.
@@ -102,6 +102,8 @@ struct GPU_sparse_storage {
   cusparseDnMatDescr_t *matC;
   cusparseSpSMDescr_t *spsmDescr_noop;
   cusparseSpSMDescr_t *spsmDescr_trans;
+  void *d_buffer_noop;
+  void *d_buffer_trans;
 };
 
 /**
@@ -168,6 +170,6 @@ void sparse_solve_destroy(void **GPU_obj, int *status);
  * 
  *  \note This function uses the solve function in the bsrsm2 function collection in the cuSPARSE library. 
  */
-void sparse_solve_compute(void *GPUobj, double *B, long ncol, double *X,
+void sparse_solve_compute(void *GPUobj, char transA, double *B, long ncol, double *X,
                           int *status);
 

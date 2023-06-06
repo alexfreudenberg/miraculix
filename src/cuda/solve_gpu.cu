@@ -527,13 +527,13 @@ void sparse_solve_init(
     GPU_storage_obj->matC            = matC;
     GPU_storage_obj->spsmDescr_noop  = spsmDescr_noop;
     GPU_storage_obj->spsmDescr_trans = spsmDescr_trans;
+    GPU_storage_obj->d_buffer_noop   = d_buffer_noop;
+    GPU_storage_obj->d_buffer_trans  = d_buffer_trans;
 
 
     // Set pointer to initialized object
     *GPU_obj = (void *)GPU_storage_obj;
 
-    cudaFree(d_buffer_noop);
-    cudaFree(d_buffer_trans);
     sp_status = cusparseDestroy(handle);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
@@ -554,12 +554,13 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     cusparseStatus_t sp_status;
     cusparseConstSpMatDescr_t *matA            = NULL;
     cusparseConstDnMatDescr_t *matB            = NULL;
-    cusparseDnMatDescr_t *matC            = NULL;
+    cusparseDnMatDescr_t      *matC            = NULL;
     cusparseSpSMDescr_t       *spsmDescr_noop  = NULL,
                               *spsmDescr_trans = NULL;
 
     double *d_X, *d_B, *d_V;
-    long *d_I, *d_J; 
+    long *d_I, *d_J;
+    void *d_buffer_noop, *d_buffer_trans; 
 
     // Check CUDA installation
     if (checkCuda() != 0) {
@@ -579,18 +580,29 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
     }
 
     // Declare device pointers
-     d_X             = GPU_storage_obj->d_X,
-     d_B             = GPU_storage_obj->d_B,
-     d_V             = GPU_storage_obj->d_V;
-     d_I             = GPU_storage_obj->d_I,
-     d_J             = GPU_storage_obj->d_J;
-     matA            = GPU_storage_obj->matA;
-     matB            = GPU_storage_obj->matB;
-     matC            = GPU_storage_obj->matC;
-     spsmDescr_noop  = GPU_storage_obj->spsmDescr_noop;
-     spsmDescr_trans = GPU_storage_obj->spsmDescr_trans;
+    d_X             = GPU_storage_obj->d_X;
+    d_B             = GPU_storage_obj->d_B;
+    d_V             = GPU_storage_obj->d_V;
+    d_I             = GPU_storage_obj->d_I;
+    d_J             = GPU_storage_obj->d_J;
+    matA            = GPU_storage_obj->matA;
+    matB            = GPU_storage_obj->matB;
+    matC            = GPU_storage_obj->matC;
+    spsmDescr_noop  = GPU_storage_obj->spsmDescr_noop;
+    spsmDescr_trans = GPU_storage_obj->spsmDescr_trans;
+    d_buffer_noop   = GPU_storage_obj->d_buffer_noop;
+    d_buffer_trans  = GPU_storage_obj->d_buffer_trans;
 
-
+    err = cudaFree(d_buffer_noop);
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
+    err = cudaFree(d_buffer_trans);
+    if (checkError(__func__, __LINE__, err) != 0) {
+        *status = 1;
+        return;
+    }
     err = cudaFree(d_X);
     if (checkError(__func__, __LINE__, err) != 0) {
         *status = 1;
@@ -656,8 +668,9 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
 };
 
 void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
+                          char transA,   // If A should be transpoed
                           double *B,  // Pointer to RHS matrix of size m x ncol
-                          long ncol,   // Number of columns of B and X
+                          long ncol,  // Number of columns of B and X
                           double *X,  // Solution matrix of size size m x ncol
                           int *status // Holds error code
 ) {
@@ -676,7 +689,26 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     cusparseSpSMDescr_t *spsmDescr_trans;
 
     double *d_X, *d_B;
+    bool trans;
 
+    switch (transA) {
+    case 'T':
+        trans = true;
+        break;
+    case 't':
+        trans = true;
+        break;
+    case 'N':
+        trans = false;
+        break;
+    case 'n':
+        trans = false;
+        break;
+    default:
+        checkError(__func__, __LINE__, cudaErrorInvalidValue);
+        *status = 1;
+        return;
+    }
     // Check CUDA installation
     if (checkCuda() != 0) {
         *status = 1;
@@ -804,7 +836,6 @@ void sparse_solve_compute(void *GPU_obj, // Pointer to GPU object
     cusparseDestroy(handle);
 };
 
-
 __global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet)
 {
     /* This CUDA kernel calculates the logdeterminant of a matrix by determining the trace of its cholesky decomposition
@@ -859,9 +890,9 @@ void sparse2gpu(double *V, long *I, long *J, long nnz, long m, long ncol,
     sparse_solve_init(V, I, J, nnz, m, ncol, is_lower, GPU_obj, status);
 };
 
-void dcsrtrsv_solve_gpu(void *GPU_obj, double *B, long ncol, double *X,
+void dcsrtrsv_solve_gpu(void *GPU_obj, char transA, double *B, long ncol, double *X,
                         int *status) {
-    sparse_solve_compute(GPU_obj, B, ncol, X, status);
+    sparse_solve_compute(GPU_obj, transA, B, ncol, X, status);
 };
 
 void free_sparse_gpu(void **GPU_obj, int *status) {

@@ -79,7 +79,7 @@ Throws an error if the computation fails.
 # Note
 This function is an interface to the `sparse_solve_compute` function in the `miraculix.so` library.
 """
-function sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
+function sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, transA::Char, B::Matrix{Float64}, m::Int64)
     check_storage_object(obj_ref)
 
     if size(B,1) != m
@@ -90,7 +90,7 @@ function sparse_solve(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, m::Int64)
 
     status = zeros(Int32,1)
     solve_sym = dlsym(LIBRARY_HANDLE[], :dcsrtrsv_solve_gpu)
-    ccall(solve_sym, Cvoid, (Ptr{Cvoid},Ptr{Float64}, Int64, Ptr{Float64}, Ptr{Int32}), obj_ref[], B, ncol, X, status)
+    ccall(solve_sym, Cvoid, (Ptr{Cvoid}, Char, Ptr{Float64}, Int64, Ptr{Float64}, Ptr{Int32}), obj_ref[], transA, B, ncol, X, status)
 
     if status[1] != 0
         println("Status ", status)

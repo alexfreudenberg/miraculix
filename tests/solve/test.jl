@@ -104,11 +104,12 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
-M_sp = simulate_sparse_triangular(5000, 0.05)
-B = randn(Float64, (5000, 20)) .+ 5; 
+n = 5000
+M_sp = simulate_sparse_triangular(n, 0.05)
+B = randn(Float64, (n, 20)) .+ 5; 
 I, J, V = findnz(M_sp)
-obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), 5000, 20, false)
-X_sp = miraculix.solve.sparse_solve(obj_ref, B, 5000)
+obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), n, 20, false)
+X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', B, n)
 miraculix.solve.sparse_free(obj_ref)
 
 println("Check if routine returns right results")
@@ -125,9 +126,9 @@ println("Check if routine returns right results")
                 I, J, V = findnz(M_sp)
 
                 # Initialize GPU storage object from COO 
-                obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol, false)
+                obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), n, ncol, false)
                 # Compute the solution to M_sp X_sp = B
-                X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
+                X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', B, n)
                 # Free GPU memory
                 miraculix.solve.sparse_free(obj_ref)
                 @test_throws "No valid storage object" miraculix.solve.sparse_free(obj_ref)
