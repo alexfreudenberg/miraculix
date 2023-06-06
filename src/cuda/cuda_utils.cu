@@ -196,20 +196,24 @@ int switchDevice(){
   int device_available = 0;
   char *requested_device = getenv("CUDA_DEVICE");
   bool verbose = get_print_level() >= 0;
+  cudaDeviceProp deviceProp;
 
   if (requested_device != NULL) {
-    device = atoi(requested_device);
-    if(verbose){
-      printf("Environment variable CUDA_DEVICE is set to %s, switching to device %d.\n",
-           requested_device, device);
-    }
-  }
-  else {
-    if(verbose){
-    printf("Environment variable CUDA_DEVICE is not set, using device 0.\n");
-    }
+      device = atoi(requested_device);
+      cudaGetDeviceProperties(&deviceProp, device);
+      if (verbose) {
+        printf("Environment variable CUDA_DEVICE is set to %s. ",
+               requested_device);
+      }
+  } else {
+      if (verbose) {
+        printf("Environment variable CUDA_DEVICE is not set. ");
+      }
   }
 
+  if (verbose) {
+      printf("Using device %s (device no %d).\n", deviceProp.name, device);
+  }
 
   // Check if the requested device is available
   char *visible_devices =
