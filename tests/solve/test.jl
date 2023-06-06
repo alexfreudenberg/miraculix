@@ -43,7 +43,7 @@ tol = 1e-1;
 Random.seed!(0);
 
 # Remove commit message verbosity
-ENV["PRINT_LEVEL"] = "-1";
+ENV["PRINT_LEVEL"] = "1";
 
 include(MODULE_PATH)
 
@@ -54,27 +54,26 @@ include(MODULE_PATH)
 """
     simulate_sparse_pd(n::Int, density = 0.01)
 
-Generates a sparse, positive-definite (PD) square matrix of size `n` x `n` with specified `density`. The positive-definiteness of the matrix is ensured by constructing it to be strictly diagonally dominant.
+Generates a sparse, lower triangular square matrix of size `n` x `n` with specified `density`. 
 
 # Arguments
 - `n::Int`: The dimension of the square matrix to be generated.
 - `density::Float64=0.01`: Roughly the density of the matrix. Defaults to 0.01 if not specified, representing 1% density.
+- `bias::Float64=2.0`: Mean of the diagonal elements of the matrix.
 
 # Returns
 - A sparse, positive-definite square matrix of size `n` x `n` with approx. specified density.
 """
-function simulate_sparse_pd(n::Int, density = 0.01)
-    diag_elements = max.(randn(n) .+ 5, 0.1);
+function simulate_sparse_triangular(n::Int, density::Float64 = 0.01, bias::Float64 = 2.0)
+    diag_elements = max.(randn(n) .+ bias, 0.1);
     M_sp = spdiagm(diag_elements);
-    indices = rand(1:n, (Int(ceil(density/2 * n)), 2));
- 
+    indices = rand(1:n, (Int(2 * ceil(density * n)), 2));
     # Generate a sparse, strictly diagonally dominant matrix M_sp through sampling values such that each off-diagonal rowsum is smaller than the diagonal value 1.0
-    for k = 1:size(indices)[1]
-        i, j = indices[k,:];
-        if i == j
+    for (i,j) in eachrow(indices)
+        if i >= j
             continue
         end
-        M_sp[i,j] = M_sp[j,i] = rand(Float64) * (0.9 - sum(abs.(M_sp[i,:])));
+        M_sp[i,j] = rand(Float64) * (0.9 - sum(abs.(M_sp[i,:])));
     end
 
     return M_sp
@@ -108,21 +107,23 @@ miraculix.load_shared_library()
 
 println("Check if routine returns right results")
 @testset "Consistency" begin
-    for n in Vector{Int64}([1e2,5e2,5e3])
+    for n in Vector{Int64}([1e2,5e3, 15e3])
         for ncol in [1, 5, 20]
-            for density in [0.05, 0.2, 0.9]
+            for density in [0.05, 0.7]
                 @printf("n: %d, ncol: %d, density: %.2f\n", n, ncol, density)
                 # Simulate LHS and RHS
-                M_sp = simulate_sparse_pd(n, density);
+                M_sp = simulate_sparse_triangular(n, density);
                 M = simulate_dense_pd(n);                
                 B = randn(Float64, (n, ncol)) .+ 5; # Add bias to avoid accidentally correct results
                 # Convert M to COO format
                 I, J, V = findnz(M_sp)
 
                 # Initialize GPU storage object from COO 
-                obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
-                # Compute the solution to M_sp X_sp = B
-                X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
+                obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), n, ncol, false)
+                # Compute the solution to M_sp^T Y_sp = B
+                Y_sp = miraculix.solve.sparse_solve(obj_ref, 't', B, n)
+                # Compute the solution to M_sp X_sp = Y_sp
+                X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', Y_sp, n)
                 # Free GPU memory
                 miraculix.solve.sparse_free(obj_ref)
                 @test_throws "No valid storage object" miraculix.solve.sparse_free(obj_ref)
@@ -131,10 +132,10 @@ println("Check if routine returns right results")
                 X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
                 
                 # Calculate deviations
-                D = abs.(M_sp * X_sp - B)
+                D = abs.(transpose(M_sp) * M_sp  *  X_sp - B)
                 @printf("Absolute error: %.1e, maximum error: %.1e\n", norm(D), maximum(D))
 
-                @test norm(M_sp * X_sp - B)/norm(B) < tol
+                @test norm(D)/norm(B) < tol
                 @test norm(M * X - B)/norm(B) < tol
             end
         end
@@ -146,29 +147,30 @@ println("Check if routine is resilient - uncaught memory allocations would cause
     iter = 1e2
     n = Int(1e4)
     ncol = 12
-    M_sp = simulate_sparse_pd(n, 0.05);
+    M_sp = simulate_sparse_triangular(n, 0.05);
     M = simulate_dense_pd(n);
     B = randn(Float64, (n, ncol));
     # Convert M to COO format
     I, J, V = findnz(M_sp)
      
     # Initialize GPU storage object from COO 
-    obj_ref = miraculix.solve.sparse_init(V, Vector{Int32}(I), Vector{Int32}(J), length(I), n, ncol)
+    obj_ref = miraculix.solve.sparse_init(V, Vector{Int64}(I), Vector{Int64}(J), length(I), n, ncol, false)
+   
     # Repeat solve call a lot of times
     for _ in 1:iter
-        miraculix.solve.sparse_solve(obj_ref, B, n)
+        miraculix.solve.sparse_solve(obj_ref, 't', B, n)
+        miraculix.solve.sparse_solve(obj_ref, 'n', B, n)
         miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)
     end
-    # Compute the solution to M_sp X_sp = B and M X = B
-    X_sp = miraculix.solve.sparse_solve(obj_ref, B, n)
+    Y_sp = miraculix.solve.sparse_solve(obj_ref, 't', B, n)
+    X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', Y_sp, n)
     X, logdet_own = miraculix.solve.dense_solve(M, B, calc_logdet = true, oversubscribe = false)
 
     # Free GPU memory
     miraculix.solve.sparse_free(obj_ref)
-    @test norm(M_sp * X_sp - B)/norm(B) < tol
+    @test norm(transpose(M_sp) * M_sp * X_sp - B)/norm(B) < tol
     @test norm(M * X - B)/norm(B) < tol
-    @test abs(logdet(M) - logdet_own) < tol 
-
+    @test abs(logdet(M) - logdet_own) < tol
 end
 
 println("Check if oversubscription and logdet calculation works -- this test needs to be adjusted to actual device memory available")
@@ -181,7 +183,7 @@ println("Check if oversubscription and logdet calculation works -- this test nee
         B = randn(Float64, (n, ncol));
         
         # Compute the solution to M X = B
-        X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = true)
+        @time X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = true)
 
         println("Test correctness")
         @test norm(M * X - B)/norm(B) < tol
