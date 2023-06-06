@@ -281,268 +281,264 @@ int dense_solve(double *A, // Pointer to the input matrix A in row-major order
 
 void sparse_solve_init(
     double *V,      // Vector of matrix values (COO format)
-    long *I,         // Vector of row indices (COO format)
-    long *J,         // Vector of column indices (COO format)
+    long *I,        // Vector of row indices (COO format)
+    long *J,        // Vector of column indices (COO format)
     long nnz,       // Number of nonzero values (length of V)
     long m,         // Number of rows and columns of matrix
-    long ncol,  // Maximum number of columns of RHS in equation systems
-    int is_lower, 
-    void **GPU_obj, // Pointer in which GPU object for iterative solver will be stored
+    long ncol,      // Maximum number of columns of RHS in equation systems
+    int is_lower,   // If matrix is lower triangular or upper triangular
+    void **GPU_obj, // Pointer in which GPU object for iterative solver will be
+                    // stored
     int *status     // Holds error code
 ) {
 
-    // Print compile info
-    print_compile_info("cuSPARSE triangular solve interface");
-    debug_info("Init params: m %d nnz %d ncol %d is_lower %d", m, nnz, ncol, is_lower);
+  // Print compile info
+  print_compile_info("cuSPARSE triangular solve interface");
+  debug_info("Init params: m %d nnz %d ncol %d is_lower %d", m, nnz, ncol,
+             is_lower);
 
-    //
-    // Initialize CUDA variables
-    //
-    cusparseHandle_t handle;
-    cudaError_t err;
-    cusparseStatus_t sp_status;
-    cusparseFillMode_t fill_mode =
-        is_lower ? CUSPARSE_FILL_MODE_LOWER : CUSPARSE_FILL_MODE_UPPER;
-    cusparseDiagType_t        diag_type        = CUSPARSE_DIAG_TYPE_NON_UNIT;
-    cusparseConstSpMatDescr_t *matA            = NULL;
-    cusparseConstDnMatDescr_t *matB            = NULL;
-    cusparseDnMatDescr_t      *matC            = NULL;
-    cusparseSpSMDescr_t       *spsmDescr_noop  = NULL,
-                              *spsmDescr_trans = NULL;
+  //
+  // Initialize CUDA variables
+  //
+  cusparseHandle_t handle;
+  cudaError_t err;
+  cusparseStatus_t sp_status;
+  cusparseFillMode_t fill_mode =
+      is_lower ? CUSPARSE_FILL_MODE_LOWER : CUSPARSE_FILL_MODE_UPPER;
+  cusparseDiagType_t diag_type = CUSPARSE_DIAG_TYPE_NON_UNIT;
+  cusparseConstSpMatDescr_t *matA = NULL;
+  cusparseConstDnMatDescr_t *matB = NULL;
+  cusparseDnMatDescr_t *matC = NULL;
+  cusparseSpSMDescr_t *spsmDescr_noop = NULL, *spsmDescr_trans = NULL;
 
-    spsmDescr_noop  = (cusparseSpSMDescr_t *)malloc(sizeof(cusparseSpSMDescr_t));
-    spsmDescr_trans =
-        (cusparseSpSMDescr_t *)malloc(sizeof(cusparseSpSMDescr_t));
-    matA = (cusparseConstSpMatDescr_t *)malloc(sizeof(cusparseSpMatDescr_t));
-    matB = (cusparseConstDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
-    matC = (cusparseDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
+  spsmDescr_noop = (cusparseSpSMDescr_t *)malloc(sizeof(cusparseSpSMDescr_t));
+  spsmDescr_trans = (cusparseSpSMDescr_t *)malloc(sizeof(cusparseSpSMDescr_t));
+  matA = (cusparseConstSpMatDescr_t *)malloc(sizeof(cusparseSpMatDescr_t));
+  matB = (cusparseConstDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
+  matC = (cusparseDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
 
-    // Declare device pointers
-    double *d_X            = NULL,
-           *d_V            = NULL,
-           *d_B            = NULL;
-    long   *d_I            = NULL,
-           *d_J            = NULL;
-    void   *d_buffer_noop  = NULL,
-           *d_buffer_trans = NULL;
+  // Declare device pointers
+  double *d_X = NULL, *d_V = NULL, *d_B = NULL;
+  long *d_I = NULL, *d_J = NULL;
+  void *d_buffer_noop = NULL, *d_buffer_trans = NULL;
 
-    size_t bufferSize_noop  = 0,
-           bufferSize_trans = 0;
-    const  double alpha     = 1.0;
+  size_t bufferSize_noop = 0, bufferSize_trans = 0;
+  const double alpha = 1.0;
 
-    // Check CUDA installation
-    if (checkCuda() != 0) {
-        *status = 1;
-        return;
-    }
+  // Check CUDA installation
+  if (checkCuda() != 0) {
+    *status = 1;
+    return;
+  }
 
-    size_t required_mem = (2 * m * ncol + nnz) * sizeof(double) +
-                          sizeof(long) * (2 * nnz + (m + 1));
-    
-    if(checkDevMemory(required_mem) != 0){
-        *status = 1;
-        return;
-    }
-    // Allocate memory for device objects
-    cudaMalloc((void**)&d_X, sizeof(double) * m * ncol);
-    cudaMalloc((void**)&d_B, sizeof(double) * m * ncol);
-    cudaMalloc((void**)&d_I, sizeof(long) * nnz);
-    cudaMalloc((void**)&d_J, sizeof(long) * nnz);
-    cudaMalloc((void**)&d_V, sizeof(double) * nnz);
+  size_t required_mem = (2 * m * ncol + nnz) * sizeof(double) +
+                        sizeof(long) * (2 * nnz + (m + 1));
 
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
+  if (checkDevMemory(required_mem) != 0) {
+    *status = 1;
+    return;
+  }
+  // Allocate memory for device objects
+  cudaMalloc((void **)&d_X, sizeof(double) * m * ncol);
+  cudaMalloc((void **)&d_B, sizeof(double) * m * ncol);
+  cudaMalloc((void **)&d_I, sizeof(long) * nnz);
+  cudaMalloc((void **)&d_J, sizeof(long) * nnz);
+  cudaMalloc((void **)&d_V, sizeof(double) * nnz);
 
-    // Copy I J V data to device
-    debug_info("Copying");
-    cudaMemcpy(d_I, I, sizeof(long) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_J, J, sizeof(long) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_V, V, sizeof(double) * nnz, cudaMemcpyHostToDevice);
+  err = cudaGetLastError();
+  if (checkError(__func__, __LINE__, err) != 0) {
+    *status = 1;
+    return;
+  }
 
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
+  // Copy I J V data to device
+  debug_info("Copying");
+  cudaMemcpy(d_I, I, sizeof(long) * nnz, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_J, J, sizeof(long) * nnz, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_V, V, sizeof(double) * nnz, cudaMemcpyHostToDevice);
 
-    // Create handle
-    cusparseCreate(&handle);
+  err = cudaGetLastError();
+  if (checkError(__func__, __LINE__, err) != 0) {
+    *status = 1;
+    return;
+  }
 
-    //
-    // Set matrix description holding all the information required for the solve
-    // routine
-    //
-    debug_info("Creating mat descriptions");
-    sp_status =
-        cusparseCreateConstCoo(matA, // sparse matrix description to be filled
-                               m,    // Number of rows
-                               m,    // Number of columns
-                               nnz,  // Number of non-zeros
-                               d_I,  // Vector of rows
-                               d_J,  // Vector of columns
-                               d_V,  // Vector of values
-                               CUSPARSE_INDEX_64I,      // Index data type
-                               CUSPARSE_INDEX_BASE_ONE, // Index base
-                               CUDA_R_64F);             // Value type
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-    // Set matrix fill mode - lower or upper depending on input
-    sp_status =
-        cusparseSpMatSetAttribute((cusparseSpMatDescr_t) *matA, CUSPARSE_SPMAT_FILL_MODE,
-                                  &fill_mode, sizeof(cusparseFillMode_t));
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-    // Set matrix diag type
-    sp_status =
-        cusparseSpMatSetAttribute((cusparseSpMatDescr_t) *matA, CUSPARSE_SPMAT_DIAG_TYPE,
-                                  &diag_type, sizeof(cusparseDiagType_t));
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-    // Set matrix B descriptor
-    sp_status = cusparseCreateConstDnMat(matB, m, ncol, m, d_B, CUDA_R_64F, CUSPARSE_ORDER_COL);
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-    // Set matrix C descriptor
-    sp_status = cusparseCreateDnMat(matC, m, ncol, m, d_X, CUDA_R_64F, CUSPARSE_ORDER_COL);
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
+  // Create handle
+  cusparseCreate(&handle);
 
-    //
-    // Set up triangular solve descriptors which include storage information
-    //
-    sp_status = cusparseSpSM_createDescr(spsmDescr_noop);
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-    sp_status = cusparseSpSM_createDescr(spsmDescr_trans);
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
+  //
+  // Set matrix description holding all the information required for the solve
+  // routine
+  //
+  debug_info("Creating mat descriptions");
+  sp_status =
+      cusparseCreateConstCoo(matA, // sparse matrix description to be filled
+                             m,    // Number of rows
+                             m,    // Number of columns
+                             nnz,  // Number of non-zeros
+                             d_I,  // Vector of rows
+                             d_J,  // Vector of columns
+                             d_V,  // Vector of values
+                             CUSPARSE_INDEX_64I,      // Index data type
+                             CUSPARSE_INDEX_BASE_ONE, // Index base
+                             CUDA_R_64F);             // Value type
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
+  // Set matrix fill mode - lower or upper depending on input
+  sp_status = cusparseSpMatSetAttribute((cusparseSpMatDescr_t)*matA,
+                                        CUSPARSE_SPMAT_FILL_MODE, &fill_mode,
+                                        sizeof(cusparseFillMode_t));
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
+  // Set matrix diag type
+  sp_status = cusparseSpMatSetAttribute((cusparseSpMatDescr_t)*matA,
+                                        CUSPARSE_SPMAT_DIAG_TYPE, &diag_type,
+                                        sizeof(cusparseDiagType_t));
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
+  // Set matrix B descriptor
+  sp_status = cusparseCreateConstDnMat(matB, m, ncol, m, d_B, CUDA_R_64F,
+                                       CUSPARSE_ORDER_COL);
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
+  // Set matrix C descriptor
+  sp_status = cusparseCreateDnMat(matC, m, ncol, m, d_X, CUDA_R_64F,
+                                  CUSPARSE_ORDER_COL);
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
 
-    // Get required buffer sizes for triangular solve
-    sp_status = cusparseSpSM_bufferSize(
-        handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
-        CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
-        CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop, &bufferSize_noop);
-    cudaDeviceSynchronize();
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
+  //
+  // Set up triangular solve descriptors which include storage information
+  //
+  sp_status = cusparseSpSM_createDescr(spsmDescr_noop);
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
+  sp_status = cusparseSpSM_createDescr(spsmDescr_trans);
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
 
-    sp_status = cusparseSpSM_bufferSize(
-        handle, CUSPARSE_OPERATION_TRANSPOSE,
-        CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
-        CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_trans, &bufferSize_trans);
-    cudaDeviceSynchronize();
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
+  // Get required buffer sizes for triangular solve
+  sp_status = cusparseSpSM_bufferSize(
+      handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+      CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
+      CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop, &bufferSize_noop);
+  cudaDeviceSynchronize();
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
 
-    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
-        *status = 1;
-        return;
-    }
-    //
-    // Allocate buffer memory
-    //
-    required_mem += bufferSize_noop + bufferSize_trans;
-    if (checkDevMemory(required_mem) != 0) {
-        *status = 1;
-        return;
-    }
-    cudaMalloc((void**)&d_buffer_noop, bufferSize_noop);
-    cudaMalloc((void**)&d_buffer_trans, bufferSize_trans);
+  sp_status = cusparseSpSM_bufferSize(
+      handle, CUSPARSE_OPERATION_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
+      &alpha, *matA, *matB, *matC, CUDA_R_64F, CUSPARSE_SPSM_ALG_DEFAULT,
+      *spsmDescr_trans, &bufferSize_trans);
+  cudaDeviceSynchronize();
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
 
-    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
-        *status = 1;
-        return;
-    }
+  if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
+    *status = 1;
+    return;
+  }
+  //
+  // Allocate buffer memory
+  //
+  required_mem += bufferSize_noop + bufferSize_trans;
+  if (checkDevMemory(required_mem) != 0) {
+    *status = 1;
+    return;
+  }
+  cudaMalloc((void **)&d_buffer_noop, bufferSize_noop);
+  cudaMalloc((void **)&d_buffer_trans, bufferSize_trans);
 
-    //
-    // Analysis phase for triangular solve
-    //
-    sp_status = cusparseSpSM_analysis(
-        handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
-        CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
-        CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop, d_buffer_noop);
-    cudaDeviceSynchronize();
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
-        *status = 1;
-        return;
-    }
+  if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
+    *status = 1;
+    return;
+  }
 
-    sp_status = cusparseSpSM_analysis(
-        handle, CUSPARSE_OPERATION_TRANSPOSE,
-        CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
-        CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_trans, d_buffer_trans);
-    cudaDeviceSynchronize();
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
-    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
-        *status = 1;
-        return;
-    }
+  //
+  // Analysis phase for triangular solve
+  //
+  sp_status = cusparseSpSM_analysis(
+      handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+      CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
+      CUSPARSE_SPSM_ALG_DEFAULT, *spsmDescr_noop, d_buffer_noop);
+  cudaDeviceSynchronize();
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
+  if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
+    *status = 1;
+    return;
+  }
 
-    //
-    // Initialize GPU_sparse_storage object
-    //
-    struct GPU_sparse_storage *GPU_storage_obj =
-        (struct GPU_sparse_storage *)malloc(sizeof(struct GPU_sparse_storage));
-    GPU_storage_obj->d_I             = d_I;
-    GPU_storage_obj->d_J             = d_J;
-    GPU_storage_obj->d_V             = d_V;
-    GPU_storage_obj->nnz             = nnz;
-    GPU_storage_obj->m               = m;
-    GPU_storage_obj->ncol            = ncol;
-    GPU_storage_obj->is_lower        = is_lower;
-    GPU_storage_obj->d_X             = d_X;
-    GPU_storage_obj->d_B             = d_B;
-    GPU_storage_obj->matA            = matA;
-    GPU_storage_obj->matB            = matB;
-    GPU_storage_obj->matC            = matC;
-    GPU_storage_obj->spsmDescr_noop  = spsmDescr_noop;
-    GPU_storage_obj->spsmDescr_trans = spsmDescr_trans;
-    GPU_storage_obj->d_buffer_noop   = d_buffer_noop;
-    GPU_storage_obj->d_buffer_trans  = d_buffer_trans;
+  sp_status = cusparseSpSM_analysis(
+      handle, CUSPARSE_OPERATION_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
+      &alpha, *matA, *matB, *matC, CUDA_R_64F, CUSPARSE_SPSM_ALG_DEFAULT,
+      *spsmDescr_trans, d_buffer_trans);
+  cudaDeviceSynchronize();
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
+  if (checkError(__func__, __LINE__, cudaGetLastError()) != 0) {
+    *status = 1;
+    return;
+  }
 
+  //
+  // Initialize GPU_sparse_storage object
+  //
+  struct GPU_sparse_storage *GPU_storage_obj =
+      (struct GPU_sparse_storage *)malloc(sizeof(struct GPU_sparse_storage));
+  GPU_storage_obj->d_I = d_I;
+  GPU_storage_obj->d_J = d_J;
+  GPU_storage_obj->d_V = d_V;
+  GPU_storage_obj->nnz = nnz;
+  GPU_storage_obj->m = m;
+  GPU_storage_obj->ncol = ncol;
+  GPU_storage_obj->is_lower = is_lower;
+  GPU_storage_obj->d_X = d_X;
+  GPU_storage_obj->d_B = d_B;
+  GPU_storage_obj->matA = matA;
+  GPU_storage_obj->matB = matB;
+  GPU_storage_obj->matC = matC;
+  GPU_storage_obj->spsmDescr_noop = spsmDescr_noop;
+  GPU_storage_obj->spsmDescr_trans = spsmDescr_trans;
+  GPU_storage_obj->d_buffer_noop = d_buffer_noop;
+  GPU_storage_obj->d_buffer_trans = d_buffer_trans;
 
-    // Set pointer to initialized object
-    *GPU_obj = (void *)GPU_storage_obj;
+  // Set pointer to initialized object
+  *GPU_obj = (void *)GPU_storage_obj;
 
-    sp_status = cusparseDestroy(handle);
-    if (checkError(__func__, __LINE__, sp_status) != 0) {
-        *status = 1;
-        return;
-    }
+  sp_status = cusparseDestroy(handle);
+  if (checkError(__func__, __LINE__, sp_status) != 0) {
+    *status = 1;
+    return;
+  }
 
-    err = cudaGetLastError();
-    if (checkError(__func__, __LINE__, err) != 0) {
-        *status = 1;
-        return;
-    }
+  err = cudaGetLastError();
+  if (checkError(__func__, __LINE__, err) != 0) {
+    *status = 1;
+    return;
+  }
 };
 
 void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
