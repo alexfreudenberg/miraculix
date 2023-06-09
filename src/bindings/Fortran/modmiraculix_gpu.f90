@@ -69,9 +69,50 @@ module modmiraculix_gpu
 
  end interface
 
+ interface c_solve_gpu
+  module procedure c_solve_gpu_noperm
+  module procedure c_solve_gpu_perm
+ end interface
+
 contains
 
-subroutine c_solve_gpu(GPU_obj, is_lower, B, ncol, X, status)
+subroutine c_solve_gpu_perm(GPU_obj, is_lower, perm, B, ncol, X, status)
+ type(c_ptr), intent(in) :: GPU_obj
+ logical, intent(in) :: is_lower
+ integer(c_int), intent(in) :: perm(:) !Ap(i,:)=A(perm(i),:)
+ real(c_double), intent(in) :: B(:,:)
+ integer(c_long), intent(in) :: ncol
+ real(c_double), intent(out) :: X(:,:)
+ integer(c_int), intent(out) :: status
+
+ integer :: i
+ real(c_double), allocatable :: X_(:,:)
+
+ allocate(X_, source = B(perm, :))
+
+ status = 0
+
+ if(is_lower)then
+  !Solve L*L'*X = B
+  call c_dcsrtrsv_solve_gpu(GPU_obj, 'n'//c_null_char, X_, ncol, X, status)
+  if(status.ne.0)return
+
+  call c_dcsrtrsv_solve_gpu(GPU_obj, 't'//c_null_char, X, ncol, X_, status)
+  if(status.ne.0)return
+ else
+  !Solve U'*U*X = B
+  call c_dcsrtrsv_solve_gpu(GPU_obj, 't'//c_null_char, X_, ncol, X, status)
+  if(status.ne.0)return
+
+  call c_dcsrtrsv_solve_gpu(GPU_obj, 'n'//c_null_char, X, ncol, X_, status)
+  if(status.ne.0)return
+ endif
+
+ X(perm, :) = X_
+
+end subroutine
+
+subroutine c_solve_gpu_noperm(GPU_obj, is_lower, B, ncol, X, status)
  type(c_ptr), intent(in) :: GPU_obj
  logical, intent(in) :: is_lower
  real(c_double), intent(in) :: B(:,:)

@@ -18,7 +18,7 @@ program test_solve
 
  logical, parameter :: lprint = .false.
 
- integer(c_int) :: status
+ integer(c_int) :: i_, status
  real(c_double), allocatable :: mat(:,:)
  real(c_double) :: B(m, ncol) 
  real(c_double) :: X(m, ncol)
@@ -84,6 +84,13 @@ program test_solve
 
  !Solve U'*U*X
  call c_solve_gpu(GPU_obj, .true., B, ncol, X, status)
+
+ if(lprint)call printdense(X, 'L^T\L\B')
+ call check(matmul(matmul(mat, transpose(mat)), X) - B,  'L^T\L\B')
+
+
+ !Solve U'*U*X
+ call c_solve_gpu(GPU_obj, .true., [(i_, i_=1, size(B,1))], B, ncol, X, status)
 
  if(lprint)call printdense(X, 'L^T\L\B')
  call check(matmul(matmul(mat, transpose(mat)), X) - B,  'L^T\L\B')
