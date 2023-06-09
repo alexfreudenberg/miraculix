@@ -9,6 +9,7 @@
 module modmiraculix_gpu
  use, intrinsic:: iso_c_binding, only: c_char, c_int, c_long, c_double, c_ptr&
                                        , c_null_char
+ !$ use omp_lib
  implicit none
  private
  public :: c_sparse2gpu
@@ -85,10 +86,21 @@ subroutine c_solve_gpu_perm(GPU_obj, is_lower, perm, B, ncol, X, status)
  real(c_double), intent(out) :: X(:,:)
  integer(c_int), intent(out) :: status
 
- integer :: i
+ integer :: i, j
  real(c_double), allocatable :: X_(:,:)
 
- allocate(X_, source = B(perm, :))
+! allocate(X_, source = B(perm, :))
+
+ allocate(X_, mold=B)
+ !$omp parallel default(none) shared(X, B, perm) private(i, j)
+ !$omp do collapse(2)
+ do j = 1, size(B, 2)
+  do i = 1, size(B, 1)
+   X(i, j) = B(perm(i), j)
+  enddo
+ enddo
+ !$omp end do
+ !$omp end parallel
 
  status = 0
 
