@@ -92,11 +92,11 @@ subroutine c_solve_gpu_perm(GPU_obj, is_lower, perm, B, ncol, X, status)
 ! allocate(X_, source = B(perm, :))
 
  allocate(X_, mold=B)
- !$omp parallel default(none) shared(X, B, perm) private(i, j)
+ !$omp parallel default(none) shared(X_, B, perm) private(i, j)
  !$omp do collapse(2)
  do j = 1, size(B, 2)
   do i = 1, size(B, 1)
-   X(i, j) = B(perm(i), j)
+   X_(i, j) = B(perm(i), j)
   enddo
  enddo
  !$omp end do
