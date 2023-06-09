@@ -715,8 +715,8 @@ void sparse_solve_compute(
     }
 
     // Start time measurement
-    time_t start, setup, calculation, end;
-    time(&start);
+    clock_t start, setup, calculation, end;
+    start = clock();
 
     // Get GPU storage object
     struct GPU_sparse_storage *GPU_storage_obj =
@@ -789,9 +789,8 @@ void sparse_solve_compute(
     //
     // Solving triangular equation system on device
     //
-    time(&setup);
-    debug_info("Compute function: Time for set-up %.3f",
-               difftime(setup, start));
+    setup = clock();
+    debug_info("Compute function: Time for set-up %.3fs", (double)(setup-start)/CLOCKS_PER_SEC);
 
     sp_status = cusparseSpSM_solve(
         handle, // cuSPARSE handle
@@ -817,9 +816,9 @@ void sparse_solve_compute(
         *status = 1;
         return;
     }
-    time(&calculation);
-    debug_info("Compute function: Time for solving %.3f",
-               difftime(calculation, setup));
+    calculation = clock();
+    debug_info("Compute function: Time for solving %.3fs",
+               (double)(calculation - setup) / CLOCKS_PER_SEC);
 
     // Copy results back to host
     err = cudaMemcpy(X, d_X, sizeof(double) * m * ncol, cudaMemcpyDeviceToHost);
@@ -828,8 +827,10 @@ void sparse_solve_compute(
         return;
     }
 
-    time(&end);
-    debug_info("Compute function: Total time %.3f", difftime(end, start));
+    end = clock();
+    debug_info("Compute function: Total time %.3fs",
+               (double)(end - start) / CLOCKS_PER_SEC);
+
     cusparseDestroy(handle);
 };
 
