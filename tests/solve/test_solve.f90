@@ -2,21 +2,23 @@ program test_solve
  use, intrinsic:: iso_c_binding, only: c_int, c_long, c_double, c_ptr&
                                        , c_null_char
  use modmiraculix_gpu, only: c_sparse2gpu, c_dcsrtrsv_solve_gpu&
-                             , c_free_sparse_gpu
+                             , c_free_sparse_gpu, c_solve_gpu
  implicit none
  integer(c_long), parameter :: I(*) = [1_c_long, 1_c_long, 2_c_long]
  integer(c_long), parameter :: J(*) = [1_c_long, 2_c_long, 2_c_long]
  real(c_double), parameter :: V(*) = [sqrt(2._c_double)&
                                       , -(sqrt(2._c_double)/2._c_double)&
                                       , sqrt(2._c_double)]
- integer(c_int), parameter :: is_lower = 0
+ integer(c_int), parameter :: is_lower = 0_c_int
  integer(c_long), parameter :: nnz = size(V)
  integer(c_long), parameter :: m = int(max(maxval(I), maxval(J)), c_long)
  integer(c_long), parameter :: max_ncol = 12
  integer(c_long), parameter :: ncol = 12
  real(c_double), parameter :: thr = 1000 * epsilon(1._c_double)
 
- integer(c_int) :: status
+ logical, parameter :: lprint = .false.
+
+ integer(c_int) :: i_, status
  real(c_double), allocatable :: mat(:,:)
  real(c_double) :: B(m, ncol) 
  real(c_double) :: X(m, ncol)
@@ -26,7 +28,7 @@ program test_solve
  !Sparse to Dense
  mat = to_dense(I, J, V)
 
- call printdense(mat, 'LHS:')
+ if(lprint)call printdense(mat, 'LHS:')
 
  !Init GPU
  call c_sparse2gpu(V, I, J, nnz, m, max_ncol, is_lower, GPU_obj, status)
@@ -34,33 +36,70 @@ program test_solve
  !Init RHS
  call random_number(B)
  !B=1
- call printdense(B, 'RHS:')
+ if(lprint)call printdense(B, 'RHS:')
 
 
  !Triangle solve
  call c_dcsrtrsv_solve_gpu(GPU_obj, 'n'//c_null_char, B, ncol, X, status)
 
- call printdense(X, 'V\B')
- call check(matmul(mat, X) - B, 'V\B')
+ if(lprint)call printdense(X, 'U\B')
+ call check(matmul(mat, X) - B, 'U\B')
 
 
  !Transpose triangle solve
  call c_dcsrtrsv_solve_gpu(GPU_obj, 't'//c_null_char, B, ncol, X, status)
 
- call printdense(X, 'V^T\B')
- call check(matmul(transpose(mat), X) - B, 'V^T\B')
+ if(lprint)call printdense(X, 'U^T\B')
+ call check(matmul(transpose(mat), X) - B, 'U^T\B')
 
 
- !Solve V'*V*X = B
+ !Solve U'*U*X = B
  call c_dcsrtrsv_solve_gpu(GPU_obj, 't'//c_null_char, B, ncol, X_, status)
  call c_dcsrtrsv_solve_gpu(GPU_obj, 'n'//c_null_char, X_, ncol, X, status)
 
- call printdense(X, 'V^T\V\B')
- call check(matmul(matmul(transpose(mat), mat), X) - B,  'V^T\V\B')
+ if(lprint)call printdense(X, 'U^T\U\B')
+ call check(matmul(matmul(transpose(mat), mat), X) - B,  'U^T\U\B')
+
+ !Solve U'*U*X
+ X = 0
+ call c_solve_gpu(GPU_obj, .false., B, ncol, X, status)
+
+ if(lprint)call printdense(X, 'U^T\U\B')
+ call check(matmul(matmul(transpose(mat), mat), X) - B,  'U^T\U\B')
 
 
  !Free GPU memory
  call c_free_sparse_gpu(GPU_obj, status)
+
+
+ !!!!!!!!!!!!!!!!!!!!!
+ !Sparse to Dense
+ mat = to_dense(J, I, V)
+ if(lprint)call printdense(mat, 'LHS:')
+ 
+
+ !Init GPU
+ call c_sparse2gpu(V, J, I, nnz, m, max_ncol, 1_c_int, GPU_obj, status)
+
+
+ !Solve U'*U*X
+ call c_solve_gpu(GPU_obj, .true., B, ncol, X, status)
+
+ if(lprint)call printdense(X, 'L^T\L\B')
+ call check(matmul(matmul(mat, transpose(mat)), X) - B,  'L^T\L\B')
+
+
+ !Solve U'*U*X
+ call c_solve_gpu(GPU_obj, .true., [(i_, i_=1, size(B,1))], B, ncol, X, status)
+
+ if(lprint)call printdense(X, 'L^T\L\B')
+ call check(matmul(matmul(mat, transpose(mat)), X) - B,  'L^T\L\B')
+
+
+ !Free GPU memory
+ call c_free_sparse_gpu(GPU_obj, status)
+
+
 
 contains
 
