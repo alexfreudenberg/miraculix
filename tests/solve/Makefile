@@ -38,20 +38,25 @@ LIBFORTRAN = $(SRC_DIR)/bindings/Fortran/libfortran.a
 LIBMIRACULIX = $(SRC_DIR)/miraculix/libmiraculix.a
 
 EXE = test_solve
+EXE = test_solve_ext
 extension = .out
 
-all: $(EXE)
+all: $(EXE) $(EXET)
 
 $(EXE): $(EXE).o $(LIBMIRACULIX) $(LIBFORTRAN)
 	$(FORTRAN) $(FFLAGS) $(EXE).o -o $@$(extension) $(LDFLAGS) 
+
+$(EXET): $(EXET).o $(LIBMIRACULIX) $(LIBFORTRAN)
+	$(FORTRAN) $(FFLAGS) $(EXET).o -o $@$(extension) $(LDFLAGS) 
 
 %.o: %.f90
 	$(FORTRAN) $(FFLAGS) -c $<
 
 $(EXE).o: $(LIBFORTRAN)
+$(EXET).o: $(LIBFORTRAN)
 
 clean:
-	$(RM) $(OBJ) $(MODS) $(LIB) $(EXE) $(ALL) *.optrpt
+	$(RM) $(OBJ) $(MODS) $(LIB) $(EXE) $(EXET) $(ALL) *.optrpt
 
 tests: all
 	./$(EXE)$(extension)
