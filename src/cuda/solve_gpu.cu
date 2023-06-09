@@ -430,6 +430,7 @@ void sparse_solve_init(
         return;
     }
 
+    debug_info("Calculating buffer sizes.");
     // Get required buffer sizes for triangular solve
     sp_status = cusparseSpSM_bufferSize(
         handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -474,6 +475,7 @@ void sparse_solve_init(
     //
     // Analysis phase for triangular solve
     //
+    debug_info("Analysis phase.");
     sp_status = cusparseSpSM_analysis(
         handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
         CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, *matA, *matB, *matC, CUDA_R_64F,
