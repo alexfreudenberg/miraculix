@@ -4,6 +4,7 @@ TARGETS=libmiraculix shared_lib libfortran
 
 ifeq ($(CUDA), true)
 TARGETS+=libmiraculixGPU
+DEPENDENCIES=libmiraculixGPU
 endif
 
 
@@ -21,7 +22,7 @@ libmiraculix:
 libmiraculixGPU: check_cuda
 	cd cuda && make lib
 
-libfortran: libmiraculix libmiraculixGPU
+libfortran: libmiraculix $(DEPENDENCIES)
 	cd bindings/Fortran && make lib
 
 check_cuda: 
