@@ -97,7 +97,8 @@ struct GPU_sparse_storage {
   int is_lower;
   double *d_X;
   double *d_B;
-  cusparseSpMatDescr_t *matA;
+  cusparseSpMatDescr_t *matA_noop;
+  cusparseSpMatDescr_t *matA_trans;
   cusparseDnMatDescr_t *matB;
   cusparseDnMatDescr_t *matC;
   cusparseSpSMDescr_t *spsmDescr_noop;

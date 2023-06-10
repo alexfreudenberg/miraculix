@@ -13,7 +13,7 @@ using Random;
 ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
-DATA_FILE = ROOT_DIR * "/data/A11.dat_chol"
+DATA_FILE = ROOT_DIR * "/data/fort.dat_chol"
 
 tol = 1e-1;
 
