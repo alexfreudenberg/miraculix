@@ -185,6 +185,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
         private_err = cudaStreamCreate(&stream);
         if (checkError(__func__, __LINE__, private_err) != 0) {
+            printf("Thread = %d, i = %d", threadidx, i);
             err = private_err;
             continue;
         }
@@ -208,6 +209,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
         cudaStreamSynchronize(stream);
         if (checkError(__func__, __LINE__, private_err) != 0) {
+            printf("Thread = %d, i = %d", threadidx, i);
             err = private_err;
             continue;
         }
@@ -223,6 +225,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
             cudaStreamSynchronize(stream);
             if (checkError(__func__, __LINE__, private_err) != 0) {
+                printf("Thread = %d, i = %d, j = %d", threadidx, i, j);
                 err = private_err;
                 continue;
             }
@@ -246,6 +249,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
             cudaStreamSynchronize(stream);
             if (checkError(__func__, __LINE__, (cudaError_t) status) != 0) {
+                printf("Thread = %d, i = %d, j = %d", threadidx, i, j);
                 err = (cudaError_t) status;
                 continue;
             }
@@ -258,6 +262,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
             cudaStreamSynchronize(stream);
             if (checkError(__func__, __LINE__, private_err) != 0) {
+                printf("Thread = %d, i = %d, j = %d", threadidx, i, j);
                 err = private_err;
                 continue;
             }
@@ -278,6 +283,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
         cudaStreamSynchronize(stream);
         private_err = cudaGetLastError();
         if (checkError(__func__, __LINE__, private_err) != 0) {
+            printf("Thread = %d, i = %d", threadidx, i);
             err = private_err;
             continue;
         }
