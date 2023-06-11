@@ -28,25 +28,27 @@ limitations under the License.
 #include <string>
 #include <time.h>
 #include <unistd.h>
+#include <omp.h>
 
 #include "cuda_utils.h"
 #include "mmagpuIntern.h"
 
 const int default_tile_size = 2048;
 
-int gpuCrossprodIntern(unsigned int *snp_matrix, size_t snps,
-                               size_t individuals, double *ans) {   
+int gpuCrossprodIntern(char *snp_matrix, int snps,
+                               int indiv, double *ans) {   
     /*
     xxx
 
     */
                               
     // Get number of threads
-    cudaError_t err;
+    cudaError_t err         = cudaSuccess,
+                private_err = cudaSuccess;
     cudaStream_t stream;
 
     // Input data
-    void *d_Z_block1, *d_Z_block2;
+    char *d_Z_block1, *d_Z_block2;
     // Buffer for output
     int *d_M, *h_M;
 
@@ -74,7 +76,7 @@ int gpuCrossprodIntern(unsigned int *snp_matrix, size_t snps,
     }
     debug_info("Using tile size of %d.\n", mem_tile_size);
 
-    mem_tile_size = min(individuals, mem_tile_size);
+    mem_tile_size = min(indiv, mem_tile_size);
 
     if (checkCuda() != 0) {
         return 1;
@@ -93,19 +95,19 @@ int gpuCrossprodIntern(unsigned int *snp_matrix, size_t snps,
 
     int size_of_input = n_bytes_per_snp * mem_tile_size;
     int size_of_output = sizeof(int) * mem_tile_size * mem_tile_size;
-    // Initialization of buffers: Calculate n_streams of tile matrix
+    // Initialization of buffers: Calculate num_threads of tile matrix
     // multiplications in parallel and allocate the corresponding amount of
     // memory
-    err = cudaMalloc((void **)&d_Z_block1, n_streams * size_of_input);
+    err = cudaMalloc((void **)&d_Z_block1, num_threads * size_of_input);
     if (checkError(__func__, __LINE__, err) != 0)
         return (1);
-    err = cudaMalloc((void **)&d_Z_block2, n_streams * size_of_input);
+    err = cudaMalloc((void **)&d_Z_block2, num_threads * size_of_input);
     if (checkError(__func__, __LINE__, err) != 0)
         return (1);
-    err = cudaMalloc((void **)&d_M, n_streams * size_of_output);
+    err = cudaMalloc((void **)&d_M, num_threads * size_of_output);
     if (checkError(__func__, __LINE__, err) != 0)
         return (1);
-    err = cudaMallocHost((void **)&h_M, n_streams * size_of_output);
+    err = cudaMallocHost((void **)&h_M, num_threads * size_of_output);
     if (checkError(__func__, __LINE__, err) != 0)
         return (1);
 
@@ -172,14 +174,20 @@ int gpuCrossprodIntern(unsigned int *snp_matrix, size_t snps,
     // concurrently and send the output back to main memory. Memory copies are
     // asynchronous to take full advantage of the memory bandwidth.
     #ifdef DO_PARALLEL
-    #pragma omp parallel for num_threads(num_threads) private(err,stream) schedule(dynamic)
+    #pragma omp parallel for num_threads(num_threads) private(private_err,stream) schedule(dynamic)
     #endif
-    for (long i = 0; i < individuals; i += mem_tile_size) {
+    for (long i = 0; i < indiv; i += mem_tile_size) {
+        if(err != cudaSuccess){
+            continue;
+        }
+
         int threadidx = omp_get_thread_num();
 
-        err = cudaStreamCreate(&stream);
-        if (checkError(__func__, __LINE__, err) != 0)
-           return (1);
+        private_err = cudaStreamCreate(&stream);
+        if (checkError(__func__, __LINE__, private_err) != 0) {
+            err = private_err;
+            continue;
+        }
 
         cudaStreamSynchronize(stream);
 
@@ -190,30 +198,35 @@ int gpuCrossprodIntern(unsigned int *snp_matrix, size_t snps,
             (cutlass::uint4b_t *)(d_Z_block2 +
                                   threadidx * mem_tile_size * n_bytes_per_snp);
 
-        unsigned int *x = snp_matrix + i * n_bytes_per_snp;
-        
-        int rows_remaining = individuals - i;
+        char *x = snp_matrix + i * n_bytes_per_snp;
+
+        int rows_remaining = indiv - i;
         int x_tile_size = min(mem_tile_size, rows_remaining);
 
-        err = cudaMemcpyAsync(d_tile1, x, x_tile_size * n_bytes_per_snp,
+        private_err = cudaMemcpyAsync(d_tile1, x, x_tile_size * n_bytes_per_snp,
                             cudaMemcpyHostToDevice, stream);
 
         cudaStreamSynchronize(stream);
-        if (checkError(__func__, __LINE__, err) != 0)
-            return (1);
+        if (checkError(__func__, __LINE__, private_err) != 0) {
+            err = private_err;
+            continue;
+        }
 
-        for (long j = i; j < individuals; j += mem_tile_size) {
-            unsigned int *y = snp_matrix + j * IntsPerRow;
+        for (long j = i; j < indiv; j += mem_tile_size) {
+            char *y = snp_matrix + j * n_bytes_per_snp;
 
-            size_t const columns_remaining = individuals - j;
-            size_t const y_tile_size = min(mem_tile_size, columns_remaining);
+            int columns_remaining = indiv - j;
+            int y_tile_size = min(mem_tile_size, columns_remaining);
 
-            err = cudaMemcpyAsync(d_tile2, y, y_tile_size * n_bytes_per_snp,
+            private_err = cudaMemcpyAsync(d_tile2, y, y_tile_size * n_bytes_per_snp,
                             cudaMemcpyHostToDevice, stream);
 
             cudaStreamSynchronize(stream);
-            if (checkError(__func__, __LINE__, err) != 0)
-              return (1);
+            if (checkError(__func__, __LINE__, private_err) != 0) {
+                err = private_err;
+                continue;
+            }
+
 
             // initialize gemm arguments
             CutlassGemm::Arguments args(
@@ -232,39 +245,44 @@ int gpuCrossprodIntern(unsigned int *snp_matrix, size_t snps,
             status = gemm_operator(args, nullptr, stream);
 
             cudaStreamSynchronize(stream);
-            if (checkError(__func__, __LINE__, (cudaError_t)status) != 0)
-                return (1);
+            if (checkError(__func__, __LINE__, (cudaError_t) status) != 0) {
+                err = (cudaError_t) status;
+                continue;
+            }
 
             // Copy results back to host
-            err = cudaMemcpyAsync(h_M + threadidx * mem_tile_size * mem_tile_size,
+            private_err = cudaMemcpyAsync(h_M + threadidx * mem_tile_size * mem_tile_size,
                                     d_M + threadidx * mem_tile_size * mem_tile_size,
                                     mem_tile_size * mem_tile_size * sizeof(int),
                                     cudaMemcpyDeviceToHost, stream);
 
             cudaStreamSynchronize(stream);
-            if (checkError(__func__, __LINE__, err) != 0)
-                return (1);
+            if (checkError(__func__, __LINE__, private_err) != 0) {
+                err = private_err;
+                continue;
+            }
 
-        #ifdef DO_PARALLEL
-        #pragma omp parallel for num_threads(num_threads) schedule(static)
-        #endif
             for (long d1 = 0; d1 < x_tile_size; d1++) {
                 for (long d2 = 0; d2 < y_tile_size; d2++) {
-                    // Get result
-                    int *Mij = *(h_M + threadidx * mem_tile_size * mem_tile_size + d2 +
-                                d1 * y_tile_size);
-                    double *ans0 = ans + (i + d1),
-                           *ans1 = ans + (i + d1) * individuals;
-                    
-                    ans0[(j + d2) * individuals] = (double)Mij;
-                    ans1[j + d2] = (double)Mij;
-                }
-        }
-    }
+                  // Get result
+                  int Mij = *(h_M + threadidx * mem_tile_size * mem_tile_size +
+                              d2 + d1 * y_tile_size);
+                  double *ans0 = ans + (i + d1), *ans1 = ans + (i + d1) * indiv;
 
-    if (checkError(__func__, __LINE__, cudaGetLastError()) != 0)
-      return (1);
-    cudaStreamDestroy(stream);
+                  ans0[(j + d2) * indiv] = (double)Mij;
+                  ans1[j + d2] = (double)Mij;
+                }
+            }
+        }
+
+        cudaStreamSynchronize(stream);
+        private_err = cudaGetLastError();
+        if (checkError(__func__, __LINE__, private_err) != 0) {
+            err = private_err;
+            continue;
+        }
+
+        cudaStreamDestroy(stream);
     }
 
     // Free memory
@@ -272,14 +290,16 @@ int gpuCrossprodIntern(unsigned int *snp_matrix, size_t snps,
     cudaFree(d_Z_block2);
     cudaFree(d_M);
     cudaFreeHost(h_M);
+
+    return 0;
 }
 
 
 extern "C" {
 
-void crossprod_mmagpu(unsigned int *snp_matrix, int snps, int individuals,
+void crossprod_mmagpu(char *snp_matrix, int snps, int indiv,
                       double *ans) {
-    crossprodIntern(snp_matrix, snps, individuals, ans);
+    gpuCrossprodIntern(snp_matrix, snps, indiv, ans);
 }
 
 }
