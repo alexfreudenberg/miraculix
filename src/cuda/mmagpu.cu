@@ -37,19 +37,21 @@ limitations under the License.
 static void gpuCrossprodIntern(unsigned int *CGM, size_t snps,
                                size_t individuals, double *ans,
                                size_t TileSize) {
-  bool verbose = get_print_level() >= 0;
-  const char *omp_num_threads = getenv("OMP_NUM_THREADS");
-  int num_threads = 4;
-  if (omp_num_threads != NULL) {
-    num_threads = atoi(omp_num_threads);
-  }
-  if (verbose) {
-    char print_message[] = (omp_num_threads != NULL)
-                               ? ("OMP_NUM_THREADS is set")
-                               : ("OMP_NUM_THREADS is not set");
-    printf("%s, using %d threads.", print_message, num_threads);
-  }
-    //
+
+    // Get number of threads
+    bool verbose = get_print_level() >= 0;
+    const char *omp_num_threads = getenv("OMP_NUM_THREADS");
+    int num_threads = 4;
+    if (omp_num_threads != NULL) {
+        num_threads = atoi(omp_num_threads);
+    }
+    if (verbose) {
+        char print_message[] = (omp_num_threads != NULL)
+                                ? ("OMP_NUM_THREADS is set")
+                                : ("OMP_NUM_THREADS is not set");
+        printf("%s, using %d threads.", print_message, num_threads);
+    }
+        //
     const size_t BytesPerRow =
         (1 + ((1 + (snps - 1) / CodesPerByte) - 1) / 32) * 32;
     const size_t IntsPerRow = 1 + (BytesPerRow - 1) / sizeof(unsigned int);
@@ -144,10 +146,7 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps,
     // concurrently and send the output back to main memory. Memory copies are
     // asynchronous to take full advantage of the memory bandwidth.
     #ifdef DO_PARALLEL
-    #pragma omp parallel for num_threads(                                          \
-            n_streams < 1 + (individuals - 1) / TileSize                           \
-                    ? n_streams                                                    \
-                    : 1 + (individuals - 1) / TileSize) schedule(dynamic)
+    #pragma omp parallel for num_threads(num_threads) schedule(dynamic)
     #endif
     for (int64_t i = 0; i < individuals; i += TileSize) {
         int threadidx = omp_get_thread_num();
@@ -217,29 +216,21 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps,
 
         cudaStreamSynchronize(stream);
 
-        if (*(h_M + threadidx * TileSize * TileSize) == 0) {
-            printf("Computation failed at thread %d, (%d,%d)\n", threadidx, i, j);
-            print_kernel<<<1, 1>>>((int32_t *)d_M +
-                                threadidx * TileSize * TileSize);
-            j -= TileSize;
-            continue;
-        }
+
         err_check("Copy back:");
 
     // Loop over tile and store values in output matrix
     #ifdef DO_PARALLEL
-    #pragma omp parallel for num_threads(n_streams) schedule(static)
+    #pragma omp parallel for num_threads(num_threads) schedule(static)
     #endif
         for (int64_t di = 0; di < x_tile_size; ++di) {
             for (int64_t dj = 0; dj < y_tile_size; ++dj) {
             // Get result
-            const auto Mij =
-                *(h_M + threadidx * TileSize * TileSize + dj + di * y_tile_size);
-            // Create pointers to the output matrix (because it is symmetric we
-            // use two pointers)
-            double *ans0 = ans + (i + di), *ans1 = ans + (i + di) * individuals;
-            // Store result in ouput matrix
-            ans0[(j + dj) * individuals] = ans1[j + dj] = (double)Mij;
+            int32_t *Mij  = *(h_M + threadidx * TileSize * TileSize + dj + di * y_tile_size);
+            double *ans0 = ans + (i + di),
+                   *ans1 = ans + (i + di) * individuals;
+            ans0[(j + dj) * individuals] = (double)Mij;
+            ans1[j + dj] = (double)Mij;
             }
         }
         }
@@ -254,20 +245,20 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps,
 }
 
 static void crossprodIntern(Uint *CM, Uint snps, Uint individuals,
-        double *ans) {
-// tilse_size needs to stay the same: for smaller values we experience undocumented calculation failures on the device
-const size_t tilesize = 2048; 
+                            double *ans) {
+    // tilse_size needs to stay the same: for smaller values we experience
+    // undocumented calculation failures on the device
+    const size_t tilesize = 2048;
 
-// Initialize host pointers and copy input data cuda managed memory
-Uint* h_CM; 
-const size_t BytesPerIndiv = UnitsPerIndiv256(snps) * BytesPerUnit;  cudaMallocHost((void**)&h_CM, individuals * BytesPerIndiv);
-MEMCOPY(h_CM, CM, individuals * BytesPerIndiv);
+    // Initialize host pointers and copy input data cuda managed memory
+    Uint *h_CM;
+    const size_t BytesPerIndiv = UnitsPerIndiv256(snps) * BytesPerUnit;
+    cudaMallocHost((void **)&h_CM, individuals * BytesPerIndiv);
+    MEMCOPY(h_CM, CM, individuals * BytesPerIndiv);
 
-gpuCrossprodIntern(h_CM, snps, individuals, ans, tilesize);
-cudaFreeHost(h_CM);
-
+    gpuCrossprodIntern(h_CM, snps, individuals, ans, tilesize);
+    cudaFreeHost(h_CM);
 }
-
 
 extern "C" {
 void crossprod_mmagpu(Uint *CGM, Uint snps, Uint individuals, double *ans) {
