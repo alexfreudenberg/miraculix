@@ -305,15 +305,15 @@ void sparse_solve_init(
     cusparseFillMode_t fill_mode =
         is_lower ? CUSPARSE_FILL_MODE_LOWER : CUSPARSE_FILL_MODE_UPPER;
     cusparseDiagType_t diag_type = CUSPARSE_DIAG_TYPE_NON_UNIT;
-    cusparseConstSpMatDescr_t *matA = NULL;
-    cusparseConstDnMatDescr_t *matB = NULL;
+    cusparseSpMatDescr_t *matA = NULL;
+    cusparseDnMatDescr_t *matB = NULL;
     cusparseDnMatDescr_t *matC = NULL;
     cusparseSpSMDescr_t *spsmDescr_noop = NULL, *spsmDescr_trans = NULL;
 
     spsmDescr_noop = (cusparseSpSMDescr_t *)malloc(sizeof(cusparseSpSMDescr_t));
     spsmDescr_trans = (cusparseSpSMDescr_t *)malloc(sizeof(cusparseSpSMDescr_t));
-    matA = (cusparseConstSpMatDescr_t *)malloc(sizeof(cusparseSpMatDescr_t));
-    matB = (cusparseConstDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
+    matA = (cusparseSpMatDescr_t *)malloc(sizeof(cusparseSpMatDescr_t));
+    matB = (cusparseDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
     matC = (cusparseDnMatDescr_t *)malloc(sizeof(cusparseDnMatDescr_t));
 
     // Declare device pointers
@@ -371,7 +371,7 @@ void sparse_solve_init(
     //
     debug_info("Creating mat descriptions");
     sp_status =
-        cusparseCreateConstCoo(matA, // sparse matrix description to be filled
+        cusparseCreateCoo(matA, // sparse matrix description to be filled
                                 m,    // Number of rows
                                 m,    // Number of columns
                                 nnz,  // Number of non-zeros
@@ -402,7 +402,7 @@ void sparse_solve_init(
         return;
     }
     // Set matrix B descriptor
-    sp_status = cusparseCreateConstDnMat(matB, m, ncol, m, d_B, CUDA_R_64F,
+    sp_status = cusparseCreateDnMat(matB, m, ncol, m, d_B, CUDA_R_64F,
                                         CUSPARSE_ORDER_COL);
     if (checkError(__func__, __LINE__, sp_status) != 0) {
         *status = 1;
@@ -545,8 +545,8 @@ void sparse_solve_destroy(void **GPU_obj, // Pointer to GPU object
 ) {
     cudaError_t err;
     cusparseStatus_t sp_status;
-    cusparseConstSpMatDescr_t *matA            = NULL;
-    cusparseConstDnMatDescr_t *matB            = NULL;
+    cusparseSpMatDescr_t *matA            = NULL;
+    cusparseDnMatDescr_t *matB            = NULL;
     cusparseDnMatDescr_t      *matC            = NULL;
     cusparseSpSMDescr_t       *spsmDescr_noop  = NULL,
                               *spsmDescr_trans = NULL;
@@ -678,8 +678,8 @@ void sparse_solve_compute(
     cusparseStatus_t sp_status;
     cudaError_t err;
 
-    cusparseConstSpMatDescr_t *matA;
-    cusparseConstDnMatDescr_t *matB;
+    cusparseSpMatDescr_t *matA;
+    cusparseDnMatDescr_t *matB;
     cusparseDnMatDescr_t *matC;
     cusparseSpSMDescr_t *spsmDescr_noop;
     cusparseSpSMDescr_t *spsmDescr_trans;
