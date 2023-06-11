@@ -31,6 +31,13 @@ function check_storage_object(obj_ref::Ref{Ptr{Cvoid}})
     end
 end
 
+# Check if genotype matrix has correct dimensions
+function check_dimensions(plink::Matrix{UInt8}, snps::Int, indiv::Int)
+    if (size(plink, 1) != ceil(indiv/4)) || (size(plink, 2) != snps)
+        error("Matrix has wrong dimensions: Expected $snps SNPs and $indiv samples")
+    end
+end
+
 """
     set_library_path(path::AbstractString)
 
@@ -99,6 +106,6 @@ end
 include("dgemm_compressed.jl")
 include("read_plink.jl")
 include("solve.jl")
-
+include("grm.jl")
 
 end

@@ -48,7 +48,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
     cudaStream_t stream;
 
     // Input data
-    char *d_Z_block1, *d_Z_block2;
+    uint32_t *d_Z_block1, *d_Z_block2;
     // Buffer for output
     int *d_M, *h_M;
 
@@ -185,7 +185,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
         private_err = cudaStreamCreate(&stream);
         if (checkError(__func__, __LINE__, private_err) != 0) {
-            printf("Thread = %d, i = %d", threadidx, i);
+            printf("Thread = %d, i = %d\n", threadidx, i);
             err = private_err;
             continue;
         }
@@ -209,7 +209,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
         cudaStreamSynchronize(stream);
         if (checkError(__func__, __LINE__, private_err) != 0) {
-            printf("Thread = %d, i = %d", threadidx, i);
+            printf("Thread = %d, i = %d\n", threadidx, i);
             err = private_err;
             continue;
         }
@@ -219,13 +219,15 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
             int columns_remaining = indiv - j;
             int y_tile_size = min(mem_tile_size, columns_remaining);
-
+            
+            debug_info("i: %d, j: %d, indiv_per_byte: %d, bytes_per_snp: %d, columns_remaining: %d, x_tile_size: %d,  y_tile_size: %d, mem_tile_size: %d", i, j, n_indiv_per_byte, n_bytes_per_snp, columns_remaining, x_tile_size, y_tile_size, mem_tile_size);
+            
             private_err = cudaMemcpyAsync(d_tile2, y, y_tile_size * n_bytes_per_snp,
                             cudaMemcpyHostToDevice, stream);
 
             cudaStreamSynchronize(stream);
             if (checkError(__func__, __LINE__, private_err) != 0) {
-                printf("Thread = %d, i = %d, j = %d", threadidx, i, j);
+                printf("Thread = %d, i = %d, j = %d\n", threadidx, i, j);
                 err = private_err;
                 continue;
             }
@@ -248,12 +250,13 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
             status = gemm_operator(args, nullptr, stream);
 
             cudaStreamSynchronize(stream);
-            if (checkError(__func__, __LINE__, (cudaError_t) status) != 0) {
-                printf("Thread = %d, i = %d, j = %d", threadidx, i, j);
+            private_err = cudaGetLastError();
+            if ((checkError(__func__, __LINE__, (cudaError_t) status) != 0 )|| (checkError(__func__, __LINE__, private_err) != 0)) {
+                printf("Thread = %d, i = %d, j = %d, status = %d\n", threadidx, i, j, status);
                 err = (cudaError_t) status;
                 continue;
             }
-
+          
             // Copy results back to host
             private_err = cudaMemcpyAsync(h_M + threadidx * mem_tile_size * mem_tile_size,
                                     d_M + threadidx * mem_tile_size * mem_tile_size,
@@ -262,7 +265,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
 
             cudaStreamSynchronize(stream);
             if (checkError(__func__, __LINE__, private_err) != 0) {
-                printf("Thread = %d, i = %d, j = %d", threadidx, i, j);
+                printf("Thread = %d, i = %d, j = %d\n", threadidx, i, j);
                 err = private_err;
                 continue;
             }
@@ -283,7 +286,7 @@ int gpuCrossprodIntern(char *snp_matrix, int snps,
         cudaStreamSynchronize(stream);
         private_err = cudaGetLastError();
         if (checkError(__func__, __LINE__, private_err) != 0) {
-            printf("Thread = %d, i = %d", threadidx, i);
+            printf("Thread = %d, i = %d\n", threadidx, i);
             err = private_err;
             continue;
         }

@@ -18,32 +18,44 @@
 # =====================================================
 # This file is heavily WIP
 # =====================================================
-using Base, Base.Libc.Libdl;
+using Base;
+using Random;
 using Distances; 
 using SparseArrays;
 using LinearAlgebra;
 using Test
 using .Threads: @threads
 
+# =====================
+# Global definitions
+# =====================
 
-## Test GRM functionality
-T = UInt32;
-N_ROW = 256 * 100; # Number of SNPs
-N_COL = 10_000; # Number of individuals
+ROOT_DIR = string(@__DIR__) * "/../.."
+MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
+LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 
-M = rand(Vector{UInt32}(0:2), (N_ROW,N_COL));
-ANS = zeros(Float64, (N_COL, N_COL));
+tol = 1e-1;
+Random.seed!(0);
 
-function pack_twobit(::Type{T}, M::Matrix{T}, n_row, n_col) where{T}
+# Remove commit message verbosity
+ENV["PRINT_LEVEL"] = "1";
+
+include(MODULE_PATH)
+
+# =====================
+# Auxiliary functions
+# =====================
+
+function pack_twobit(::Type{T}, M::Matrix{T}, n_snps, n_indiv) where{T}
     BITS = sizeof(T) * 8;
     CODES_PER_UNIT = Int(BITS/2); 
-    n_vec = Int(ceil(n_row*2/BITS));
-    M_packed = zeros(UInt32, (n_vec, n_col)); # packed copy of M
+    n_vec = Int(ceil(n_indiv*2/BITS));
+    M_packed = zeros(T, (n_vec, n_snps)); # packed copy of M
     
     # Pack M into M_packed
-    @inbounds @views @threads for i = 1:n_col
+    @inbounds @views @threads for i = 1:n_snps
         for j = 1:n_vec
-            for k = 1:min(CODES_PER_UNIT, n_row - (j-1) * CODES_PER_UNIT) # counts from 0 to minimum of CODES_PER_UNIT and remaining number of rows
+            for k = 1:min(CODES_PER_UNIT, n_snps - (j-1) * CODES_PER_UNIT) # counts from 0 to minimum of CODES_PER_UNIT and remaining number of rows
                 M_packed[j,i] |= (M[ (j-1) * CODES_PER_UNIT + k ,i]  << (2 * (k-1))); # consecutively shift CODES_PER_UNIT entries of M by two bits and OR them into M_packed
             end
         end
@@ -65,11 +77,28 @@ function crossprod(::Type{T}, M::Matrix, n, k) where{T}
     end
     return RESULT;
 end
-@btime M_packed = pack_twobit(T, M, N_ROW, N_COL);
-M_packed = pack_twobit(T, M, N_ROW, N_COL);
-@btime crossprod(T, M_packed, size(M_packed,1), N_COL);
 
- ccall((:crossprod_mmagpu, "./src/miraculixjl.so"),Cvoid,(Ptr{Cuint}, Cuint, Cuint, Ptr{Cdouble}), M_packed, UInt32(N_ROW), UInt32(N_COL), ANS);
+# =====================
+# Main
+# =====================
 
-D = BLAS.gemm('T','N',Matrix{Float32}(M),Matrix{Float32}(M));
+println("Load library and set options")
+miraculix.set_library_path(LIBRARY_PATH)
+miraculix.load_shared_library()
+
+
+## Test GRM functionality
+T = UInt8;
+n_snps = 5_000; # Number of SNPs
+n_indiv = 10_000; # Number of individuals
+
+M = rand(Vector{T}(0:2), (n_indiv, n_snps));
+ANS = zeros(Float64, (n_indiv, n_indiv));
+
+M_packed = pack_twobit(T, M, n_snps, n_indiv);
+println(size(M_packed))
+
+miraculix.grm.compute(M_packed, n_snps, n_indiv)
+
+D = BLAS.gemm('N','T',Matrix{Float64}(M),Matrix{Float64}(M));
 @test sum(ANS-D)<1e-4

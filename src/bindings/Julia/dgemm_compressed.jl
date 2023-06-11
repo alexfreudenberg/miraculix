@@ -17,15 +17,10 @@
 
 
 module dgemm_compressed
-import ..LIBRARY_HANDLE, ..check_storage_object
+import ..LIBRARY_HANDLE, ..check_storage_object, ..check_dimensions
 using Libdl
 
-# Check if genotype matrix has correct dimensions
-function check_dimensions(plink::Matrix{UInt8}, snps::Int, indiv::Int)
-    if (size(plink, 1) != ceil(indiv/4)) || (size(plink, 2) != snps)
-        error("Matrix has wrong dimensions: Expected $snps SNPs and $indiv samples")
-    end
-end
+
 
 # This function decompresses genotype data in PLINK format for testing purposes -- throws an error if it finds a missing value
 function decompress_genotype_data(plink::Matrix{UInt8}, indiv::Int, snps::Int)
