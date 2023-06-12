@@ -71,6 +71,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // This structure adds a two-bit unsigned integer (u2b) matrix multiplication
 // microkernel to the cutlass namespace
 
+
 namespace cutlass{
 namespace arch{
     struct CustomOp;

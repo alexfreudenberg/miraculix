@@ -22,18 +22,18 @@ import ..LIBRARY_HANDLE, ..check_storage_object, ..check_dimensions
 using Libdl
 
 """
-    grm(plink::Matrix{UInt8}, snps::Int, indiv::Int)
+    grm(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int)
 
 TBW
 """
-function compute(plink::Matrix{UInt8}, snps::Int, indiv::Int)
-    check_dimensions(plink, snps, indiv)
+function compute(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int)
+    check_dimensions(plink_transposed, indiv, snps)
 
     compute_sym = dlsym(LIBRARY_HANDLE[], :crossprod_mmagpu)
 
     M = zeros(Float64, (indiv, indiv))
 
-    ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}), plink, Int32(snps), Int32(indiv), M)
+    ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}), plink_transposed, Int32(snps), Int32(indiv), M)
     # void crossprod_mmagpu(char *snp_matrix, int snps, int indiv, double *ans)
     
     return M
