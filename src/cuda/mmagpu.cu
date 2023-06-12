@@ -80,7 +80,8 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
         mem_tile_size = atoi(env_tile_size);
     }
     debug_info("Using tile size of %d.\n", mem_tile_size);
-
+    debug_info("Function arguments: snps %d, indiv %d, bytes_per_indiv %d, bytes_per_indiv_padded %d, k %d.\n", snps, indiv, n_bytes_per_indiv, n_bytes_per_indiv_padded, n_bytes_per_indiv_padded * n_snps_per_u4b);
+    
     mem_tile_size = min(indiv, mem_tile_size);
 
     if (checkCuda() != 0) {
