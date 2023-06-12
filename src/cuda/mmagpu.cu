@@ -35,7 +35,7 @@ limitations under the License.
 
 const int default_tile_size = 2048;
 
-int gpuCrossprodIntern_dev(unsigned char *snp_matrix, int snps,
+int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
                                int indiv, double *ans) {   
     /*
     xxx
@@ -65,8 +65,12 @@ int gpuCrossprodIntern_dev(unsigned char *snp_matrix, int snps,
     const long n_bytes_per_indiv =
         (snps - 1) / 4 + 1; // number of columns of Z if individuals
                              // are zero-padded to be a multiple of 4
-    const long n_snps_per_byte = 8L / 2L;
-    const int n_snps_per_u4b = 4L / 2L;
+    const long n_bytes_per_indiv_padded =
+        (1 + (n_bytes_per_indiv - 1) / 32) * 32;
+    // number of columns of Z if individuals
+    // are zero-padded to be a multiple of 32 bytes
+    const long n_snps_per_byte = 8 / 2;
+    const int n_snps_per_u4b = 4 / 2;
 
     // sanity checks
     // limit Tilesize to individuals
@@ -88,13 +92,13 @@ int gpuCrossprodIntern_dev(unsigned char *snp_matrix, int snps,
     }
 
     // Calculate total memory requirements
-    size_t required_mem = num_threads * (2 * n_bytes_per_indiv * mem_tile_size +
+    size_t required_mem = num_threads * (2 * n_bytes_per_indiv_padded * mem_tile_size +
                           mem_tile_size * mem_tile_size * sizeof(unsigned int));
     if (checkDevMemory(required_mem) != 0) {
         return 1;
     }
 
-    int size_of_input = n_bytes_per_indiv * mem_tile_size;
+    int size_of_input = n_bytes_per_indiv_padded * mem_tile_size;
     int size_of_output = sizeof(int) * mem_tile_size * mem_tile_size;
     // Initialization of buffers: Calculate num_threads of tile matrix
     // multiplications in parallel and allocate the corresponding amount of
@@ -195,18 +199,22 @@ int gpuCrossprodIntern_dev(unsigned char *snp_matrix, int snps,
 
         cutlass::uint4b_t *d_tile1 =
             (cutlass::uint4b_t *)(d_Z_block1 +
-                                  threadidx * mem_tile_size * n_bytes_per_indiv);
+                                  threadidx * mem_tile_size * n_bytes_per_indiv_padded);
         cutlass::uint4b_t *d_tile2 =
             (cutlass::uint4b_t *)(d_Z_block2 +
-                                  threadidx * mem_tile_size * n_bytes_per_indiv);
+                                  threadidx * mem_tile_size * n_bytes_per_indiv_padded);
 
         unsigned char *x = snp_matrix + i * n_bytes_per_indiv;
 
         int rows_remaining = indiv - i;
         int x_tile_size = min(mem_tile_size, rows_remaining);
 
-        private_err = cudaMemcpyAsync(d_tile1, x, x_tile_size * n_bytes_per_indiv,
-                            cudaMemcpyHostToDevice, stream);
+        // private_err = cudaMemcpyAsync(d_tile1, x, x_tile_size * n_bytes_per_indiv,
+        //                     cudaMemcpyHostToDevice, stream);
+        private_err = cudaMemcpy2DAsync(
+            d_tile1, n_bytes_per_indiv_padded, x, n_bytes_per_indiv,
+            n_bytes_per_indiv, x_tile_size, cudaMemcpyHostToDevice,
+            stream);
 
         cudaStreamSynchronize(stream);
         if (checkError(__func__, __LINE__, private_err) != 0) {
@@ -227,8 +235,10 @@ int gpuCrossprodIntern_dev(unsigned char *snp_matrix, int snps,
             
             debug_info("i: %d, j: %d, snps_per_byte: %d, bytes_per_snp: %d, columns_remaining: %d, x_tile_size: %d,  y_tile_size: %d, mem_tile_size: %d", i, j, n_snps_per_byte, n_bytes_per_indiv, columns_remaining, x_tile_size, y_tile_size, mem_tile_size);
             
-            private_err = cudaMemcpyAsync(d_tile2, y, y_tile_size * n_bytes_per_indiv,
-                            cudaMemcpyHostToDevice, stream);
+            private_err = cudaMemcpy2DAsync(
+                d_tile2, n_bytes_per_indiv_padded, y, n_bytes_per_indiv,
+                n_bytes_per_indiv, y_tile_size, cudaMemcpyHostToDevice,
+                stream);
 
             cudaStreamSynchronize(stream);
             if (checkError(__func__, __LINE__, private_err) != 0) {
@@ -246,9 +256,9 @@ int gpuCrossprodIntern_dev(unsigned char *snp_matrix, int snps,
             // initialize gemm arguments
             CutlassGemm::Arguments args(
                 {int(x_tile_size), int(y_tile_size),
-                int(n_bytes_per_indiv * n_snps_per_u4b)},
-                {d_tile1, int(n_bytes_per_indiv * n_snps_per_u4b)},
-                {d_tile2, int(n_bytes_per_indiv * n_snps_per_u4b)},
+                int(n_bytes_per_indiv_padded * n_snps_per_u4b)},
+                {d_tile1, int(n_bytes_per_indiv_padded * n_snps_per_u4b)},
+                {d_tile2, int(n_bytes_per_indiv_padded * n_snps_per_u4b)},
                 {d_M + threadidx * mem_tile_size * mem_tile_size, int(y_tile_size)},
                 {d_M + threadidx * mem_tile_size * mem_tile_size, int(y_tile_size)},
                 {1, 0});
@@ -326,7 +336,7 @@ void err_check(const char* string){
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) printf("%s %s\n", string, cudaGetErrorString(err)); 
 }
-static void gpuCrossprodIntern(unsigned int *CGM, size_t snps, size_t individuals, double *ans)
+static void gpuCrossprodIntern_legacy(unsigned int *CGM, size_t snps, size_t individuals, double *ans)
 {
 #define CodesPerByte 4L//8L / 2L
 #define BitsPerCode 2
@@ -341,7 +351,7 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps, size_t individual
     // force multiples of 32 byte
     const size_t BytesPerRowPadded =
         (1 + ((1 + (snps - 1) / CodesPerByte) - 1) / 32) * 32;
-    const size_t BytesPerRow =  1 + (BytesPerRowPadded - 1) / sizeof(unsigned int);
+    const size_t BytesPerRow =  (1 + (snps - 1) / 4L) * 4L / sizeof(unsigned int);
 
     printf("snps %d, individuals %d, bytesperrow %d, intsperrow %d, intermediate %d\n", snps, individuals, BytesPerRowPadded, BytesPerRow, BytesPerRow);
 
@@ -555,7 +565,7 @@ extern "C" {
 
 void crossprod_mmagpu(unsigned char *snp_matrix, int snps, int indiv,
                       double *ans) {
-    gpuCrossprodIntern((unsigned int*) snp_matrix, snps, indiv, ans);
+    gpuCrossprodIntern(snp_matrix, snps, indiv, ans);
 }
 
 }
