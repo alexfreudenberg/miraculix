@@ -285,10 +285,11 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
             }
 
             // Copy results back to host
-            private_err = cudaMemcpyAsync(h_M + threadidx * mem_tile_size * mem_tile_size,
-                                    d_M + threadidx * mem_tile_size * mem_tile_size,
-                                    mem_tile_size * mem_tile_size * sizeof(int),
-                                    cudaMemcpyDeviceToHost, stream);
+            private_err =
+                cudaMemcpyAsync(h_M + threadidx * mem_tile_size * mem_tile_size,
+                                d_M + threadidx * mem_tile_size * mem_tile_size,
+                                mem_tile_size * mem_tile_size * sizeof(int),
+                                cudaMemcpyDeviceToHost, stream);
 
             cudaStreamSynchronize(stream);
             if (checkError(__func__, __LINE__, private_err) != 0) {

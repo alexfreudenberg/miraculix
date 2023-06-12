@@ -51,11 +51,10 @@ function pack_twobit(::Type{T}, M::Matrix{T}, n_snps, n_indiv) where{T}
     CODES_PER_UNIT = Int(BITS/2); 
     n_vec = Int(ceil(n_indiv*2/BITS));
     M_packed = zeros(T, (n_vec, n_snps)); # packed copy of M
-    
     # Pack M into M_packed
     @inbounds @views @threads for i = 1:n_snps
         for j = 1:n_vec
-            for k = 1:min(CODES_PER_UNIT, n_snps - (j-1) * CODES_PER_UNIT) # counts from 0 to minimum of CODES_PER_UNIT and remaining number of rows
+            for k = 1:min(CODES_PER_UNIT, n_indiv - (j-1) * CODES_PER_UNIT) # counts from 0 to minimum of CODES_PER_UNIT and remaining number of rows
                 M_packed[j,i] |= (M[ (j-1) * CODES_PER_UNIT + k ,i]  << (2 * (k-1))); # consecutively shift CODES_PER_UNIT entries of M by two bits and OR them into M_packed
             end
         end
@@ -89,8 +88,8 @@ miraculix.load_shared_library()
 
 ## Test GRM functionality
 T = UInt8;
-n_snps = 2048*2; # Number of SNPs
-n_indiv = 2048 * 1; # Number of individuals
+n_snps = 2048 * 4; # Number of SNPs
+n_indiv = 2048 * 2; # Number of individuals
 
 M = rand(Vector{T}(0:2), (n_snps, n_indiv));
 M = ones(T, (n_snps, n_indiv));
