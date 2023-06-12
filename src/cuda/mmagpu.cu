@@ -339,11 +339,11 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps, size_t individual
 
     size_t TileSize = 2048;
     // force multiples of 32 byte
-    const size_t BytesPerRow =
+    const size_t BytesPerRowPadded =
         (1 + ((1 + (snps - 1) / CodesPerByte) - 1) / 32) * 32;
-    const size_t IntsPerRow = 1 + (BytesPerRow - 1) / sizeof(unsigned int);
+    const size_t BytesPerRow =  1 + (BytesPerRowPadded - 1) / sizeof(unsigned int);
 
-    printf("snps %d, individuals %d, bytesperrow %d, intsperrow %d, intermediate %d\n", snps, individuals, BytesPerRow, IntsPerRow, (snps - 1) / CodesPerByte);
+    printf("snps %d, individuals %d, bytesperrow %d, intsperrow %d, intermediate %d\n", snps, individuals, BytesPerRowPadded, BytesPerRow, BytesPerRow);
 
     // sanity checks
     // limit Tilesize to individuals
@@ -354,7 +354,7 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps, size_t individual
     cudaMemGetInfo(&free_mem, nullptr);
 
     // calculates total memory requirements
-    size_t req_mem = 2 * BytesPerRow * TileSize * CodesPerByte +
+    size_t req_mem = 2 * BytesPerRowPadded * TileSize * CodesPerByte +
                      TileSize * TileSize * sizeof(unsigned int);
     if (req_mem > free_mem)
         printf("Not enough memory available.");
@@ -372,7 +372,7 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps, size_t individual
     int32_t *h_val;
 
     const int size_of_input =
-        BytesPerRow * TileSize * CodesPerByte / MEMORY_FACTOR;
+        BytesPerRowPadded * TileSize * CodesPerByte / MEMORY_FACTOR;
     const int size_of_output = sizeof(int32_t) * TileSize * TileSize;
     // Initialization of buffers: We calculate n_streams of tile matrix
     // multiplications in parallel and allocate the corresponding amount of
@@ -464,18 +464,20 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps, size_t individual
       printf("Stream couldn't be created");
 
     // Pointer to the first element of current rows
-    unsigned int *x = (CGM + i * IntsPerRow);
+    unsigned int *x = (CGM + i * BytesPerRow);
     cutlass::uint4b_t *x_dev =
-        (cutlass::uint4b_t *)(d_x + threadidx * TileSize * BytesPerRow);
+        (cutlass::uint4b_t *)(d_x + threadidx * TileSize * BytesPerRowPadded);
     cutlass::uint4b_t *y_dev =
-        (cutlass::uint4b_t *)(d_y + threadidx * TileSize * BytesPerRow);
+        (cutlass::uint4b_t *)(d_y + threadidx * TileSize * BytesPerRowPadded);
 
     // Number of rows in matrix
     size_t const rows_left = individuals - i;
     // Size x of current tile
     size_t const x_tile_size = TileSize < rows_left ? TileSize : rows_left;
 
-    cudaMemcpyAsync(x_dev, x, x_tile_size * BytesPerRow, cudaMemcpyHostToDevice, stream);
+    cudaMemcpy2DAsync(x_dev, BytesPerRowPadded, x, 1 + (snps - 1) / CodesPerByte,
+                      1 + (snps - 1) / CodesPerByte, x_tile_size,
+                      cudaMemcpyHostToDevice, stream);
     cudaStreamSynchronize(stream);
     err_check("Copy 1:");
 
@@ -486,17 +488,21 @@ static void gpuCrossprodIntern(unsigned int *CGM, size_t snps, size_t individual
       // Same as above with y
       size_t const columns_left = individuals - j;
       size_t const y_tile_size = TileSize < columns_left ? TileSize : columns_left;
-      unsigned int *y = (CGM + j * IntsPerRow);
+      unsigned int *y = (CGM + j * BytesPerRow);
 
-      cudaMemcpyAsync(y_dev, y, y_tile_size * BytesPerRow, cudaMemcpyHostToDevice, stream);
+    // cudaMemcpyAsync(y_dev, y, y_tile_size * BytesPerRowPadded, cudaMemcpyHostToDevice, stream);
+      cudaMemcpy2DAsync(y_dev, BytesPerRowPadded, y, 1 + (snps - 1) / CodesPerByte,
+                        1 + (snps - 1) / CodesPerByte, x_tile_size,
+                        cudaMemcpyHostToDevice, stream);
+
       err_check("Copy 2:");
       cudaStreamSynchronize(stream);
 
       // initialize gemm arguments
       CutlassGemm::Arguments args(
-          {int(x_tile_size), int(y_tile_size), int(BytesPerRow * CodesPerByte / COMPRESSION_GPU)},
-          {x_dev, int(BytesPerRow * CodesPerByte / COMPRESSION_GPU)},
-          {y_dev, int(BytesPerRow * CodesPerByte / COMPRESSION_GPU)},
+          {int(x_tile_size), int(y_tile_size), int(BytesPerRowPadded * CodesPerByte / COMPRESSION_GPU)},
+          {x_dev, int(BytesPerRowPadded * CodesPerByte / COMPRESSION_GPU)},
+          {y_dev, int(BytesPerRowPadded * CodesPerByte / COMPRESSION_GPU)},
           {d_val + threadidx * TileSize * TileSize, int(y_tile_size)},
           {d_val + threadidx * TileSize * TileSize, int(y_tile_size)},
           {1, 0});
