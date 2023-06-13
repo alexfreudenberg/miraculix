@@ -211,8 +211,6 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
         int x_tile_size        = min(mem_tile_size, rows_remaining);
         int x_tile_size_padded = ((x_tile_size-1)/4 +1 ) * 4; // padded tile sizes are required as CUTLASS needs dimensions that are a multiple of 4
 
-        // private_err = cudaMemcpyAsync(d_tile1, x, x_tile_size * n_bytes_per_indiv,
-        //                     cudaMemcpyHostToDevice, stream);
         private_err = cudaMemcpy2DAsync(
             d_tile1, n_bytes_per_indiv_padded, x, n_bytes_per_indiv,
             n_bytes_per_indiv, x_tile_size, cudaMemcpyHostToDevice,
@@ -302,13 +300,13 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
 
             for (long d1 = 0; d1 < x_tile_size; d1++) {
                 for (long d2 = 0; d2 < y_tile_size; d2++) {
-                  // Get result
-                  int Mij = *(h_M + threadidx * mem_tile_size * mem_tile_size +
-                              d2 + d1 * y_tile_size);
-                  double *ans0 = ans + (i + d1), *ans1 = ans + (i + d1) * indiv;
+                    // Get result
+                    int Mij = *(h_M + threadidx * mem_tile_size * mem_tile_size +
+                                d2 + d1 * y_tile_size_padded);
 
-                  ans0[(j + d2) * indiv] = (double)Mij;
-                  ans1[j + d2] = (double)Mij;
+                    // Write results to M[i,j] and M[j,i]  
+                    ans[(i + d1) + (j + d2) * indiv] = (double)Mij;
+                    ans[(j + d2) + (i + d1) * indiv] = (double)Mij;
                 }
             }
         }

@@ -93,7 +93,6 @@ n_snps = 2048 * 4 + 423; # Number of SNPs
 n_indiv = 2048 * 2 + 103; # Number of individuals 
 
 M = rand(Vector{T}(0:2), (n_snps, n_indiv));
-M = ones(T, (n_snps, n_indiv));
 
 M_packed = pack_twobit(T, M, n_indiv, n_snps);
 println(size(M_packed))
