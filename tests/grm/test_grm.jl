@@ -90,8 +90,7 @@ miraculix.load_shared_library()
 ## Test GRM functionality
 T = UInt8;
 n_snps = 2048 * 4 + 423; # Number of SNPs
-n_indiv = 2048 * 2 + 100; # Number of individuals 
-@assert n_indiv % 4 == 0
+n_indiv = 2048 * 2 + 103; # Number of individuals 
 
 M = rand(Vector{T}(0:2), (n_snps, n_indiv));
 M = ones(T, (n_snps, n_indiv));
@@ -105,4 +104,5 @@ D = BLAS.gemm('T','N',Matrix{Float64}(M),Matrix{Float64}(M));
 deviation = sum(abs.(ANS-D))
 println(deviation)
 println(ANS[1:10])
+println(D[1:10])
 @test deviation<1e-4
