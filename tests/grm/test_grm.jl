@@ -104,9 +104,9 @@ println("Check if routine returns right results")
             println("Casting")
             @time M_double = Matrix{Float64}(M)
 
-            ANS = miraculix.grm.compute(M_packed, n_snps, n_indiv)
+            ANS = miraculix.grm.compute(M_packed, n_snps, n_indiv, true)
             println("MMAGPU:")
-            @time miraculix.grm.compute(M_packed, n_snps, n_indiv)
+            @time miraculix.grm.compute(M_packed, n_snps, n_indiv, !true)
             println("DGEMM:")
             @time D = BLAS.gemm('T','N',M_double,M_double);
             deviation = sum(abs.(ANS-D))
@@ -130,3 +130,6 @@ end
         end
     end
 end 
+
+A=miraculix.read_plink.create_conversion_table()
+D=join(["0x"*string(i, base=16, pad=2) for i in A],",")

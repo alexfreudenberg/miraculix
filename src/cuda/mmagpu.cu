@@ -36,7 +36,7 @@ limitations under the License.
 const int default_tile_size = 2048;
 
 int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
-                               int indiv, double *ans) {   
+                               int indiv, double *ans, bool is_plink_format) {   
     /*
     xxx
 
@@ -178,6 +178,12 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
     if (checkError(__func__, __LINE__, cudaGetLastError()) != 0)
         return (1);
 
+    err = cudaMemcpyToSymbol(d_conversion_table, PLINK_CONVERSION_TABLE, 256 * sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
+    if (checkError(__func__, __LINE__, err) != 0)
+        return (1);
+    replace_functor functor(d_conversion_table);
+
+
     setup = clock();
     debug_info("Crossproduct: Time for initializing: %.3fs",
                 (double)(setup - start) / CLOCKS_PER_SEC);
@@ -223,6 +229,7 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
             d_tile1, n_bytes_per_indiv_padded, x, n_bytes_per_indiv,
             n_bytes_per_indiv, x_tile_size, cudaMemcpyHostToDevice,
             stream);
+        
 
         cudaStreamSynchronize(stream);
         if (checkError(__func__, __LINE__, private_err) != 0) {
@@ -230,7 +237,16 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
             err = private_err;
             continue;
         }
-
+        if(!is_plink_format){
+            device_convert_plink_2bit((unsigned char*) d_tile1, n_bytes_per_indiv_padded * x_tile_size, functor);
+        }
+        private_err = cudaGetLastError();
+        if (checkError(__func__, __LINE__, private_err) != 0) {
+            printf("Thread = %d, i = %d\n", threadidx, i);
+            err = private_err;
+            continue;
+        }
+        
         for (long j = i; j < indiv; j += mem_tile_size) {
             if (err != cudaSuccess) {
               continue;
@@ -252,6 +268,10 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
                 printf("Thread = %d, i = %d, j = %d\n", threadidx, i, j);
                 err = private_err;
                 continue;
+            }
+
+            if(!is_plink_format){
+                device_convert_plink_2bit((unsigned char*) d_tile2, n_bytes_per_indiv_padded * y_tile_size, functor);
             }
             private_err = cudaGetLastError();
             if (checkError(__func__, __LINE__, private_err) != 0) {
@@ -344,12 +364,17 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
     return 0;
 }
 
+void device_convert_plink_2bit(unsigned char *d_block, unsigned int extent, replace_functor functor){
+  thrust::device_ptr<unsigned char> thrust_ptr(d_block);
+//   thrust::transform(thrust_ptr, thrust_ptr + extent, [&](unsigned char value){ return PLINK_CONVERSION_TABLE[value];});
+  thrust::transform(thrust_ptr, thrust_ptr + extent, thrust_ptr, functor);
+}
 
 extern "C" {
 
 int crossprod_mmagpu(unsigned char *snp_matrix, int snps, int indiv,
-                      double *ans) {
-    return gpuCrossprodIntern(snp_matrix, snps, indiv, ans);
+                      double *ans, bool is_plink_format) {
+    return gpuCrossprodIntern(snp_matrix, snps, indiv, ans, is_plink_format);
 }
 
 }

@@ -26,14 +26,14 @@ using Libdl
 
 TBW
 """
-function compute(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int)
+function compute(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int, is_plink_format::Bool)
     check_dimensions(plink_transposed, indiv, snps)
 
     compute_sym = dlsym(LIBRARY_HANDLE[], :crossprod_mmagpu)
 
     M = zeros(Float64, (indiv, indiv))
 
-    ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}), plink_transposed, Int32(snps), Int32(indiv), M)
+    ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint), plink_transposed, Int32(snps), Int32(indiv), M, is_plink_format)
     # void crossprod_mmagpu(char *snp_matrix, int snps, int indiv, double *ans)
     
     return M

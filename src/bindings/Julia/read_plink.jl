@@ -150,17 +150,17 @@ An error will be thrown if a non-supported type T is supplied.
 # Examples
 print_conversion_table(UInt8, NaN_code = 255, verbose = true)
 """
-function create_conversion_table(::Type{T}, NaN_code = typemax(T), verbose = true) where{T}
-    max_val = typemax(T)
-    conversion_table = zeros(T, max_val+1)
+function create_conversion_table(NaN_code = typemax(UInt8), verbose = true)
+    max_val = typemax(UInt8)
+    conversion_table = zeros(UInt8, max_val+1)
     
     substr = Vector{String}(["00"])
-    size_in_bits = sizeof(T) * 8;
+    size_in_bits = sizeof(UInt8) * 8;
 
     # Conversion to TwoBit format
     for i in 0:max_val
-        index_str = bitstring(T(i));
-        new_entry = T(0);
+        index_str = bitstring(UInt8(i));
+        new_entry = UInt8(0);
          @inbounds for substr_index = 1:2:size_in_bits
             new_entry <<= 2;
             substr[1] = view(index_str, substr_index : (substr_index + 1));
@@ -170,7 +170,7 @@ function create_conversion_table(::Type{T}, NaN_code = typemax(T), verbose = tru
             elseif substr[1] == "11"
                 new_entry |= 2
             elseif substr[1] == "01"
-                new_entry = T(NaN_code)
+                new_entry = UInt8(NaN_code)
                 break
             end
         end
