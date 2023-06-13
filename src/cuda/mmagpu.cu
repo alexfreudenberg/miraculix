@@ -178,10 +178,7 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
     if (checkError(__func__, __LINE__, cudaGetLastError()) != 0)
         return (1);
 
-    err = cudaMemcpyToSymbol(d_conversion_table, PLINK_CONVERSION_TABLE, 256 * sizeof(unsigned char), 0, cudaMemcpyHostToDevice);
-    if (checkError(__func__, __LINE__, err) != 0)
-        return (1);
-    replace_functor functor(d_conversion_table);
+    replace_functor functor;
 
 
     setup = clock();
