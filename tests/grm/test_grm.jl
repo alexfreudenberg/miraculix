@@ -47,6 +47,7 @@ include(MODULE_PATH)
 # =====================
 
 function pack_twobit(::Type{T}, M::Matrix{T}, n_snps, n_indiv) where{T}
+    @assert (n_indiv, n_snps) == size(M)
     BITS = sizeof(T) * 8;
     CODES_PER_UNIT = Int(BITS/2); 
     n_vec = Int(ceil(n_indiv*2/BITS));
@@ -88,8 +89,9 @@ miraculix.load_shared_library()
 
 ## Test GRM functionality
 T = UInt8;
-n_snps = 2048 * 4; # Number of SNPs
-n_indiv = 2048 * 2; # Number of individuals
+n_snps = 2048 * 4 + 423; # Number of SNPs
+n_indiv = 2048 * 2 + 100; # Number of individuals 
+@assert n_indiv % 4 == 0
 
 M = rand(Vector{T}(0:2), (n_snps, n_indiv));
 M = ones(T, (n_snps, n_indiv));
