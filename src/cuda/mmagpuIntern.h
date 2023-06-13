@@ -135,7 +135,6 @@ struct Mma<
   asm volatile(
     "{\n\t"
     ".reg .u32 u1, u2;\n\t"
-    ".reg .s32 s1, s2;\n\t"
     "shr.b32 u1, %2, 2;\n\t"
     "shr.b32 u2, %3, 2;\n\t"
     "and.b32 u1, u1, %6;\n\t"
