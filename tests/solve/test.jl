@@ -106,7 +106,7 @@ miraculix.load_shared_library()
 
 
 println("Check if routine returns right results")
-@testset "Consistency" begin
+@testset "Correctness" begin
     for n in Vector{Int64}([1e2,5e3, 15e3])
         for ncol in [1, 5, 20]
             for density in [0.05, 0.7]

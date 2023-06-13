@@ -89,6 +89,22 @@ miraculix.load_shared_library()
 
 ## Test GRM functionality
 T = UInt8;
+println("Check if routine returns right results")
+
+@testset "Correctness" begin
+    for n_snps in Vector{Int64}([1e4, 5e4, 1e5])
+        for n_indiv in Vector{Int64}([1e3, 7e3, 2e4])
+            M = rand(Vector{T}(0:2), (n_snps, n_indiv));
+            M_packed = pack_twobit(T, M, n_indiv, n_snps);
+
+            ANS = miraculix.grm.compute(M_packed, n_snps, n_indiv)
+            @time miraculix.grm.compute(M_packed, n_snps, n_indiv)
+            D = BLAS.gemm('T','N',Matrix{Float64}(M),Matrix{Float64}(M));
+            deviation = sum(abs.(ANS-D))
+            @test deviation<1e-4
+        end
+    end
+end 
 n_snps = 2048 * 4 + 423; # Number of SNPs
 n_indiv = 2048 * 2 + 103; # Number of individuals 
 

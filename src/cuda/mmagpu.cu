@@ -47,6 +47,8 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
                 private_err = cudaSuccess;
     cudaStream_t stream;
 
+    clock_t start, setup, calculation, end;
+    start = clock();
     // Input data
     unsigned char *d_Z_block1, *d_Z_block2;
     // Buffer for output
@@ -58,9 +60,7 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
     if (env_num_threads != NULL) {
         num_threads = atoi(env_num_threads);
     }
-    if (verbose) {
-        printf("Using %d OMP threads.\n", num_threads);
-    }
+
 
     const long n_bytes_per_indiv =
         (snps - 1) / 4 + 1; // number of columns of Z if individuals
@@ -79,7 +79,11 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
     if (env_tile_size != NULL) {
         mem_tile_size = atoi(env_tile_size);
     }
-    debug_info("Using tile size of %d.\n", mem_tile_size);
+    
+    if (verbose) {
+        printf("Using %d OMP threads and memory tile size of %d.\n", num_threads, mem_tile_size);
+    }
+
     debug_info("Function arguments: snps %d, indiv %d, bytes_per_indiv %d, bytes_per_indiv_padded %d, k %d.\n", snps, indiv, n_bytes_per_indiv, n_bytes_per_indiv_padded, n_bytes_per_indiv_padded * n_snps_per_u4b);
     
     mem_tile_size = min(indiv, mem_tile_size);
@@ -174,13 +178,17 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
     if (checkError(__func__, __LINE__, cudaGetLastError()) != 0)
         return (1);
 
+    setup = clock();
+    debug_info("Crossproduct: Time for initializing: %.3fs",
+                (double)(setup - start) / CLOCKS_PER_SEC);
+
     // Main loop
     // Calculates matrix multiplications in parallel: Each thread in this loop sends
     // its data to a different stream on the device. The threads calculate
     // concurrently and send the output back to main memory. Memory copies are
     // asynchronous to take full advantage of the memory bandwidth.
     #ifdef DO_PARALLEL
-    // #pragma omp parallel for num_threads(num_threads) private(private_err,stream) shared(err) schedule(dynamic)
+    #pragma omp parallel for num_threads(num_threads) private(private_err,stream) shared(err) schedule(dynamic)
     #endif
     for (long i = 0; i < indiv; i += mem_tile_size) {
         if(err != cudaSuccess){
@@ -233,9 +241,7 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
             int columns_remaining = indiv - j;
             int y_tile_size = min(mem_tile_size, columns_remaining);
             int y_tile_size_padded = ((y_tile_size-1)/4 +1 ) * 4; // padded tile sizes are required as CUTLASS needs dimensions that are a multiple of 4
-            
-            debug_info("i: %d, j: %d, snps_per_byte: %d, bytes_per_snp: %d, columns_remaining: %d, x_tile_size: %d,  y_tile_size: %d, mem_tile_size: %d", i, j, n_snps_per_byte, n_bytes_per_indiv, columns_remaining, x_tile_size, y_tile_size, mem_tile_size);
-            
+                        
             private_err = cudaMemcpy2DAsync(
                 d_tile2, n_bytes_per_indiv_padded, y, n_bytes_per_indiv,
                 n_bytes_per_indiv, y_tile_size, cudaMemcpyHostToDevice,
@@ -322,12 +328,19 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
         cudaStreamDestroy(stream);
     }
 
+    calculation = clock();
+    debug_info("Crossproduct: Time for calculation: %.3fs",
+                (double)(calculation - setup) / CLOCKS_PER_SEC);
+
     // Free memory
     cudaFree(d_Z_block1);
     cudaFree(d_Z_block2);
     cudaFree(d_M);
     cudaFreeHost(h_M);
 
+    end = clock();
+    debug_info("Crossproduct: Total time: %.3fs",
+                (double)(end - start) / CLOCKS_PER_SEC);
     return 0;
 }
 
