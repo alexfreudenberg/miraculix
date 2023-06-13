@@ -23,6 +23,7 @@ using Random;
 using Distances; 
 using SparseArrays;
 using LinearAlgebra;
+using MKL;
 using Test
 using .Threads: @threads
 
@@ -39,6 +40,7 @@ Random.seed!(0);
 
 # Remove commit message verbosity
 ENV["PRINT_LEVEL"] = "1";
+BLAS.set_num_threads(parse(Int,ENV["OMP_NUM_THREADS"]))
 
 include(MODULE_PATH)
 
@@ -46,7 +48,7 @@ include(MODULE_PATH)
 # Auxiliary functions
 # =====================
 
-function pack_twobit(::Type{T}, M::Matrix{T}, n_snps, n_indiv) where{T}
+function pack_twobit(::Type{T}, M::Matrix{T}, n_snps::Int64, n_indiv::Int64) where{T}
     @assert (n_indiv, n_snps) == size(M)
     BITS = sizeof(T) * 8;
     CODES_PER_UNIT = Int(BITS/2); 
@@ -93,7 +95,30 @@ println("Check if routine returns right results")
 
 @testset "Correctness" begin
     for n_snps in Vector{Int64}([1e4, 5e4, 1e5])
-        for n_indiv in Vector{Int64}([1e3, 7e3, 2e4])
+        for n_indiv in Vector{Int64}([2e3, 15e3])
+            println("n_snps: ",n_snps, " n_indiv: ", n_indiv)
+            println("Simulation")
+            @time M = rand(Vector{T}(0:2), (n_snps, n_indiv));
+            println("Packing")
+            @time M_packed = pack_twobit(T, M, n_indiv, n_snps);
+            println("Casting")
+            @time M_double = Matrix{Float64}(M)
+
+            ANS = miraculix.grm.compute(M_packed, n_snps, n_indiv)
+            println("MMAGPU:")
+            @time miraculix.grm.compute(M_packed, n_snps, n_indiv)
+            println("DGEMM:")
+            @time D = BLAS.gemm('T','N',M_double,M_double);
+            deviation = sum(abs.(ANS-D))
+            @test deviation<1e-4
+        end
+    end
+end 
+
+
+@testset "Correctness in uneven dimensions" begin
+    for n_snps in Vector{Int64}([953, 10251])
+        for n_indiv in Vector{Int64}([752, 5343, 12433])
             M = rand(Vector{T}(0:2), (n_snps, n_indiv));
             M_packed = pack_twobit(T, M, n_indiv, n_snps);
 
@@ -105,19 +130,3 @@ println("Check if routine returns right results")
         end
     end
 end 
-n_snps = 2048 * 4 + 423; # Number of SNPs
-n_indiv = 2048 * 2 + 103; # Number of individuals 
-
-M = rand(Vector{T}(0:2), (n_snps, n_indiv));
-
-M_packed = pack_twobit(T, M, n_indiv, n_snps);
-println(size(M_packed))
-
-ANS = miraculix.grm.compute(M_packed, n_snps, n_indiv)
-
-D = BLAS.gemm('T','N',Matrix{Float64}(M),Matrix{Float64}(M));
-deviation = sum(abs.(ANS-D))
-println(deviation)
-println(ANS[1:10])
-println(D[1:10])
-@test deviation<1e-4
