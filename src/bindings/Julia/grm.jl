@@ -20,22 +20,50 @@ module grm
 
 import ..LIBRARY_HANDLE, ..check_storage_object, ..check_dimensions
 using Libdl
+using LinearAlgebra
 
 """
     grm(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int)
 
 TBW
 """
-function compute(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int, is_plink_format::Bool)
-    check_dimensions(plink_transposed, indiv, snps)
+function compute(plink::Matrix{UInt8}, snps::Int, indiv::Int; do_center::Bool, is_transposed::Bool, scaling_method::Int, is_plink_format::Bool = false, allele_freq::Vector{Float64} = Vector{Float64}())
+    if is_transposed
+        nrow, ncol = snps, indiv
+    else 
+        nrow, ncol = indiv, snps
+    end
+
+    check_dimensions(plink, ncol, nrow)
 
     compute_sym = dlsym(LIBRARY_HANDLE[], :crossprod_mmagpu)
 
-    M = zeros(Float64, (indiv, indiv))
+    M = zeros(Float64, (ncol, ncol))
 
-    ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint), plink_transposed, Int32(snps), Int32(indiv), M, is_plink_format)
-    # void crossprod_mmagpu(char *snp_matrix, int snps, int indiv, double *ans)
+    ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint), plink, Int32(nrow), Int32(ncol), M, is_plink_format)
     
+    @assert issymmetric(M) "Result not symmetric" 
+
+    if do_center
+        col_sum = sum(M, dims = 1)
+        M .-= col_sum ./ indiv
+        M .-= transpose(col_sum) ./ indiv
+        M .+= sum(col_sum) ./ indiv^2
+    end
+    if scaling_method != 0
+       # @assert isequal(length(allele_freq), snps) "Allele frequencies need to be supplied for scaling" 
+        if scaling_method == 1
+            c = 2 * sum(allele_freq .* (1 - allele_freq))
+            M ./=c
+        elseif scaling_method == 2
+            allele_freq = reshape(allele_freq, (snps,1))
+            M ./= allele_freq
+            M ./= transpose(allele_freq)
+        else 
+            error("Wrong scaling method.")
+        end
+    end
+
     return M
 end
 

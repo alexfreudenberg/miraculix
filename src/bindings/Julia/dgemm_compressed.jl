@@ -23,7 +23,7 @@ using Libdl
 
 
 # This function decompresses genotype data in PLINK format for testing purposes -- throws an error if it finds a missing value
-function decompress_genotype_data(plink::Matrix{UInt8}, indiv::Int, snps::Int)
+function decompress_plink_format(plink::Matrix{UInt8}, indiv::Int, snps::Int)
     decompressed = zeros(Float64, Int(ceil(indiv/4) * 4), snps);
 
     for (index,entry) in pairs(IndexLinear(),plink)
@@ -35,6 +35,19 @@ function decompress_genotype_data(plink::Matrix{UInt8}, indiv::Int, snps::Int)
             (genotype_float == 1.0) && error("Missing in genotype data")
             # Convert PLINK format to 0,1,2 format
             decompressed[offset_decompressed + i] = max(0, genotype_float -1)
+        end    
+    end
+    decompressed = decompressed[1:indiv,:]
+    return decompressed
+end
+function decompress_2bit_format(genotype_data::Matrix{UInt8}, indiv::Int, snps::Int)
+    decompressed = zeros(Float64, Int(ceil(indiv/4) * 4), snps);
+
+    for (index,entry) in pairs(IndexLinear(),genotype_data)
+        offset_decompressed = (index-1) * 4 + 1
+        @inbounds for i in 0:3
+            # Convert packed SNP data to Float
+            decompressed[offset_decompressed + i]= Float64((entry >> (2*i)) & 0x03)
         end    
     end
     decompressed = decompressed[1:indiv,:]

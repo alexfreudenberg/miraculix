@@ -39,8 +39,8 @@ using Test
 ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
-DATA_FILE = ROOT_DIR * "/data/small.bed"
-FREQ_FILE = ROOT_DIR * "/data/small.freq"
+DATA_FILE = ROOT_DIR * "/data/many_snps.bed"
+FREQ_FILE = ROOT_DIR * "/data/many_snps.freq"
 
 include(MODULE_PATH)
 
@@ -55,12 +55,15 @@ miraculix.load_shared_library()
 miraculix.dgemm_compressed.set_options(use_gpu=false, verbose=0)
 
 println("Read bed file and frequencies")
-@time genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,true)
-@time genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,false)
+@time genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,coding_twobit = true, calc_freq = false)
+@time genotype_data, calc_freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,coding_twobit = true, calc_freq = true)
+@time genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,coding_twobit = false)
 
 freq = miraculix.read_plink.read_freq(FREQ_FILE)
+@test isapprox(freq, calc_freq, atol=0.1)
+
 println("Transpose matrix")
-genotype_data_transposed = miraculix.dgemm_compressed.transpose_genotype_matrix(genotype_data, n_snps, n_indiv)
+@time genotype_data_transposed = miraculix.dgemm_compressed.transpose_genotype_matrix(genotype_data, n_snps, n_indiv)
 
 @testset "Consistency" begin
     @test size(genotype_data) == (ceil(n_indiv/4), n_snps)
@@ -69,8 +72,8 @@ genotype_data_transposed = miraculix.dgemm_compressed.transpose_genotype_matrix(
 end
 
 println("Decompress genotype data")
-genotype_data_decompressed = miraculix.dgemm_compressed.decompress_genotype_data(genotype_data, n_indiv, n_snps)
-genotype_data_t_decompressed = miraculix.dgemm_compressed.decompress_genotype_data(genotype_data_transposed, n_snps, n_indiv)
+genotype_data_decompressed = miraculix.dgemm_compressed.decompress_plink_format(genotype_data, n_indiv, n_snps)
+genotype_data_t_decompressed = miraculix.dgemm_compressed.decompress_plink_format(genotype_data_transposed, n_snps, n_indiv)
 
 @testset "Transpose operation" begin
     @test size(genotype_data_decompressed) == (n_indiv, n_snps)

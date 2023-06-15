@@ -234,7 +234,7 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
             err = private_err;
             continue;
         }
-        if(!is_plink_format){
+        if(is_plink_format){
             device_convert_plink_2bit((unsigned char*) d_tile1, n_bytes_per_indiv_padded * x_tile_size, functor);
         }
         private_err = cudaGetLastError();
@@ -267,7 +267,7 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
                 continue;
             }
 
-            if(!is_plink_format){
+            if(is_plink_format){
                 device_convert_plink_2bit((unsigned char*) d_tile2, n_bytes_per_indiv_padded * y_tile_size, functor);
             }
             private_err = cudaGetLastError();

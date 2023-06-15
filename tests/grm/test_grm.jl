@@ -130,6 +130,3 @@ end
         end
     end
 end 
-
-A=miraculix.read_plink.create_conversion_table()
-D=join(["0x"*string(i, base=16, pad=2) for i in A],",")
