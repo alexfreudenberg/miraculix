@@ -25,6 +25,7 @@ using Libdl
 const LIBRARY_PATH = Ref{String}()  # Reference to store the library path
 const LIBRARY_HANDLE = Ref{Ptr{Cvoid}}() # Reference to store the library handle returned by Libdl
 
+# Check if storage object has valid pointer
 function check_storage_object(obj_ref::Ref{Ptr{Cvoid}})
     if obj_ref[] == C_NULL
         error("No valid storage object supplied")
@@ -103,9 +104,10 @@ function close_shared_library()
     end
 end
 
+include("compressed_operations.jl")
 include("dgemm_compressed.jl")
 include("read_plink.jl")
 include("solve.jl")
-include("grm.jl")
+include("crossproduct.jl")
 
 end

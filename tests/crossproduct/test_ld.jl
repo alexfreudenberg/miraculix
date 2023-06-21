@@ -25,17 +25,23 @@ using SparseArrays;
 using LinearAlgebra;
 using MKL;
 using Test
-using .Threads: @threads
+using CSV;
+using DataFrames
 
 # =====================
 # Global definitions
 # =====================
 
+SIZE="xsmall"
+
 ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
-DATA_FILE = ROOT_DIR * "/data/xsmall.bed"
-FREQ_FILE = ROOT_DIR * "/data/xsmall.freq"
+
+DATA_DIR = ROOT_DIR * "/data"
+DATA_FILE = DATA_DIR * "/$SIZE.bed"
+FREQ_FILE = DATA_DIR * "/$SIZE.freq"
+LD_FILE = DATA_DIR * "/$SIZE.ld"
 
 tol = 1e-1;
 Random.seed!(0);
@@ -55,20 +61,21 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
+if !isfile(LD_FILE)
+    cd(DATA_DIR)
+    run(`./plink --bfile $SIZE --r square`)
+    run(`mv plink.ld $LD_FILE`)
+    cd(ROOT_DIR)
+end
 
-## Test GRM functionality
-T = UInt8;
+## Test LD calculation
+@time genotype_data, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE, coding_twobit = true, calc_freq = true)
 
-@time genotype_data, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,coding_twobit = true, calc_freq = true)
+@testset "Correctness" begin
+    @time M = miraculix.crossproduct.ld(genotype_data, n_snps, n_indiv, is_plink_format = false, allele_freq = freq)
+    
+    ld_plink = Matrix(CSV.read(LD_FILE, delim = '\t', header = 0, DataFrame))
 
-#freq = miraculix.read_plink.read_freq(FREQ_FILE)
-println(size(freq))
-
-M = miraculix.grm.compute(genotype_data, n_snps, n_indiv; do_center = false, is_transposed = false, scaling_method = 0, is_plink_format = false, allele_freq = freq)
-
-BLAS.syr!('U', Float64( -4*n_indiv), freq, M)
-M = Symmetric(M, :U)
-
-M_unpacked = miraculix.dgemm_compressed.decompress_2bit_format(genotype_data, n_indiv, n_snps)
-M_centered = M_unpacked .- sum(M_unpacked, dims = 1)/size(M_unpacked,1)
-Cov = transpose(M_centered) * M_centered
+    @test isequal(size(ld_plink),size(M))
+    @test sum(abs.(ld_plink - M)) < 0.1
+end

@@ -26,14 +26,24 @@ using LinearAlgebra;
 using MKL;
 using Test
 using .Threads: @threads
+using CSV
+using DataFrames;
 
 # =====================
 # Global definitions
 # =====================
 
+SIZE="xsmall"
+
+
 ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
+
+DATA_DIR = ROOT_DIR * "/data"
+DATA_FILE = DATA_DIR * "/$SIZE.bed"
+FREQ_FILE = DATA_DIR * "/$SIZE.freq"
+GRM_FILE = DATA_DIR * "/$SIZE.grm.bin"
 
 tol = 1e-1;
 Random.seed!(0);
@@ -88,12 +98,31 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
+if !isfile(GRM_FILE)
+    cd(DATA_DIR)
+    run(`./plink --bfile $SIZE --make-rel square cov`)
+    run(` mv plink.rel $GRM_FILE`)
+    cd(ROOT_DIR)
+end
+
 
 ## Test GRM functionality
 T = UInt8;
-println("Check if routine returns right results")
 
-@testset "Correctness" begin
+println("Check routine against PLINK")
+@testset "PLINK comparison" begin
+    plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE, coding_twobit = true, calc_freq = true)
+    plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
+    @time G1 = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = false)
+    G1 ./= n_snps
+
+    G2 = Matrix(CSV.read(GRM_FILE, delim = '\t', header = 0, DataFrame))
+    @test norm(G1 - G2)<1e-4
+end
+
+
+println("Check if routine returns right results")
+@testset "Correctness for 2bit simulated data" begin
     for n_snps in Vector{Int64}([1e4, 5e4, 1e5])
         for n_indiv in Vector{Int64}([2e3, 15e3])
             println("n_snps: ",n_snps, " n_indiv: ", n_indiv)
@@ -102,14 +131,22 @@ println("Check if routine returns right results")
             println("Packing")
             @time M_packed = pack_twobit(T, M, n_indiv, n_snps);
             println("Casting")
-            @time M_double = Matrix{Float64}(M)
+            @time M_double = Matrix{Float64}(M) 
+            freq = vec(sum(M_double, dims = 2)) ./ (2 * n_indiv)
 
-            ANS = miraculix.grm.compute(M_packed, n_snps, n_indiv, true)
-            println("MMAGPU:")
-            @time miraculix.grm.compute(M_packed, n_snps, n_indiv, !true)
-            println("DGEMM:")
+            # Centering
             @time D = BLAS.gemm('T','N',M_double,M_double);
-            deviation = sum(abs.(ANS-D))
+            ANS_uncentered = miraculix.crossproduct.snp_crossprod(M_packed, n_snps, n_indiv, is_snpmajor = false, is_plink_format = false)
+            @test sum(abs.(D - ANS_uncentered))< 1e-4
+
+            println("MMAGPU:")
+            @time ANS = miraculix.crossproduct.grm(M_packed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq))
+            println("DGEMM:")
+            M_centered = M_double .- freq * 2
+            @time D_centered = BLAS.gemm('T','N', M_centered, M_centered);
+            D_centered ./= 2 * sum(freq .* (1.0 .- freq))
+            
+            deviation = sum(abs.(ANS-D_centered))
             @test deviation<1e-4
         end
     end
@@ -130,3 +167,4 @@ end
         end
     end
 end 
+

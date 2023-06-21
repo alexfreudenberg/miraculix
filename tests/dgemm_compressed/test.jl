@@ -63,7 +63,7 @@ freq = miraculix.read_plink.read_freq(FREQ_FILE)
 @test isapprox(freq, calc_freq, atol=0.1)
 
 println("Transpose matrix")
-@time genotype_data_transposed = miraculix.dgemm_compressed.transpose_genotype_matrix(genotype_data, n_snps, n_indiv)
+@time genotype_data_transposed = miraculix.compressed_operations.transpose_genotype_matrix(genotype_data, n_snps, n_indiv)
 
 @testset "Consistency" begin
     @test size(genotype_data) == (ceil(n_indiv/4), n_snps)
