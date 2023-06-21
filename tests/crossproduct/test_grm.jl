@@ -37,6 +37,7 @@ SIZE="xsmall"
 
 
 ROOT_DIR = string(@__DIR__) * "/../.."
+
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 
@@ -159,8 +160,7 @@ end
             M = rand(Vector{T}(0:2), (n_snps, n_indiv));
             M_packed = pack_twobit(T, M, n_indiv, n_snps);
 
-            ANS = miraculix.grm.compute(M_packed, n_snps, n_indiv)
-            @time miraculix.grm.compute(M_packed, n_snps, n_indiv)
+            ANS = miraculix.crossproduct.snp_crossprod(M_packed, n_snps, n_indiv, is_snpmajor = false)
             D = BLAS.gemm('T','N',Matrix{Float64}(M),Matrix{Float64}(M));
             deviation = sum(abs.(ANS-D))
             @test deviation<1e-4
