@@ -1,11 +1,13 @@
 # miraculix
-#### Efficient algebraic functions for statistical analysis of genomic data
+### Efficient algebraic functions for statistical analysis of genomic data
+Alexander Freudenberg, Martin Schlather, Jeremie Vandenplas
+
 *June 2023*
 
 ## Description
 miraculix is a C/CUDA library for mathematical operations on compressed genotype data. It provides highly efficient routines that can be used in statistical analyses of genomic information, e.g. genome-wide association studies, genomic breeding value estimation and population summary statistics. As such, it offers interfaces to allow integration into existing C utilities as well as interoperability with higher-level programming languages such as R, Julia or Fortran.
 
-Through its CUDA implementation, miraculix aims to open the high-performance computing capabilities of modern Nvidia GPUs to researchers and practitioners in the field of statistical genomics. To this end, miraculix uses and extends [Nvidia's CUTLASS (2.10)](https://github.com/NVIDIA/cutlass) library to enable efficient data movement on the GPU. [Experiments]() suggest that, for instance, genomic breeding value estimation benefits greatly from offloading bottlenecks to GPUs.
+Through its CUDA implementation, miraculix aims to open the high-performance computing capabilities of modern Nvidia GPUs to researchers and practitioners in the field of statistical genomics. To this end, miraculix uses and extends [Nvidia's CUTLASS (2.10)](https://github.com/NVIDIA/cutlass) library to enable efficient data movement on the GPU. [Experiments](./utils/benchmarks) suggest that, for instance, genomic breeding value estimation benefits greatly from offloading bottlenecks to GPUs.
 
 Previous versions of miraculix have been released as an R package on CRAN. However, CRAN's strict portability requirements have been shown to be too restrictive to maintain the code base while simultaneously assuring efficiency across instruction set architectures. Yet, many of the interfaces required for a smooth R integration are still present and can be compiled to a full R package.
 
@@ -13,15 +15,16 @@ While we migrate the existing functionality to this repository, please expect fu
 
 ## Requirements
 For compilation, the following software is required:
-* [GNU Make](https://www.gnu.org/software/make/) *(other implementations of Make have not been tested)*
-* GNU's gcc or Intel's icc compiler
+* Make
+* Intel's oneAPI toolkit
+* [Plink 1.9](https://www.cog-genomics.org/plink/1.9/) for simulation purposes
 
 Additionally, to compile the CUDA code, you need
 * a CUDA installation (11.3 or newer)
   
 
 ## Compilation
-To compile the CUDA version of miraculix, you first need to clone the CUTLASS submodule:
+To compile the CUDA version of miraculix, you first need to initialize the CUTLASS submodule:
 ```{bash}
 git submodule init
 git submodule update
@@ -46,7 +49,9 @@ If you wish to integrate the genotype matrix multiplication functionality into y
 Interfaces to the other routines will be added gradually.
 
 ## Examples 
-Exemplary usage of the routines can be found in the [examples](./examples) folder and in the [benchmarking files](./utils/benchmark/). The syntax for these Fortran files is as follows:
+Exemplary usage of the routines can be found in the [examples](./examples) folder and in the [benchmarking files](./utils/benchmark/). 
+
+As an exemplary use case, we illustrate how to call the genotype-matrix multiplications below.
 **Options**
 Set the options used later on. Most of the options can't be changed after they have been set initially. 
 ```fortran
@@ -79,7 +84,7 @@ call c_free_compressed(c_compressed)
 ## Citation
 If you decide to use this repository for your scientific work, please consider citing it.
 
-## Publications
+## Publications using miraculix
 - **The Modular Breeding Program Simulator (MoBPS) allows efficient simulation of complex breeding programs.** 
 Pook, T., Reimer, C., Freudenberg, A., Büttgen, L., Geibel, J., Ganesan, A., Ha, T., Schlather, M., Mikkelsen, L., Simianer, H.,
 Animal Production Science, 61, 1982-1989, 2021. 
