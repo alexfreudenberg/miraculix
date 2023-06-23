@@ -11,8 +11,9 @@ which corresponds to a `syr2` operation followed by a `syr`.
 
 In practice, $n^2M$ could leave the `Int32` range when $n^2 s > 2^{29}\approx 536$ mn. For the lack of appropriate accumulators on GPUs, we hence convert the entries of $M$ to double-precision floating-point values after computation of $M$, as there are hardly any integer-valued BLAS Level-2 operations anyway. 
 
-Unfortunately, this approach fails when the standardized GRM $\tilde{G}$ is required, which scales the columns of $PZ$ by standard deviation of each SNP:
-$$\tilde{G) = (PZB)(PZB)^T \quad \text{with} \quad B = \text{diag}( 2 p^T (1-p))^{1/2},$$
+Unfortunately, this approach fails when the standardized GRM $\tilde{G}$ is required, which scales the columns of $PZ$ by the standard deviation of each SNP:
+$$\tilde{G} = (PZB^{1/2})(PZB^{1/2})^T \quad \text{with} \quad B = \text{diag} (2 p^T (1-p)),$$
+where we adapted the notation of Mäntysaari et al 2017[^3]. Hence, [PLINK's variance-standardization](https://www.cog-genomics.org/plink/1.9/distance#make_rel) can't be accelerated in the same way.
 
 
 ### References
