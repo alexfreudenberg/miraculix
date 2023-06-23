@@ -11,8 +11,13 @@ which corresponds to a `syr2` operation followed by a `syr`.
 
 In practice, $n^2M$ could leave the `Int32` range when $n^2 s > 2^{29}\approx 536$ mn. For the lack of appropriate accumulators on GPUs, we hence convert the entries of $M$ to double-precision floating-point values after computation of $M$, as there are hardly any integer-valued BLAS Level-2 operations anyway. 
 
+Unfortunately, this approach fails when the standardized GRM $\tilde{G}$ is required, which scales the columns of $PZ$ by standard deviation of each SNP:
+$$\tilde{G) = (PZB)(PZB)^T \quad \text{with} \quad B = \text{diag}( 2 p^T (1-p))^{1/2},$$
+
 
 ### References
 [^1]: VanRaden PM. Efficient methods to compute genomic predictions. J Dairy Sci. 2008 Nov;91(11):4414-23. doi: 10.3168/jds.2007-0980. PMID: 18946147.
 
 [^2]: Schlather, Martin. Efficient calculation of the genomic relationship matrix. bioRxiv (2020): 2020-01.
+
+[^3]: Mäntysaari EA, Evans RD, Strandén I. Efficient single-step genomic evaluation for a multibreed beef cattle population having many genotyped animals. J Anim Sci. 2017 Nov;95(11):4728-4737. doi: 10.2527/jas2017.1912. PMID: 29293736; PMCID: PMC6292282.
