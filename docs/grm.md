@@ -1,5 +1,5 @@
 # Genomic Relationship Matrix
-For a SNP matrix $Z\in \{0,1,2\}^{n \times s}$, the classical genomic relationship matrix (GRM) with uniform scaling introduced by VanRaden 2008[^1] is defined by
+For a SNP matrix $Z\in \\{ 0,1,2 \\}^{n \times s}$, the classical genomic relationship matrix (GRM) with uniform scaling introduced by VanRaden 2008[^1] is defined by
 $$G= \frac{PZ Z^TP^T}{2 p^T(1-p)}, \quad \text{with} \quad P = I - \frac{1}{n}1_n 1_n^T, p = \frac{1}{2n}1_n^TZ$$
 
 As noted in Schlather 2020[^2], the computation of $G$ is vastly more efficient when decomposing it into
