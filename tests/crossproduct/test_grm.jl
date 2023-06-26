@@ -24,9 +24,8 @@ using Distances;
 using SparseArrays;
 using LinearAlgebra;
 using MKL;
-using Test
-using .Threads: @threads
-using CSV
+using Test;
+using CSV;
 using DataFrames;
 
 # =====================
@@ -35,17 +34,17 @@ using DataFrames;
 
 SIZE="xsmall"
 
-
 ROOT_DIR = string(@__DIR__) * "/../.."
 
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
-
 DATA_DIR = ROOT_DIR * "/data"
+
 DATA_FILE = DATA_DIR * "/$SIZE.bed"
 FREQ_FILE = DATA_DIR * "/$SIZE.freq"
 GRM_FILE = DATA_DIR * "/$SIZE.grm.bin"
 
+T = UInt8;
 tol = 1e-1;
 Random.seed!(0);
 
@@ -75,21 +74,6 @@ function pack_twobit(::Type{T}, M::Matrix{T}, n_snps::Int64, n_indiv::Int64) whe
     end
     return M_packed
 end
-function crossprod(::Type{T}, M::Matrix, n, k) where{T}
-    VEC = zeros(T,n);
-    Mi = zeros(T,n);
-    COUNTS = zeros(UInt32, n);
-    RESULT = zeros(UInt32,(k,k));
-    @inbounds @views @threads for i = 1:k
-        copyto!(Mi, view(M,:, i));
-        @inbounds for j in i:k
-            broadcast!(&, VEC, Mi, view(M, :, j));
-            broadcast!(count_ones, COUNTS, VEC);
-            RESULT[i,j] = RESULT[j,i] = sum(COUNTS);
-        end
-    end
-    return RESULT;
-end
 
 # =====================
 # Main
@@ -108,8 +92,6 @@ end
 
 
 ## Test GRM functionality
-T = UInt8;
-
 println("Check routine against PLINK")
 @testset "PLINK comparison" begin
     plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE, coding_twobit = true, calc_freq = true)
