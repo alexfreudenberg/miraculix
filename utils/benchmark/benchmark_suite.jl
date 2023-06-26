@@ -15,9 +15,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# =====================================================
-# This file is heavily WIP
-# =====================================================
 using Base;
 using Random;
 using Distances; 
@@ -26,6 +23,7 @@ using MKL;
 using Test;
 using CSV;
 using DataFrames;
+using BenchmarkTools;
 
 # =====================
 # Global definitions
@@ -40,9 +38,9 @@ DATA_DIR = ROOT_DIR * "/data"
 BENCHMARK_SIZES=["few_snps", "medium_snps", "many_snps"]
 
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1_000_000
-SAMPLES = 5
+
 # Remove commit message verbosity
-ENV["PRINT_LEVEL"] = "-1";
+ENV["PRINT_LEVEL"] = "1";
 
 OMP_NUM_THREADS = ENV["OMP_NUM_THREADS"];
 println("OMP threads set to $OMP_NUM_THREADS")
@@ -52,7 +50,8 @@ include(MODULE_PATH)
 # =====================
 # Auxiliary function
 # =====================
-function run_miraculix_grm(data_file::String)
+function run_miraculix_grm(data::String)
+    data_file = data * ".bed"
     plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
 
     plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
@@ -63,8 +62,8 @@ function run_miraculix_grm(data_file::String)
     return Nothing
 end
 
-function run_plink_grm(data_file::String)
-    run(`./plink --bfile $data_file --make-rel square cov`)
+function run_plink_grm(data::String)
+    run(`./plink --bfile $data --threads $OMP_NUM_THREADS --make-rel square cov`)
 end
 # =====================
 # Main
@@ -76,15 +75,17 @@ miraculix.load_shared_library()
 cd(DATA_DIR)
 
 ## Benchmark
-println("Benchmark GRM calculation against PLINK")
-
 suite = BenchmarkGroup()
 suite["GRM"] =  BenchmarkGroup(["GRM", "crossproduct"])
 suite["LD"] =  BenchmarkGroup(["LD", "crossproduct"])
 
 
 for size in BENCHMARK_SIZES
-    data_file = DATA_DIR * "/$size.bed"
-    suite["GRM"][size, "miraculix"] = @benchmarkable run_miraculix_grm($data_file)
-    suite["GRM"][size, "plink"] = @benchmarkable run_plink_grm($data_file)
+    suite["GRM"][size, "miraculix"] = @benchmarkable run_miraculix_grm($size)
+    suite["GRM"][size, "plink"] = @benchmarkable run_plink_grm($size)
+end
+
+for size in BENCHMARK_SIZES
+    run_miraculix_grm(size)
+    run_plink_grm(size)
 end
