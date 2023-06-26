@@ -15,7 +15,36 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import Dates;
 include("benchmark_suite.jl")
+
+# =====================
+# Get arguments for benchmarking
+# =====================
+
+if length(ARGS) > 0
+    mode = ARGS[1]
+    if mode == "miraculix"
+        suite = suite_miraculix
+    elseif mode == "PLINK"
+        suite = suite_plink
+    else
+        error("First command-line argument needs to be `GPU` or `PLINK`, specifying the Benchmark Suite to run.")
+    end
+else
+    error("No command-line arguments provided.")
+end
+
+if !isdir(LOG_DIR)
+    mkdir(LOG_DIR)
+end
+date = Dates.today()
+
+# =====================
+# Start benchmarks
+# =====================
 samples = 5
 
-run(suite, samples = samples, evals = 1)
+results = run(suite, verbose = true, samples = samples, evals = 1)
+
+BenchmarkTools.save("$LOG_DIR/results_$mode-$date.json",results)

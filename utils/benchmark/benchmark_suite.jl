@@ -34,12 +34,13 @@ ROOT_DIR = string(@__DIR__) * "/../.."
 MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 DATA_DIR = ROOT_DIR * "/data"
+LOG_DIR = DATA_DIR * "/logs"
 
-BENCHMARK_SIZES=["xsmall"]#["few_snps", "medium_snps", "many_snps"]
+BENCHMARK_SIZES=["few_snps", "medium_snps", "many_snps"]
 
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1_000_000
 
-# Remove commit message verbosity
+# Control miraculix verbosity
 ENV["PRINT_LEVEL"] = "1";
 
 OMP_NUM_THREADS = ENV["OMP_NUM_THREADS"];
@@ -75,17 +76,15 @@ miraculix.load_shared_library()
 cd(DATA_DIR)
 
 ## Benchmark
-suite = BenchmarkGroup()
-suite["GRM"] =  BenchmarkGroup(["GRM", "crossproduct"])
-suite["LD"] =  BenchmarkGroup(["LD", "crossproduct"])
+suite_miraculix = BenchmarkGroup()
+suite_plink = BenchmarkGroup()
+suite_miraculix["GRM"] = BenchmarkGroup(["GRM", "crossproduct"])
+suite_plink["GRM"] =  BenchmarkGroup(["GRM", "crossproduct"])
+suite_miraculix["LD"] = BenchmarkGroup(["LD", "crossproduct"])
+suite_plink["LD"] = BenchmarkGroup(["LD", "crossproduct"])
 
 
 for size in BENCHMARK_SIZES
-    suite["GRM"][size, "miraculix"] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_grm($size))
-    suite["GRM"][size, "plink"] = @benchmarkable run_plink_grm($size)
-end
-
-for size in BENCHMARK_SIZES
-    run_miraculix_grm(size)
-    run_plink_grm(size)
+    suite_miraculix["GRM"][size] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_grm($size))
+    suite_plink["GRM"][size] = @benchmarkable run_plink_grm($size)
 end
