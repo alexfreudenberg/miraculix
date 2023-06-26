@@ -17,13 +17,12 @@
 
 using Base;
 using Random;
-using Distances; 
 using LinearAlgebra;
-using MKL;
-using Test;
 using CSV;
+using DelimitedFiles;
 using DataFrames;
 using BenchmarkTools;
+using Tables;
 
 # =====================
 # Global definitions
@@ -36,7 +35,8 @@ LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 DATA_DIR = ROOT_DIR * "/data"
 LOG_DIR = DATA_DIR * "/logs"
 
-BENCHMARK_SIZES=["few_snps", "medium_snps", "many_snps"]
+BENCHMARK_SIZES_GRM=["xsmall","few_snps", "medium_snps", "many_snps"]
+BENCHMARK_SIZES_LD=["xsmall","small", "medium", "large"]
 
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1_000_000
 
@@ -49,23 +49,64 @@ println("OMP threads set to $OMP_NUM_THREADS")
 include(MODULE_PATH)
 
 # =====================
-# Auxiliary function
+# Auxiliary functions
 # =====================
-function run_miraculix_grm(data::String)
+function write_result(root_file_name::String, matrix::Matrix{Float64},write_format::String)
+    if write_format == "tsv"
+        CSV.write(root_file_name * ".grm.tsv", Tables.table(matrix), delim='\t')
+    elseif write_format == "binary"
+        n_bytes = size(matrix,1)^2 * 8
+        open(root_file_name * ".grm.bin", "w") do io
+            unsafe_write(io, pointer(matrix), n_bytes)
+        end
+    else 
+        error("Unsupported write format supplied.")
+    end
+end
+
+function run_miraculix_grm(data::String, write_format::String = "binary")
+    # Create valid bed file from data string
     data_file = data * ".bed"
+    # Read-in data file, convert it to two-bit and calculate allele frequencies
     plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
 
+    # Transpose genotype data to sample-major format for GRM calculation
     plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
 
+    # Calculate GRM matrix
     G1 = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = false)
+    # Scale GRM matrix analoguous to PLINK
     G1 ./= n_snps
-    CSV.write(G1, delim= '\t')
+
+    # Write results to file 
+    @time write_result(data, G1, write_format)
+
+    return Nothing
+end
+function run_miraculix_ld(data::String, write_format::String = "binary")
+    # Create valid bed file from data string
+    data_file = data * ".bed"
+    # Read-in data file, convert it to two-bit and calculate allele frequencies
+    plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
+
+    # Calculate LD matrix
+    M = miraculix.crossproduct.ld(plink, n_snps, n_indiv, is_plink_format = false, allele_freq = freq)
+
+    # Write results to file
+    @time write_result(data, M, write_format)
+
     return Nothing
 end
 
 function run_plink_grm(data::String)
+    # Run PLINK software from command line
     run(`./plink --bfile $data --threads $OMP_NUM_THREADS --make-rel square cov`)
 end
+function run_plink_ld(data::String)
+    # Run PLINK software from command line
+    run(`./plink --bfile $data --threads $OMP_NUM_THREADS --r square`)
+end
+
 # =====================
 # Main
 # =====================
@@ -76,15 +117,15 @@ miraculix.load_shared_library()
 cd(DATA_DIR)
 
 ## Benchmark
-suite_miraculix = BenchmarkGroup()
-suite_plink = BenchmarkGroup()
-suite_miraculix["GRM"] = BenchmarkGroup(["GRM", "crossproduct"])
-suite_plink["GRM"] =  BenchmarkGroup(["GRM", "crossproduct"])
-suite_miraculix["LD"] = BenchmarkGroup(["LD", "crossproduct"])
-suite_plink["LD"] = BenchmarkGroup(["LD", "crossproduct"])
+suite = BenchmarkGroup()
+suite["GRM"] = BenchmarkGroup(["GRM", "crossproduct"])
+suite["LD"] = BenchmarkGroup(["LD", "crossproduct"])
 
-
-for size in BENCHMARK_SIZES
-    suite_miraculix["GRM"][size] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_grm($size))
-    suite_plink["GRM"][size] = @benchmarkable run_plink_grm($size)
+for size in BENCHMARK_SIZES_GRM
+    suite["GRM"][size,"miraculix"] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_grm($size))
+    suite["GRM"][size,"PLINK"] = @benchmarkable run_plink_grm($size)
+end
+for size in BENCHMARK_SIZES_LD
+    suite["LD"][size,"miraculix"] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_ld($size))
+    suite["LD"][size,"PLINK"] = @benchmarkable run_plink_ld($size)
 end

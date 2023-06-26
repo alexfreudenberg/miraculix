@@ -22,17 +22,22 @@ include("benchmark_suite.jl")
 # Get arguments for benchmarking
 # =====================
 
+SAMPLES = 5
+VALID_MODES = Set(["miraculix","PLINK"])
+
 if length(ARGS) > 0
     mode = ARGS[1]
-    if mode == "miraculix"
-        suite = suite_miraculix
-    elseif mode == "PLINK"
-        suite = suite_plink
-    else
+    if mode ∉ VALID_MODES
         error("First command-line argument needs to be `GPU` or `PLINK`, specifying the Benchmark Suite to run.")
     end
+    if (length(ARGS) > 1) && (ARGS[2] == "test")
+        tag = @tagged mode && "xsmall"
+        SAMPLES = 1
+    else
+        tag = @tagged mode
+    end
 else
-    error("No command-line arguments provided.")
+    error("No command-line arguments for execution mode provided.")
 end
 
 if !isdir(LOG_DIR)
@@ -43,8 +48,7 @@ date = Dates.today()
 # =====================
 # Start benchmarks
 # =====================
-samples = 5
 
-results = run(suite, verbose = true, samples = samples, evals = 1)
+results = run(suite[tag], verbose = true, samples = SAMPLES, evals = 1)
 
 BenchmarkTools.save("$LOG_DIR/results_$mode-$date.json",results)
