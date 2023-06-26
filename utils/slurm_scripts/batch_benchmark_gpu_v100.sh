@@ -1,17 +1,14 @@
 #!/bin/bash
-#SBATCH -p gpu_4
 #SBATCH --gres=gpu:1
 #SBATCH -t 1:00:00
 #SBATCH -c 10
 #SBATCH --mem=230gb
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=alexander.freudenberg@uni-mannheim.de
 #SBATCH --output=BENCHMARK_%x_%j.out
-
+module load devel/cuda/12
 nvidia-smi
 
-population_sizes=(large)
-module load devel/cuda/12
+population_sizes=(small medium large)
 export OMP_NUM_THREADS=10
 export MKL_NUM_THREADS=10
     

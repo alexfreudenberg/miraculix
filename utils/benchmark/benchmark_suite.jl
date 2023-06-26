@@ -35,7 +35,7 @@ MODULE_PATH = ROOT_DIR * "/src/bindings/Julia/miraculix.jl"
 LIBRARY_PATH = ROOT_DIR * "/src/miraculix/miraculix.so"
 DATA_DIR = ROOT_DIR * "/data"
 
-BENCHMARK_SIZES=["few_snps", "medium_snps", "many_snps"]
+BENCHMARK_SIZES=["xsmall"]#["few_snps", "medium_snps", "many_snps"]
 
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1_000_000
 
@@ -81,7 +81,7 @@ suite["LD"] =  BenchmarkGroup(["LD", "crossproduct"])
 
 
 for size in BENCHMARK_SIZES
-    suite["GRM"][size, "miraculix"] = @benchmarkable run_miraculix_grm($size)
+    suite["GRM"][size, "miraculix"] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_grm($size))
     suite["GRM"][size, "plink"] = @benchmarkable run_plink_grm($size)
 end
 

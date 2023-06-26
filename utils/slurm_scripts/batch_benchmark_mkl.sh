@@ -5,7 +5,6 @@
 #SBATCH -c 40
 #SBATCH --mem=2500gb
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=alexander.freudenberg@uni-mannheim.de
 #SBATCH --output=BENCHMARK_%x_%j.out
 
 core_numbers=(20 10 1)

@@ -1,12 +1,8 @@
 #!/bin/bash
-#SBATCH -p single
 #SBATCH -t 9:00:00
-
 #SBATCH -c 40
 #SBATCH --mem=170gb
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=alexander.freudenberg@uni-mannheim.de
-#SBATCH --output=BENCHMARK_%x_%j.out
 
 module load devel/cuda/12
 core_numbers=(20 10 1)
