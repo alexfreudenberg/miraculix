@@ -37,6 +37,8 @@ if(!require(stringr)){
 # Auxiliary function
 # =====================
 
+conversion_table_2bit_plink <- as.raw(c(0, 2, 3, 85, 8, 10, 11, 85, 12, 14, 15, 85, 85, 85, 85, 85, 32, 34, 35, 85, 40, 42, 43, 85, 44, 46, 47, 85, 85, 85, 85, 85, 48, 50, 51, 85, 56, 58, 59, 85, 60, 62, 63, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 128, 130, 131, 85, 136, 138, 139, 85, 140, 142, 143, 85, 85, 85, 85, 85, 160, 162, 163, 85, 168, 170, 171, 85, 172, 174, 175, 85, 85, 85, 85, 85, 176, 178, 179, 85, 184, 186, 187, 85, 188, 190, 191, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 192, 194, 195, 85, 200, 202, 203, 85, 204, 206, 207, 85, 85, 85, 85, 85, 224, 226, 227, 85, 232, 234, 235, 85, 236, 238, 239, 85, 85, 85, 85, 85, 240, 242, 243, 85, 248, 250, 251, 85, 252, 254, 255))
+
 #' Export to PLINK binary format
 #'
 #' This function exports a genotype matrix created by MoBPS to PLINK binary format (.bed).
@@ -55,7 +57,7 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
     geno_raw <- matrix(as.raw(geno),ncol = nindiv)
 
     # Set-up byte-sized matrix in PLINK dimensions
-    plink_format <- matrix(as.raw(0), ncol = nindiv/4, nrow = nsnps)
+    twobit_packed <- matrix(as.raw(0), ncol = nindiv/4, nrow = nsnps)
 
     # Shift each column by the number of bits that is required to store four individuals in one byte
     # Afterwards, do a bitwise or operation to pack the individuals and store the result in the respective column of the new matrix  
@@ -66,14 +68,20 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
             col_recoded <- col_recoded | rawShift(geno_raw[, col + i], i * 2)
         }
         new_col_index <- ceiling(col/4)
-        plink_format[,new_col_index] <- col_recoded   
+        twobit_packed[,new_col_index] <- col_recoded   
     }
-
-    # Sanity check if any column of plink_format is all zero
-    if(any(apply(plink_format== as.raw(0),2,all))){
+    # Convert twobit to PLINK format
+    plink_format <- conversion_table_2bit_plink[as.integer(twobit_packed)+1] 
+    plink_format <- matrix(plink_format, nrow = nsnps)
+    # Sanity checks
+    # Are any column of plink_format fully zero?
+    if(any(apply(plink_format == as.raw(0), 2, all))){
         error("At least one column in packed format is all zero.")
     }
-    
+    if(any(plink_format == as.raw(85))){
+        stop("Some genotypes were coded as missing.")
+    }
+
     # Check if file in binary format already exists 
     filename_bed <- paste0(filename, ".bed")
     if(file.exists(filename_bed)){
@@ -90,8 +98,8 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
     writeBin(header_bytes, con)
 
     # Transpose plink_char as it is column-major and PLINK is SNP-major
-    plink_write_format <- as.character(t(plink_format))
-    writeBin(plink_write_format, con)
+    plink_write_format <- as.vector(t(plink_format))
+    writeBin(plink_write_format, con, useBytes=TRUE)
 
     close(con)
 

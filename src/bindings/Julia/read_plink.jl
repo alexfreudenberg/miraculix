@@ -149,9 +149,9 @@ function read_freq(file::String)
 end #function 
 
 """
-    print_conversion_table(::Type{T}, NaN_code = typemax(T), verbose = true)
+    create_*_conversion_table(::Type{T}, NaN_code = typemax(T), verbose = true)
 
-Prints a lookup table for converting the PLINK binary format (.bed) to a compressed 2-bit binary format where:
+Creates a lookup table for converting between PLINK binary format (.bed) and compressed 2-bit binary format where:
 
 - 0 represents homozygous for the major allele,
 - 1 represents heterozygous,
@@ -159,20 +159,18 @@ Prints a lookup table for converting the PLINK binary format (.bed) to a compres
 Missing values are not supported and are coded as NaN_code.
 
 # Arguments
-- T: The type of the conversion table. Only UInt8 has been thoroughly tested.
 - NaN_code: The code to use for missing values. Defaults to the maximum possible value of the type T.
 - verbose: If true, then the conversion for every value from 0:typemax(T) is printed explicitly.
 
-#Returns
+# Returns
 - The conversion table as a vector.
 
 # Exceptions
 An error will be thrown if a non-supported type T is supplied.
 
-# Examples
-print_conversion_table(UInt8, NaN_code = 255, verbose = true)
 """
-function create_conversion_table(NaN_code = typemax(UInt8), verbose = true)
+function create_plink_conversion_table(NaN_code = typemax(UInt8), verbose = true)
+    # Performs conversion from PLINK to 2bit
     max_val = typemax(UInt8)
     conversion_table = zeros(UInt8, max_val+1)
     
@@ -192,6 +190,40 @@ function create_conversion_table(NaN_code = typemax(UInt8), verbose = true)
             elseif substr[1] == "11"
                 new_entry |= 2
             elseif substr[1] == "01"
+                new_entry = UInt8(NaN_code)
+                break
+            end
+        end
+        verbose && println(index_str, " -> ",new_entry)
+        conversion_table[i + 1] = new_entry;
+    end
+    str_conversion_table = join(string.(conversion_table), ", ")
+    
+    verbose && println("[", str_conversion_table, "]")
+    return conversion_table
+end #function
+
+function create_2bit_conversion_table(NaN_code = UInt8(0b01010101), verbose = true)
+    # Performs conversion from 2bit to PLINK
+    max_val = typemax(UInt8)
+    conversion_table = zeros(UInt8, max_val+1)
+    
+    substr = Vector{String}(["00"])
+    size_in_bits = sizeof(UInt8) * 8;
+
+    # Conversion to TwoBit format
+    for i in 0:max_val
+        index_str = bitstring(UInt8(i));
+        new_entry = UInt8(0);
+         @inbounds for substr_index = 1:2:size_in_bits
+            new_entry <<= 2;
+            substr[1] = view(index_str, substr_index : (substr_index + 1));
+            # For documentation of values, see https://www.cog-genomics.org/plink/1.9/formats#bed
+            if substr[1] == "01"
+                new_entry |= 2
+            elseif substr[1] == "10"
+                new_entry |= 3
+            elseif substr[1] == "11"
                 new_entry = UInt8(NaN_code)
                 break
             end
