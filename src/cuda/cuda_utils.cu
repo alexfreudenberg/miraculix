@@ -162,7 +162,7 @@ int checkCuda(){
 
 int checkDevMemory(size_t required_mem){
   //
-  //  Device memory check
+  // Device memory check
   // Checks if the device has enough RAM available
 
   cudaError_t err;

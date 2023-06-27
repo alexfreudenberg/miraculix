@@ -20,6 +20,7 @@
 module read_plink
 
 using Base;
+import Base: count_ones
 using DelimitedFiles;
 using StaticArrays;
 using LoopVectorization;
@@ -28,6 +29,7 @@ using LoopVectorization;
 const CONVERSION_TABLE_UINT8 = Vector{UInt8}(
     [0, 255, 1, 2, 255, 255, 255, 255, 4, 255, 5, 6, 8, 255, 9, 10, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 16, 255, 17, 18, 255, 255, 255, 255, 20, 255, 21, 22, 24, 255, 25, 26, 32, 255, 33, 34, 255, 255, 255, 255, 36, 255, 37, 38, 40, 255, 41, 42, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 64, 255, 65, 66, 255, 255, 255, 255, 68, 255, 69, 70, 72, 255, 73, 74, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 80, 255, 81, 82, 255, 255, 255, 255, 84, 255, 85, 86, 88, 255, 89, 90, 96, 255, 97, 98, 255, 255, 255, 255, 100, 255, 101, 102, 104, 255, 105, 106, 128, 255, 129, 130, 255, 255, 255, 255, 132, 255, 133, 134, 136, 255, 137, 138, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 144, 255, 145, 146, 255, 255, 255, 255, 148, 255, 149, 150, 152, 255, 153, 154, 160, 255, 161, 162, 255, 255, 255, 255, 164, 255, 165, 166, 168, 255, 169, 170]
 )
+const POPCOUNT_TABLE_UINT8_STATIC = SVector{typemax(UInt8)+1,UInt8}([count_ones(i) for i in 0:typemax(UInt8)])
 const CONVERSION_TABLE_UINT8_STATIC = SVector{typemax(UInt8)+1,UInt8}(CONVERSION_TABLE_UINT8)
 
 """
@@ -44,6 +46,10 @@ function convert_plink2twobit(entry)
     return result
 end #function
 
+@inline function count_ones(entry::UInt8)::UInt8
+    @inbounds result::UInt8 = POPCOUNT_TABLE_UINT8_STATIC[entry + 1];
+    return result
+end #function
 """
     read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{Int32}
 
@@ -102,7 +108,7 @@ function read_bed(file::String; coding_twobit::Bool=false, calc_freq::Bool=false
     # In PLINK binary format without missings, the allele frequency of a SNP corresponds to the number of set bits in this SNP 
     if calc_freq
         Popcounts = vmapt(count_ones, result)
-        freq = sum(Popcounts, dims = 1)/(2 * n_indiv) |> vec
+        freq = Int.(sum(Popcounts, dims = 1))/(2 * n_indiv) |> vec
     end
     # Convert to 2bit format if requested
     if coding_twobit

@@ -68,10 +68,10 @@ function run_miraculix_grm(data::String, write_format::String = "binary")
     # Create valid bed file from data string
     data_file = data * ".bed"
     # Read-in data file, convert it to two-bit and calculate allele frequencies
-    plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
+    @time plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
 
     # Transpose genotype data to sample-major format for GRM calculation
-    plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
+    @time plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
 
     # Calculate GRM matrix
     G1 = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = false)
@@ -80,24 +80,34 @@ function run_miraculix_grm(data::String, write_format::String = "binary")
 
     # Write results to file 
     @time write_result(data, G1, write_format)
-
     return Nothing
 end
 function run_miraculix_ld(data::String, write_format::String = "binary")
     # Create valid bed file from data string
     data_file = data * ".bed"
     # Read-in data file, convert it to two-bit and calculate allele frequencies
-    plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
+    @time plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
 
     # Calculate LD matrix
     M = miraculix.crossproduct.ld(plink, n_snps, n_indiv, is_plink_format = false, allele_freq = freq)
 
     # Write results to file
     @time write_result(data, M, write_format)
+    # M[diagind(M)] .= 0;
+    # ld_score = sum(M.^2, dims = 1)
+    # ld_max = maximum(M.^2, dims = 1)
 
     return Nothing
 end
 
+function run_gcta_grm(data::String)
+    # Run GCTA software from command line
+    run(`./gcta-1.94.1 --bfile $data --thread-num $OMP_NUM_THREADS --make-grm-bin --make-grm-alg 1 --out $data `)
+end
+function run_gcta_ld(data::String)
+    # Run GCTA software from command line
+    run(`./gcta-1.94.1 --bfile $data --thread-num $OMP_NUM_THREADS --ld-score --out $data`)
+end
 function run_plink_grm(data::String)
     # Run PLINK software from command line
     run(`./plink --bfile $data --threads $OMP_NUM_THREADS --make-rel square cov`)
@@ -124,8 +134,10 @@ suite["LD"] = BenchmarkGroup(["LD", "crossproduct"])
 for size in BENCHMARK_SIZES_GRM
     suite["GRM"][size,"miraculix"] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_grm($size))
     suite["GRM"][size,"PLINK"] = @benchmarkable run_plink_grm($size)
+    suite["GRM"][size,"GCTA"] = @benchmarkable run_gcta_grm($size)
 end
 for size in BENCHMARK_SIZES_LD
-    suite["LD"][size,"miraculix"] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_ld($size))
+    suite["LD"][size,"miraculix"] = @benchmarkable run_miraculix_ld($size) setup = (run_miraculix_ld($size))
     suite["LD"][size,"PLINK"] = @benchmarkable run_plink_ld($size)
+    suite["LD"][size,"GCTA"] = @benchmarkable run_gcta_ld($size)
 end

@@ -22,8 +22,7 @@ include("benchmark_suite.jl")
 # Get arguments for benchmarking
 # =====================
 
-SAMPLES = 5
-VALID_MODES = Set(["miraculix","PLINK"])
+VALID_MODES = Set(["miraculix","PLINK","GCTA"])
 
 if length(ARGS) > 0
     mode = ARGS[1]
@@ -49,6 +48,6 @@ date = Dates.today()
 # Start benchmarks
 # =====================
 
-results = run(suite[tag], verbose = true, samples = SAMPLES, evals = 1)
+results = run(suite[tag], verbose = true, samples = 1, evals = 1)
 
 BenchmarkTools.save("$LOG_DIR/results_$mode-$date.json",results)

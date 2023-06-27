@@ -7,4 +7,4 @@
 
 # Start Julia benchmark script
 # Command line needs to specify "miraculix" or "PLINK"
-julia utils/benchmark/run_suite.jl $1
+julia --threads=$OMP_NUM_THREADS utils/benchmark/run_suite.jl $1

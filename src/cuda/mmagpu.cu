@@ -97,8 +97,8 @@ int gpuCrossprodIntern(unsigned char *snp_matrix, int snps,
     }
 
     // Calculate total memory requirements
-    int size_of_input = n_bytes_per_indiv_padded * mem_tile_size;
-    int size_of_output = sizeof(int) * mem_tile_size * mem_tile_size;
+    size_t size_of_input = n_bytes_per_indiv_padded * mem_tile_size;
+    size_t size_of_output = sizeof(int) * mem_tile_size * mem_tile_size;
 
     size_t required_mem = num_threads * (2 * size_of_input) + num_threads * size_of_output;
     if (checkDevMemory(required_mem) != 0) {
