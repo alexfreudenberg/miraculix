@@ -68,13 +68,13 @@ function run_miraculix_grm(data::String, write_format::String = "binary")
     # Create valid bed file from data string
     data_file = data * ".bed"
     # Read-in data file, convert it to two-bit and calculate allele frequencies
-    @time plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
+    @time plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true, check_for_missings = false)
 
     # Transpose genotype data to sample-major format for GRM calculation
     @time plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
 
     # Calculate GRM matrix
-    G1 = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = false)
+    @time G1 = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = false)
     # Scale GRM matrix analoguous to PLINK
     G1 ./= n_snps
 
@@ -89,7 +89,7 @@ function run_miraculix_ld(data::String, write_format::String = "binary")
     @time plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
 
     # Calculate LD matrix
-    M = miraculix.crossproduct.ld(plink, n_snps, n_indiv, is_plink_format = false, allele_freq = freq)
+    @time M = miraculix.crossproduct.ld(plink, n_snps, n_indiv, is_plink_format = false, allele_freq = freq)
 
     # Write results to file
     @time write_result(data, M, write_format)

@@ -20,7 +20,7 @@
 module read_plink
 
 using Base;
-import Base: count_ones
+import Base: count_ones;
 using DelimitedFiles;
 using StaticArrays;
 using LoopVectorization;
@@ -30,6 +30,13 @@ const CONVERSION_TABLE_UINT8 = Vector{UInt8}(
     [0, 255, 1, 2, 255, 255, 255, 255, 4, 255, 5, 6, 8, 255, 9, 10, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 16, 255, 17, 18, 255, 255, 255, 255, 20, 255, 21, 22, 24, 255, 25, 26, 32, 255, 33, 34, 255, 255, 255, 255, 36, 255, 37, 38, 40, 255, 41, 42, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 64, 255, 65, 66, 255, 255, 255, 255, 68, 255, 69, 70, 72, 255, 73, 74, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 80, 255, 81, 82, 255, 255, 255, 255, 84, 255, 85, 86, 88, 255, 89, 90, 96, 255, 97, 98, 255, 255, 255, 255, 100, 255, 101, 102, 104, 255, 105, 106, 128, 255, 129, 130, 255, 255, 255, 255, 132, 255, 133, 134, 136, 255, 137, 138, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 144, 255, 145, 146, 255, 255, 255, 255, 148, 255, 149, 150, 152, 255, 153, 154, 160, 255, 161, 162, 255, 255, 255, 255, 164, 255, 165, 166, 168, 255, 169, 170]
 )
 const CONVERSION_TABLE_UINT8_STATIC = SVector{typemax(UInt8)+1,UInt8}(CONVERSION_TABLE_UINT8)
+
+# Function for population count without converting to Int64 first
+# Courtesy of Christoffer Carlsson 
+# https://github.com/JuliaLang/julia/issues/50322#issuecomment-1611117636
+count_ones_uint8(x::UInt8) = count_ones(x) % UInt8
+POPCNT_TABLE = SVector{typemax(UInt8)+ 1, UInt8}(count_ones.(range(0,typemax(UInt8))))
+count_ones_uint8_new(x::UInt8)::UInt8 = POPCNT_TABLE[x+1]
 
 """
     convert_plink2twobit(entry::UInt8)::UInt8
@@ -45,10 +52,6 @@ function convert_plink2twobit(entry)
     return result
 end #function
 
-# Function for population count without converting to Int64 first
-# Courtesy of Christoffer Carlsson 
-# https://github.com/JuliaLang/julia/issues/50322#issuecomment-1611117636
-count_ones_uint8(x::UInt8) = count_ones(x) % UInt8
 
 """
     read_bed(file::String, coding::String="TwoBit", snpmajor::Bool=true)::Matrix{Int32}
@@ -69,7 +72,7 @@ The .bed file is a primary representation of genotype calls at biallelic variant
 - Throws an error if the .bed file or its supplementary .bim and .fam files do not exist or cannot be read.
 - Throws an error if the .bed file does not follow the specified format.
 """
-function read_bed(file::String; coding_twobit::Bool=false, calc_freq::Bool=false)
+function read_bed(file::String; coding_twobit::Bool=false, calc_freq::Bool=false, check_for_missings = true)
 
     if ~endswith(file,".bed")
         error("File not in .bed format")
@@ -94,28 +97,36 @@ function read_bed(file::String; coding_twobit::Bool=false, calc_freq::Bool=false
     n_bytes_per_col = Int(ceil(n_indiv/4));
 
     n_row = n_bytes_per_col;
-    result = zeros(UInt8, (n_row, n_snps));
+    plink = zeros(UInt8, (n_row, n_snps));
 
     # Read bed file - this throws an error if too small
-    for i = 1:n_snps
-        unsafe_read(io, pointer(result, (i-1) * n_row + 1), n_bytes_per_col);
+    wtime = @elapsed for i = 1:n_snps
+        unsafe_read(io, pointer(plink, (i-1) * n_row + 1), n_bytes_per_col);
     end
     # Assert end of file
     @assert eof(io) "Too large .bed file"
     close(io);
+    @debug "Time for opening: $wtime s"
 
     # Calculate allele frequencies
     # In PLINK binary format without missings, the allele frequency of a SNP corresponds to the number of set bits in this SNP 
-    if calc_freq
-        Popcounts = vmapt(count_ones_uint8, result)
-        freq = Int.(sum(Popcounts, dims = 1))/(2 * n_indiv) |> vec
+    result = similar(plink)
+    wtime = @elapsed if calc_freq
+        vmapt!(count_ones, result, plink)
+        freq = Int.(sum(result, dims = 1))/(2 * n_indiv) |> vec
     end
+    @debug "Time for allele frequencies: $wtime s"
     # Convert to 2bit format if requested
-    if coding_twobit
-        result = vmapt(convert_plink2twobit,result)
-        # Test for missing values in original bed file
-        @assert all(result .!= typemax(UInt8)) "No missings in PLINK file permitted."
+    wtime = @elapsed if coding_twobit
+        vmapt!(convert_plink2twobit, result, plink)
     end # coding
+    @debug "Time for twobit conversion: $wtime s"
+
+    wtime = @elapsed if check_for_missings
+         # Test for missing values in original bed file
+         @assert (typemax(UInt8) ∉ result) "No missings in PLINK file permitted."
+    end
+    @debug "Time for checking for missings: $wtime s"
 
     if calc_freq
         return result, freq, n_snps, n_indiv
