@@ -15,7 +15,7 @@
 *.bed
 *.mem
 *.*~
-
+*.pdf
 
 *.optrpt
 *.tgz

@@ -21,7 +21,10 @@
 # =====================
 
 set.seed(123)
-data_dir <- "../data/"
+data_dir <- "./data/"
+if(!dir.exists(data_dir)){
+    stop("Modify variable data_dir to point to an existing directory, which will be used for storing the simulated data.")
+}
 
 if(!require(MoBPS)){
     devtools::install_github("tpook92/MoBPS", subdir="pkg")
@@ -37,6 +40,7 @@ if(!require(stringr)){
 # Auxiliary function
 # =====================
 
+# Hash table for looking up PLINK byte values in packed 2bit format
 conversion_table_2bit_plink <- as.raw(c(0, 2, 3, 85, 8, 10, 11, 85, 12, 14, 15, 85, 85, 85, 85, 85, 32, 34, 35, 85, 40, 42, 43, 85, 44, 46, 47, 85, 85, 85, 85, 85, 48, 50, 51, 85, 56, 58, 59, 85, 60, 62, 63, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 128, 130, 131, 85, 136, 138, 139, 85, 140, 142, 143, 85, 85, 85, 85, 85, 160, 162, 163, 85, 168, 170, 171, 85, 172, 174, 175, 85, 85, 85, 85, 85, 176, 178, 179, 85, 184, 186, 187, 85, 188, 190, 191, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 192, 194, 195, 85, 200, 202, 203, 85, 204, 206, 207, 85, 85, 85, 85, 85, 224, 226, 227, 85, 232, 234, 235, 85, 236, 238, 239, 85, 85, 85, 85, 85, 240, 242, 243, 85, 248, 250, 251, 85, 252, 254, 255))
 
 #' Export to PLINK binary format
@@ -61,16 +65,19 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
 
     # Shift each column by the number of bits that is required to store four individuals in one byte
     # Afterwards, do a bitwise or operation to pack the individuals and store the result in the respective column of the new matrix  
-    cat("Convert to PLINK format.\n")
+    cat("Pack values.\n")
     for(col in seq(1,nindiv, by = 4)){
-        col_recoded <- raw(nsnps)
+        # This will holds four columns packed into one
+        col_packed <- raw(nsnps)
         for(i in 0:3){
-            col_recoded <- col_recoded | rawShift(geno_raw[, col + i], i * 2)
+            col_packed <- col_packed | rawShift(geno_raw[, col + i], i * 2)
         }
         new_col_index <- ceiling(col/4)
-        twobit_packed[,new_col_index] <- col_recoded   
+        twobit_packed[,new_col_index] <- col_packed   
     }
     # Convert twobit to PLINK format
+    # FIXME: the as.integer instructions casts all values into 32bit integers - yet, raw subscripts are not implemented in R... 
+    cat("Convert to PLINK format.\n")
     plink_format <- conversion_table_2bit_plink[as.integer(twobit_packed)+1] 
     plink_format <- matrix(plink_format, nrow = nsnps)
     # Sanity checks
@@ -78,6 +85,8 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
     if(any(apply(plink_format == as.raw(0), 2, all))){
         error("At least one column in packed format is all zero.")
     }
+    # Were some values mistakenly coded as missings
+    # In this case, the hash table above is false as MoBPS doesn't return NAs
     if(any(plink_format == as.raw(85))){
         stop("Some genotypes were coded as missing.")
     }
@@ -107,24 +116,33 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
     filename_bim <- paste0(filename, ".bim")
     filename_fam <- paste0(filename, ".fam")
     
+    # Replace all underscores by tildes (see PLINK docs)
     ids <- str_replace_all(colnames(geno),"_", "~")
+
+    # Extract and replace sex of all individuals - coded as F and M in indiv IDs
     sex <- str_sub_all(colnames(geno), 1, 1)
     sex <- str_replace_all(unlist(sex), c("M" = "1", "F" = "2"))
-    
+
+    # Create tables for writing to files
     bim_table <- data.frame(chr = 1, id = rownames(geno), pos = 0, bp = 1:nsnps, al1 = "D", al2 = "d")
     fam_table <- data.frame(fam_id = ids, own_id = ids, fat_id = 0, mot_id = 0, sex = sex, pheno = pheno)
 
-
+    # Write to files
     write.table(bim_table, filename_bim, quote = F, sep = "\t", row.names = F, col.names = F)
     write.table(fam_table, filename_fam, quote = F, sep = " ", row.names = F, col.names = F)
+    
+    return(NULL)
 }
 
 # =====================
 # Main
 # =====================
 
-indiv <- 1e2
+# Number of individuals to be simulated for phenotyping 
+# Note that setting this value high requires a lot of memory
+indiv <- 5e4
 
+# Simulate a population based on the map_cattle2 map
 dataset <- founder.simulation(nindi = 1e2, sex.quota = 0.5, map = map_cattle2, display.progress = FALSE, verbose = FALSE)
 population <- creating.diploid(dataset = dataset, map = map_cattle2, n.additive = c(1000,1000), verbose=FALSE)
 population <- breeding.diploid(population, breeding.size = indiv, heritability = c(0.5,0.5),
@@ -134,8 +152,10 @@ population <- breeding.diploid(population, breeding.size = 1e2, heritability = c
                                 phenotyping = "all",
                                 display.progress = FALSE, verbose=FALSE)
 
+# Extract genotypes and phenotypes
 geno <- get.geno(population, gen=2) 
 pheno <- get.pheno(population, gen=2)
 bv <- get.bv(population, gen=2) 
 
+# Write to PLINK binary format
 mobps_to_bed(geno, pheno[1,], paste0(data_dir, "mobps_simulation"))
