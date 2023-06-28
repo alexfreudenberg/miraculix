@@ -29,9 +29,9 @@ if length(ARGS) > 0
     if mode ∉ VALID_MODES
         error("First command-line argument needs to be `GPU` or `PLINK`, specifying the Benchmark Suite to run.")
     end
-    if (length(ARGS) > 1) && (ARGS[2] == "test")
-        tag = @tagged mode && "xsmall"
-        SAMPLES = 1
+    if length(ARGS) > 1
+        arg = ARGS[2]
+        tag = @tagged mode && eval(arg)
     else
         tag = @tagged mode
     end
@@ -47,7 +47,8 @@ date = Dates.today()
 # =====================
 # Start benchmarks
 # =====================
-
+println(tag)
+println(ARGS[2])
 results = run(suite[tag], verbose = true, samples = 1, evals = 1)
 
 BenchmarkTools.save("$LOG_DIR/results_$mode-$date.json",results)
