@@ -79,7 +79,7 @@ If the GPU usage is enabled via the `set_options` function, the SNP matrix and i
 function init_compressed(plink::Matrix{UInt8}, snps::Int, indiv::Int, freq::Vector{Float64}, max_ncol::Int)
     obj_ref = Ref{Ptr{Cvoid}}(C_NULL)
     check_dimensions(plink, snps, indiv)
-    plink_transposed = transpose_genotype_matrix(plink, snps, indiv)
+    plink_transposed = compressed_operations.transpose_genotype_matrix(plink, snps, indiv)
 
     init_sym = dlsym(LIBRARY_HANDLE[], :plink2compressed)
     ccall(init_sym,  Cvoid,  (Ptr{UInt8}, Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint, Ptr{Ptr{Cvoid}}), plink, plink_transposed, Int32(snps), Int32(indiv), freq, Int32(max_ncol), obj_ref)

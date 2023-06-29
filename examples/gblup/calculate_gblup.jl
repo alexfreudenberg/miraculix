@@ -18,13 +18,12 @@
 
 using Base;
 using Random;
-using Distances;
 using LinearAlgebra;
 using CSV;
 using DelimitedFiles;
 using DataFrames;
 using BenchmarkTools;
-using Tables;
+using LoopVectorization;
 
 # =====================
 # Global definitions
@@ -103,5 +102,23 @@ end
 @info "GRM calculation required $(round(wtime,digits=3)) seconds"
 
 # Calculate the approximate 10 eigenvectors of G
-eigen_G = randomized_eigen(G, 10)
+@info "Calculating eigenvectors of G"
+wtime = @elapsed begin
+    eigen_G = randomized_eigen(G, 10)    
+end
+@info "Eigenvector calculation required $(round(wtime,digits=3)) seconds"
 
+
+# Convert twobit encoding back to PLINK
+@info "Converting matrix back to PLINK format for phenotype multiplication"
+wtime = @elapsed begin
+    vmapt!(miraculix.read_plink.convert_twobit2plink, plink, plink)
+    vmapt!(miraculix.read_plink.convert_twobit2plink, plink_transposed, plink_transposed)
+end
+@info "Format conversion required $(round(wtime,digits=3)) seconds"
+
+# Multiply eigenvectors by SNP matrix to obtain principal components
+@info "Calculating principal components"
+wtime = @elapsed begin
+    
+end

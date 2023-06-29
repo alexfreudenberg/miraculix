@@ -117,13 +117,12 @@ end #function
 
 
 const CONVERSION_TABLE_PLINK = Vector{UInt8}(create_plink_conversion_table())
+const CONVERSION_TABLE_2bit = Vector{UInt8}(create_2bit_conversion_table())
 
 # Function for population count without converting to Int64 first
 # Courtesy of Christoffer Carlsson 
 # https://github.com/JuliaLang/julia/issues/50322#issuecomment-1611117636
 count_ones_uint8(x::UInt8) = count_ones(x) % UInt8
-POPCNT_TABLE = SVector{typemax(UInt8)+ 1, UInt8}(count_ones.(range(0,typemax(UInt8))))
-count_ones_uint8_new(x::UInt8)::UInt8 = POPCNT_TABLE[x+1]
 
 """
     convert_plink2twobit(entry::UInt8)::UInt8
@@ -134,10 +133,9 @@ Converts a single entry from the PLINK binary format (.bed) to a compressed 2-bi
     @inbounds result::UInt8 = CONVERSION_TABLE_PLINK[entry + 1];
     return result
 end #function
-function convert_plink2twobit(entry)   
-    @inbounds result = CONVERSION_TABLE_PLINK[entry + 1];
-    return result
-end #function
+
+@inbounds convert_plink2twobit(entry) = CONVERSION_TABLE_PLINK[entry + 1];
+@inbounds convert_twobit2plink(entry) = CONVERSION_TABLE_2bit[entry + 1];
 
 
 """
@@ -206,20 +204,20 @@ function read_bed(file::String; coding_twobit::Bool=false, calc_freq::Bool=false
     @debug "Time for allele frequencies: $wtime s"
     # Convert to 2bit format if requested
     wtime = @elapsed if coding_twobit
-        vmapt!(convert_plink2twobit, result, plink)
+        vmapt!(convert_plink2twobit, plink, plink)
     end # coding
     @debug "Time for twobit conversion: $wtime s"
 
     wtime = @elapsed if check_for_missings && coding_twobit
          # Test for missing values in original bed file
-         @assert (typemax(UInt8) ∉ result) "No missings in PLINK file permitted."
+         @assert (typemax(UInt8) ∉ plink) "No missings in PLINK file permitted."
     end
     @debug "Time for checking for missings: $wtime s"
 
     if calc_freq
-        return result, freq, n_snps, n_indiv
+        return plink, freq, n_snps, n_indiv
     else
-        return result, n_snps, n_indiv
+        return plink, n_snps, n_indiv
     end
 end #function
 
