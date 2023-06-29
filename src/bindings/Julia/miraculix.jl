@@ -17,20 +17,22 @@
 
 
 module miraculix
-export LIBRARY_HANDLE, LIBRARY_PATH, check_storage_object
+export LIBRARY_HANDLE, LIBRARY_PATH, check_storage_object, check_library_handle
 
 using Base
 using Libdl
 
 const LIBRARY_PATH = Ref{String}()  # Reference to store the library path
-const LIBRARY_HANDLE = Ref{Ptr{Cvoid}}() # Reference to store the library handle returned by Libdl
+const LIBRARY_HANDLE = Ref{Ptr{Cvoid}}(C_NULL) # Reference to store the library handle returned by Libdl
 
-# Check if storage object has valid pointer
-function check_storage_object(obj_ref::Ref{Ptr{Cvoid}})
-    if obj_ref[] == C_NULL
-        error("No valid storage object supplied")
+# Error handling for uninitialized pointers
+function check_handle(handle::Ref{Ptr{Cvoid}})
+    if handle[] == C_NULL
+        error("Encountered uninitialized pointer.")
     end
 end
+check_storage_object(obj_ref::Ref{Ptr{Cvoid}}) = check_handle(obj_ref)
+check_library_handle() = check_handle(LIBRARY_HANDLE)
 
 # Check if genotype matrix has correct dimensions
 function check_dimensions(plink::Matrix{UInt8}, snps::Int, indiv::Int)

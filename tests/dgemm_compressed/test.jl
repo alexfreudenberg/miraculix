@@ -83,7 +83,7 @@ genotype_data_t_decompressed = miraculix.compressed_operations.decompress_plink_
 end
 
 println("Initialize dgemm_compressed routine")
-obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data, n_snps, n_indiv, freq, 10)
+obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data, genotype_data_transposed, n_snps, n_indiv, freq, 10)
 
 n_col = 10
 B = randn(Float64, n_snps, n_col)
