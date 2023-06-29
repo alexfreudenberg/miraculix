@@ -51,7 +51,12 @@ Random.seed!(0);
 
 # Remove commit message verbosity
 ENV["PRINT_LEVEL"] = "1";
-BLAS.set_num_threads(parse(Int,ENV["OMP_NUM_THREADS"]))
+
+# Get thread number
+@assert haskey(ENV, "OMP_NUM_THREADS") "OMP_NUM_THREADS not set"
+OMP_NUM_THREADS = ENV["OMP_NUM_THREADS"];
+BLAS.set_num_threads(parse(Int,OMP_NUM_THREADS))
+println("OMP threads set to $OMP_NUM_THREADS")
 
 include(MODULE_PATH)
 
@@ -84,17 +89,17 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
-if !isfile(GRM_FILE)
-    cd(DATA_DIR)
-    run(`./plink --bfile $SIZE --make-rel square cov`)
-    run(` mv plink.rel $GRM_FILE`)
-    cd(ROOT_DIR)
-end
 
 
 ## Test GRM functionality
 println("Check routine against PLINK")
 @testset "PLINK comparison" begin
+    cd(DATA_DIR)
+    run(`./plink --bfile $SIZE --threads $OMP_NUM_THREADS --make-rel square cov`)
+    run(` mv plink.rel $GRM_FILE`)
+    cd(ROOT_DIR)
+
+
     plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE, coding_twobit = true, calc_freq = true)
     plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
     @time G1 = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = false)

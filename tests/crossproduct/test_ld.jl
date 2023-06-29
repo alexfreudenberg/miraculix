@@ -61,21 +61,21 @@ println("Load library and set options")
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
 
-if !isfile(LD_FILE)
-    cd(DATA_DIR)
-    run(`./plink --bfile $SIZE --r square`)
-    run(`mv plink.ld $LD_FILE`)
-    cd(ROOT_DIR)
-end
 
 ## Test LD calculation
 @time genotype_data, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE, coding_twobit = true, calc_freq = true)
 
-@testset "Correctness" begin
+@testset "Compare against PLINK" begin
+    cd(DATA_DIR)
+    run(`./plink --bfile $SIZE --r square`)
+    run(`mv plink.ld $LD_FILE`)
+    cd(ROOT_DIR)
+
+
     @time M = miraculix.crossproduct.ld(genotype_data, n_snps, n_indiv, is_plink_format = false, allele_freq = freq)
     
     ld_plink = Matrix(CSV.read(LD_FILE, delim = '\t', header = 0, DataFrame))
 
     @test isequal(size(ld_plink),size(M))
-    @test sum(abs.(ld_plink - M)) < 0.1
+    @test maximum(abs.(ld_plink - M)) < 0.1
 end

@@ -1,7 +1,7 @@
 #  Authors 
 #  Alexander Freudenberg, alexander.freudenberg@stads.de
 
-#  Copyright (C) 2022-2023 Alexander Freudenberg
+#  Copyright (C) 2023 Alexander Freudenberg
 
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -43,7 +43,10 @@ BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1_000_000
 # Control miraculix verbosity
 ENV["PRINT_LEVEL"] = "1";
 
+# Get thread number
+@assert haskey(ENV, "OMP_NUM_THREADS") "OMP_NUM_THREADS not set"
 OMP_NUM_THREADS = ENV["OMP_NUM_THREADS"];
+BLAS.set_num_threads(parse(Int,OMP_NUM_THREADS))
 println("OMP threads set to $OMP_NUM_THREADS")
 
 include(MODULE_PATH)
@@ -68,34 +71,32 @@ function run_miraculix_grm(data::String, write_format::String = "binary")
     # Create valid bed file from data string
     data_file = data * ".bed"
     # Read-in data file, convert it to two-bit and calculate allele frequencies
-    @time plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true, check_for_missings = false)
+    @time "Reading data" plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true, check_for_missings = false)
 
     # Transpose genotype data to sample-major format for GRM calculation
-    @time plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
+    @time "Transpose matrix" plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
 
     # Calculate GRM matrix
-    @time G1 = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = false)
+    @time "Calculate GRM" G1 = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = false)
     # Scale GRM matrix analoguous to PLINK
     G1 ./= n_snps
 
     # Write results to file 
-    @time write_result(data, G1, write_format)
+    @time "Writing result" write_result(data, G1, write_format)
+    
     return Nothing
 end
 function run_miraculix_ld(data::String, write_format::String = "binary")
     # Create valid bed file from data string
     data_file = data * ".bed"
     # Read-in data file, convert it to two-bit and calculate allele frequencies
-    @time plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
+    @time "Reading data" plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true)
 
     # Calculate LD matrix
-    @time M = miraculix.crossproduct.ld(plink, n_snps, n_indiv, is_plink_format = false, allele_freq = freq)
+    @time "Calculating LD" M = miraculix.crossproduct.ld(plink, n_snps, n_indiv, is_plink_format = false, allele_freq = freq)
 
     # Write results to file
-    @time write_result(data, M, write_format)
-    # M[diagind(M)] .= 0;
-    # ld_score = sum(M.^2, dims = 1)
-    # ld_max = maximum(M.^2, dims = 1)
+    @time "Writing result" write_result(data, M, write_format)
 
     return Nothing
 end
