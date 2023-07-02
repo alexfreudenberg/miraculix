@@ -84,6 +84,7 @@ function run_miraculix_grm(data::String, write_format::String = "binary")
     # Write results to file 
     @time "Writing result" write_result(data, G1, write_format)
     
+    GC.gc()
     return Nothing
 end
 function run_miraculix_ld(data::String, write_format::String = "binary")
@@ -98,6 +99,7 @@ function run_miraculix_ld(data::String, write_format::String = "binary")
     # Write results to file
     @time "Writing result" write_result(data, M, write_format)
 
+    GC.gc()
     return Nothing
 end
 

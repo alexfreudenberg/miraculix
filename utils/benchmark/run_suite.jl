@@ -47,8 +47,9 @@ date = Dates.today()
 # =====================
 # Start benchmarks
 # =====================
-println(tag)
-println(ARGS[2])
-results = run(suite[tag], verbose = true, samples = 1, evals = 1)
+results_file = "results_$(join(ARGS,' '))-$date.json"
+println(results_file)
 
-BenchmarkTools.save("$LOG_DIR/results_$mode-$date.json",results)
+results = run(suite[tag], verbose = true, samples = 5, evals = 1)
+
+BenchmarkTools.save("$LOG_DIR/" * results_file,results)
