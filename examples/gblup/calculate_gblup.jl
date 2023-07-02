@@ -24,6 +24,7 @@ using DelimitedFiles;
 using DataFrames;
 using BenchmarkTools;
 using LoopVectorization;
+using Statistics;
 
 # =====================
 # Global definitions
@@ -39,9 +40,11 @@ LOG_DIR = DATA_DIR * "/logs"
 # Control miraculix verbosity
 ENV["PRINT_LEVEL"] = "1";
 
+# Get thread number
+@assert haskey(ENV, "OMP_NUM_THREADS") "OMP_NUM_THREADS not set"
 OMP_NUM_THREADS = ENV["OMP_NUM_THREADS"];
+BLAS.set_num_threads(parse(Int,OMP_NUM_THREADS))
 println("OMP threads set to $OMP_NUM_THREADS")
-
 include(MODULE_PATH)
 
 # =====================
@@ -84,11 +87,11 @@ end # function
 function randomized_snp_pca(plink::Matrix{UInt8}, plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int, n::Int, p::Int = 40)
     obj_ref = miraculix.dgemm_compressed.init_compressed(plink, plink_transposed, snps, indiv, freq, n+p)
 
-    U = randomized_eigen(obj_ref, snps, indiv)
+    U = randomized_eigen(obj_ref, snps, indiv, n, p)
     PC = miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_ref, U, snps, indiv)
 
     miraculix.dgemm_compressed.free_compressed(obj_ref)
-    return PC
+    return PC[:,(end-n+1):end]
 end
 
 # =====================
@@ -105,8 +108,12 @@ data_file = DATA_DIR * "/mobps_simulation.bed"
 # Read-in data from PLINK binary format
 @info "Reading in data from $data_file"
 wtime = @elapsed begin
+    # Read PLINK data and calculate allele frequencies
     plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true, check_for_missings = false)
+    # Read in phenotype data
     pheno = CSV.read(DATA_DIR * "/mobps_simulation.fam", delim = ' ', DataFrame, header = 0)[:,6]
+    # Read in true breeding values that were used for simulation
+    bv_true = CSV.read(DATA_DIR * "/mobps_simulation.bv", delim=' ', DataFrame, header = 0)[1,:]
 end
 @info "Importing data required $(round(wtime,digits=3)) seconds."
 
@@ -146,16 +153,50 @@ end
 wtime = @elapsed begin
     princ_comps = randomized_snp_pca(plink, plink_transposed, n_snps, n_indiv, 10)
 end
+@info "Principal components required $(round(wtime,digits=3)) seconds"
 
+GC.gc()
 # Calculate BLUE for beta through the formula
 # \hat{beta} = (X^T (lambda I + G)^{-1} X)^{-1} X^T (lambda I + G)^{-1} Y
 # with lambda = sigma_u^2 / sigma_epsilon^2 
-# We assume a known heritability of 0.5 and hence lambda = c sigma_g^2/sigma_epsilon^2 = c 
-# with c = 2 p^T (1-p)
-var_comp_ratio = 2 * transpose(freq) * (1.0 .- freq)
-var_g_ratio = 1.0
+# We assume a known heritability of 0.5 and hence lambda = 1
+lambda = 1.0
+G_stretched = G + diagm(lambda .* ones(n_indiv))
 
-# Design matrix of fixed effects
-X = hcat(ones(Float64, (n_indiv, 1)), princ_comps)
-Y = pheno
-rhs_matrix = hcat(X, Y)
+@info "Estimating β"
+wime = @elapsed begin
+    # Design matrix of fixed effects
+    X = hcat(ones(Float64, (n_indiv, 1)), princ_comps)
+    Y = pheno
+    rhs_matrix = hcat(X, Y)
+
+    # Solve X B = Y
+    B = miraculix.solve.dense_solve(G_stretched, rhs_matrix, calc_logdet = false, oversubscribe = false)
+    # Calculate X^T (lambda I + G)^{-1} X and  X^T (lambda I + G)^{-1} Y
+    Xt_B = transpose(X) * B
+    
+    # Get beta hat by solving X^T (lambda I + G)^{-1} X for X^T (lambda I + G)^{-1} Y
+    # Since the LHS is quite small we use a standard solve
+    beta_hat = Xt_B[:, 1:(end-1)] \ Xt_B[:,end]
+end
+@info "Estimating beta required $(round(wtime,digits=3)) seconds"
+
+@info "Predicting u"
+GC.gc()
+wtime = @elapsed begin
+    # Solve (G + lambda I) for (Y - X beta_hat)
+    B = miraculix.solve.dense_solve(G_stretched, reshape(Y - X * beta_hat, (n_indiv, 1)), calc_logdet = false, oversubscribe = false)
+    
+    # Calculate genomic values 
+    g = G * B
+end
+@info "Predicting u required $(round(wtime,digits=3)) seconds"
+
+# Calculate correlation between estimated breeding values and true breeding values
+cor_bv = cor(g, bv_true)[1]
+println("Correlation between estimated breeding values and true breeding values: $(round(cor_bv, digits=3)).")
+
+# Calculate correlation between phenotype and fitted model
+fit = X * beta_hat + g
+cor_fit = cor(fit, pheno)[1]
+println("Correlation between phenotype and fitted model: $(round(cor_fit, digits=3)).")

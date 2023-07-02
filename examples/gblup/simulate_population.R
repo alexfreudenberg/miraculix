@@ -76,7 +76,7 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
         twobit_packed[,new_col_index] <- col_packed   
     }
     # Convert twobit to PLINK format
-    # FIXME: the as.integer instructions casts all values into 32bit integers - yet, raw subscripts are not implemented in R... 
+    # FIXME: the as.integer instructions casts all values into 32bit integers - yet, subscripts with raws are not implemented in R... 
     cat("Convert to PLINK format.\n")
     plink_format <- conversion_table_2bit_plink[as.integer(twobit_packed)+1] 
     plink_format <- matrix(plink_format, nrow = nsnps)
@@ -94,7 +94,7 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
     # Check if file in binary format already exists 
     filename_bed <- paste0(filename, ".bed")
     if(file.exists(filename_bed)){
-        warning(paste("File", filename, "already exists, returning packed character matrix."))
+        warning(paste("File", filename, "already exists. Returning packed character matrix."))
         return(plink_format)
     }
 
@@ -138,6 +138,8 @@ mobps_to_bed <- function(geno, pheno = rep("1", nrow(geno)), filename = "simulat
 # Main
 # =====================
 
+RandomFieldsUtils::RFoptions(warn_parallel=FALSE, install="no")
+
 # Number of individuals to be simulated for phenotyping 
 # Note that setting this value high requires a lot of memory
 indiv <- 5e4
@@ -159,3 +161,5 @@ bv <- get.bv(population, gen=2)
 
 # Write to PLINK binary format
 mobps_to_bed(geno, pheno[1,], paste0(data_dir, "mobps_simulation"))
+# Write true breeding values for reference
+write.table(data.frame(bv=bv), paste0(data_dir,"mobps_simulation.bv"), quote = F, sep = " ", row.names = F, col.names = F)
