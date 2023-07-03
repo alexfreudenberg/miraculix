@@ -175,7 +175,7 @@ function run_cublas_uint8_ld(data::String, libpath::String)
 
     # Check if memory suffices
     device_memory = 80 # in GB
-    if n_indiv^2 * 4 + n_indiv * n_snps > device_memory * 1024^3 * 0.9
+    if n_snps^2 * 4 + n_indiv * n_snps > device_memory * 1024^3 * 0.9
         @warn "Device memory not sufficient for $data."
         return Nothing
     end
@@ -199,7 +199,7 @@ function run_cublas_uint8_ld(data::String, libpath::String)
     @debug "Time for calculating cuBLAS uint8 crossproduct: $wtime s."
 
     @assert issymmetric(M) "Result not symmetric" 
-
+    return M, decompressed
      # Scaling of centered genotype matrix
      wtime = @elapsed begin
         BLAS.syr!('U', Float64(-4.0 * n_indiv), freq, M)

@@ -56,6 +56,10 @@ int cublas_uint8_gemm(unsigned char *snp_matrix, int snps, int indiv,
     
     size_t size_of_input  = sizeof(uint8_t) * snps * indiv;
     size_t size_of_output = sizeof(float) * indiv * indiv;
+    
+    if (checkDevMemory( 2*size_of_input + size_of_output) != 0) {
+        return 1;
+    }
     // Create handle
     cublasCreate(&handle);
 
