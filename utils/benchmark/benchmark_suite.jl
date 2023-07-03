@@ -118,7 +118,7 @@ function run_cublas_uint8_grm(data::String, libpath::String)
 
     # Check if memory suffices
     device_memory = 80 # in GB
-    if n_indiv^2 * 4 + n_indiv * n_snps > device_memory * 0.9
+    if n_indiv^2 * 4 + n_indiv * n_snps > device_memory * 1024^3 * 0.9
         @warn "Device memory not sufficient for $data."
         return Nothing
     end
@@ -157,7 +157,68 @@ function run_cublas_uint8_grm(data::String, libpath::String)
     
     M ./= n_snps
 
+    @time "Writing result" write_result(data, M, "binary")
+
     return M
+end # function
+function run_cublas_uint8_ld(data::String, libpath::String)
+    # Create valid bed file from data string
+    data_file = data * ".bed"
+    # Read-in data file, convert it to two-bit and calculate allele frequencies
+    @time "Reading data" plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = false, calc_freq = true, check_for_missings = false)
+
+    if ~isfile(libpath)
+        error("cublas_uint8 library not available.")
+    end
+    lib_handle = dlopen(libpath)
+    compute_sym = dlsym(lib_handle, :cublas_uint8_gemm)
+
+    # Check if memory suffices
+    device_memory = 80 # in GB
+    if n_indiv^2 * 4 + n_indiv * n_snps > device_memory * 1024^3 * 0.9
+        @warn "Device memory not sufficient for $data."
+        return Nothing
+    end
+    # Decompress data into uint8
+    decompressed = zeros(UInt8, n_indiv, n_snps)
+    for (index,entry) in pairs(IndexLinear(),plink)
+        offset_decompressed = (index-1) * 4 + 1
+        @inbounds for i in 0:3
+            # Convert packed SNP data to Float
+            genotype_uint8 = UInt8((entry >> (2*i)) & 0x03)
+            # Check if there is a missing value which is coded as 1 in PLINK format
+            (genotype_uint8 == UInt8(1)) && error("Missing in genotype data")
+            # Convert PLINK format to 0,1,2 format
+            decompressed[offset_decompressed + i] = max(0, genotype_uint8 -1) |> UInt8
+        end    
+    end
+    decompressed = transpose(decompressed) |> Matrix;
+
+    M = zeros(Float64, (n_snps, n_snps))
+    wtime = @elapsed ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}), decompressed, Int32(n_indiv), Int32(n_snps), M)
+    @debug "Time for calculating cuBLAS uint8 crossproduct: $wtime s."
+
+    @assert issymmetric(M) "Result not symmetric" 
+
+     # Scaling of centered genotype matrix
+     wtime = @elapsed begin
+        BLAS.syr!('U', Float64(-4.0 * n_indiv), freq, M)
+        M = Matrix(Symmetric(M, :U))
+    end
+    @debug "Time for rank-one update of LD: $wtime s."
+
+    # Calculate vector of standard deviations
+    wtime = @elapsed begin
+    sigma_vector = reshape(sqrt.(diag(M)), (n_snps,1))
+    # Device each row and column by the vector of standard deviations
+    M ./= sigma_vector
+    M ./= transpose(sigma_vector)
+    end
+    @debug "Time for scaling LD by std devs: $wtime s."
+    
+    @time "Writing result" write_result(data, M, "binary")
+
+    return Nothing
 end # function
 
 function run_gcta_grm(data::String)
@@ -201,4 +262,5 @@ for size in BENCHMARK_SIZES_LD
     suite["LD"][size,"miraculix"] = @benchmarkable run_miraculix_ld($size) setup = (run_miraculix_ld($size))
     suite["LD"][size,"PLINK"] = @benchmarkable run_plink_ld($size)
     suite["LD"][size,"GCTA"] = @benchmarkable run_gcta_ld($size)
+    suite["LD"][size,"cuBLAS"] = @benchmarkable run_cublas_uint8_ld($size, ROOT_DIR * "/utils/benchmark/cublas_uint8.so")
 end
