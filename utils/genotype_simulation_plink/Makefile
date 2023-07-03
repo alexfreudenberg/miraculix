@@ -6,7 +6,7 @@ LARGESIZE=3100000
 SNPSIZE_XSMALL=12803
 SNPSIZE_SMALL=50241
 SNPSIZE_MEDIUM=250000
-SNPSIZE_LARGE=1000000000
+SNPSIZE_LARGE=1000000
 
 all: plink small medium large few_snps medium_snps many_snps
 
@@ -67,4 +67,4 @@ cleanplink:
 	rm -fv plink*.zip toy.* prettify plink LICENSE
 
 cleandata:	
-	rm -fv *small* *medium* *large* geno.sim
+	rm -fv *.bed *.bim *.fam *.freq geno.sim
