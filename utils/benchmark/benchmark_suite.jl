@@ -23,6 +23,7 @@ using DelimitedFiles;
 using DataFrames;
 using BenchmarkTools;
 using Tables;
+using Libdl;
 
 # =====================
 # Global definitions
@@ -103,6 +104,62 @@ function run_miraculix_ld(data::String, write_format::String = "binary")
     return Nothing
 end
 
+function run_cublas_uint8_grm(data::String, libpath::String)
+    # Create valid bed file from data string
+    data_file = data * ".bed"
+    # Read-in data file, convert it to two-bit and calculate allele frequencies
+    @time "Reading data" plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = false, calc_freq = true, check_for_missings = false)
+
+    if ~isfile(libpath)
+        error("cublas_uint8 library not available.")
+    end
+    lib_handle = dlopen(libpath)
+    compute_sym = dlsym(lib_handle, :cublas_uint8_gemm)
+
+    # Check if memory suffices
+    device_memory = 80 # in GB
+    if n_indiv^2 * 4 + n_indiv * n_snps > device_memory * 0.9
+        @warn "Device memory not sufficient for $data."
+        return Nothing
+    end
+    # Decompress data into uint8
+    decompressed = zeros(UInt8, n_indiv, n_snps)
+    for (index,entry) in pairs(IndexLinear(),plink)
+        offset_decompressed = (index-1) * 4 + 1
+        @inbounds for i in 0:3
+            # Convert packed SNP data to Float
+            genotype_uint8 = UInt8((entry >> (2*i)) & 0x03)
+            # Check if there is a missing value which is coded as 1 in PLINK format
+            (genotype_uint8 == UInt8(1)) && error("Missing in genotype data")
+            # Convert PLINK format to 0,1,2 format
+            decompressed[offset_decompressed + i] = max(0, genotype_uint8 -1) |> UInt8
+        end    
+    end
+
+    M = zeros(Float64, (n_indiv, n_indiv))
+    wtime = @elapsed ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}), decompressed, Int32(n_snps), Int32(n_indiv), M)
+    @debug "Time for calculating cuBLAS uint8 crossproduct: $wtime s."
+
+    @assert issymmetric(M) "Result not symmetric" 
+
+    # Scaling of centered genotype matrix
+    col_sum = sum(M, dims = 1) |> vec
+    one_vector = ones(Float64, (n_indiv,)) 
+
+    wtime = @elapsed begin 
+        BLAS.ger!(-1/n_indiv, col_sum, one_vector, M)
+        BLAS.ger!(-1/n_indiv, one_vector, col_sum, M)
+    end
+    @debug "Time for rank-one updates of GRM: $wtime s."
+
+    wtime = @elapsed M .+= sum(col_sum) ./ n_indiv^2
+    @debug "Time for affine transform of GRM: $wtime s."
+    
+    M ./= n_snps
+
+    return M
+end # function
+
 function run_gcta_grm(data::String)
     # Run GCTA software from command line
     run(`./gcta-1.94.1 --bfile $data --thread-num $OMP_NUM_THREADS --make-grm-bin --make-grm-alg 1 --out $data `)
@@ -138,6 +195,7 @@ for size in BENCHMARK_SIZES_GRM
     suite["GRM"][size,"miraculix"] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_grm($size))
     suite["GRM"][size,"PLINK"] = @benchmarkable run_plink_grm($size)
     suite["GRM"][size,"GCTA"] = @benchmarkable run_gcta_grm($size)
+    suite["GRM"][size,"cuBLAS"] = @benchmarkable run_cublas_uint8_grm($size, ROOT_DIR * "/utils/benchmark/cublas_uint8.so")
 end
 for size in BENCHMARK_SIZES_LD
     suite["LD"][size,"miraculix"] = @benchmarkable run_miraculix_ld($size) setup = (run_miraculix_ld($size))

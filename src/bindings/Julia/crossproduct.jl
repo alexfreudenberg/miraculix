@@ -46,8 +46,6 @@ function snp_crossprod(plink::Matrix{UInt8}, snps::Int, indiv::Int; is_snpmajor:
 
     @assert issymmetric(M) "Result not symmetric" 
 
- 
-
     return M
 end # function
 

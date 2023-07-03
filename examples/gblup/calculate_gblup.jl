@@ -17,14 +17,16 @@
 
 
 using Base;
-using Random;
-using LinearAlgebra;
-using CSV;
-using DelimitedFiles;
-using DataFrames;
-using BenchmarkTools;
-using LoopVectorization;
-using Statistics;
+@timev "Loading libraries" begin
+    using Random;
+    using LinearAlgebra;
+    using CSV;
+    using DelimitedFiles;
+    using DataFrames;
+    using BenchmarkTools;
+    using LoopVectorization;
+    using Statistics;
+end
 
 # =====================
 # Global definitions
@@ -106,91 +108,77 @@ miraculix.dgemm_compressed.set_options(use_gpu=true, verbose=0)
 data_file = DATA_DIR * "/mobps_simulation.bed"
 
 # Read-in data from PLINK binary format
-@info "Reading in data from $data_file"
-wtime = @elapsed begin
+@info "Reading in data from $data_file and transpose it"
+@timev "Reading" begin
     # Read PLINK data and calculate allele frequencies
     plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true, check_for_missings = false)
     # Read in phenotype data
     pheno = CSV.read(DATA_DIR * "/mobps_simulation.fam", delim = ' ', DataFrame, header = 0)[:,6]
     # Read in true breeding values that were used for simulation
-    bv_true = CSV.read(DATA_DIR * "/mobps_simulation.bv", delim=' ', DataFrame, header = 0)[1,:]
-end
-@info "Importing data required $(round(wtime,digits=3)) seconds."
+    bv_true = CSV.read(DATA_DIR * "/mobps_simulation.bv", delim=' ', DataFrame, header = 0)[1,:] |> Vector
 
-if (length(ARGS) > 0) && (ARGS[1] == "test")
-    n_snps = 1000
-    plink = plink[:,1:n_snps]
-    freq = freq[1:n_snps]
-end
-
-@info "Transposing PLINK matrix."
-GC.gc()
-wtime = @elapsed begin
+    if (length(ARGS) > 0) && (ARGS[1] == "test")
+        n_snps = 1000
+        plink = plink[:,1:n_snps]
+        freq = freq[1:n_snps]
+    end
+    
+    # Transpose matrix
     plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
+    GC.gc()
 end
-@info "Transposing required $(round(wtime,digits=3)) seconds"
-
 
 # Calculate the GRM in miraculix
 @info "Calculating the genomic relationship matrix"
-GC.gc()
-wtime = @elapsed begin
+@timev "GRM" begin
     G = miraculix.crossproduct.grm(plink_transposed, n_snps, n_indiv, is_plink_format = false, allele_freq = vec(freq), do_scale = true)
 end
-@info "GRM calculation required $(round(wtime,digits=3)) seconds"
 
 
 # Convert twobit encoding back to PLINK
 @info "Converting matrix back to PLINK format for phenotype multiplication"
-wtime = @elapsed begin
+@timev "Format conversion" begin
     vmapt!(miraculix.read_plink.convert_twobit2plink, plink, plink)
     vmapt!(miraculix.read_plink.convert_twobit2plink, plink_transposed, plink_transposed)
 end
-@info "Format conversion required $(round(wtime,digits=3)) seconds"
 
 # Multiply eigenvectors by SNP matrix to obtain principal components of SNPs
 @info "Calculating principal components"
-wtime = @elapsed begin
+@timev "principal components" begin
     princ_comps = randomized_snp_pca(plink, plink_transposed, n_snps, n_indiv, 10)
+    plink, plink_transposed = Nothing, Nothing
+    GC.gc()
 end
-@info "Principal components required $(round(wtime,digits=3)) seconds"
 
 GC.gc()
 # Calculate BLUE for beta through the formula
 # \hat{beta} = (X^T (lambda I + G)^{-1} X)^{-1} X^T (lambda I + G)^{-1} Y
 # with lambda = sigma_u^2 / sigma_epsilon^2 
 # We assume a known heritability of 0.5 and hence lambda = 1
-lambda = 1.0
-G_stretched = G + diagm(lambda .* ones(n_indiv))
-
-@info "Estimating β"
-wime = @elapsed begin
+@info "Estimating β and u"
+@timev "gBLUP" begin
+    lambda = 1.0
+    G[diagind(G)] .+= lambda
     # Design matrix of fixed effects
     X = hcat(ones(Float64, (n_indiv, 1)), princ_comps)
     Y = pheno
     rhs_matrix = hcat(X, Y)
 
     # Solve X B = Y
-    B = miraculix.solve.dense_solve(G_stretched, rhs_matrix, calc_logdet = false, oversubscribe = false)
+    B = miraculix.solve.dense_solve(G, rhs_matrix, calc_logdet = false, oversubscribe = false)
     # Calculate X^T (lambda I + G)^{-1} X and  X^T (lambda I + G)^{-1} Y
     Xt_B = transpose(X) * B
     
     # Get beta hat by solving X^T (lambda I + G)^{-1} X for X^T (lambda I + G)^{-1} Y
     # Since the LHS is quite small we use a standard solve
     beta_hat = Xt_B[:, 1:(end-1)] \ Xt_B[:,end]
-end
-@info "Estimating beta required $(round(wtime,digits=3)) seconds"
 
-@info "Predicting u"
-GC.gc()
-wtime = @elapsed begin
     # Solve (G + lambda I) for (Y - X beta_hat)
-    B = miraculix.solve.dense_solve(G_stretched, reshape(Y - X * beta_hat, (n_indiv, 1)), calc_logdet = false, oversubscribe = false)
-    
+    B = miraculix.solve.dense_solve(G, reshape(Y - X * beta_hat, (n_indiv, 1)), calc_logdet = false, oversubscribe = false)
+
     # Calculate genomic values 
-    g = G * B
+    g = G * B - B
 end
-@info "Predicting u required $(round(wtime,digits=3)) seconds"
 
 # Calculate correlation between estimated breeding values and true breeding values
 cor_bv = cor(g, bv_true)[1]

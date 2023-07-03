@@ -22,7 +22,7 @@ include("benchmark_suite.jl")
 # Get arguments for benchmarking
 # =====================
 
-VALID_MODES = Set(["miraculix","PLINK","GCTA"])
+VALID_MODES = Set(["miraculix","PLINK","cuBLAS","GCTA"])
 
 if length(ARGS) > 0
     mode = ARGS[1]
