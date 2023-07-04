@@ -109,9 +109,11 @@ data_file = DATA_DIR * "/mobps_simulation.bed"
 
 # Read-in data from PLINK binary format
 @info "Reading in data from $data_file and transpose it"
-@timev "Reading" begin
+@timev "Preprocessing" begin
     # Read PLINK data and calculate allele frequencies
-    plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true, check_for_missings = false)
+    wtime = @elapsed plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = true, calc_freq = true, check_for_missings = false)
+    @debug "Time for reading: $wtime s."
+
     # Read in phenotype data
     pheno = CSV.read(DATA_DIR * "/mobps_simulation.fam", delim = ' ', DataFrame, header = 0)[:,6]
     # Read in true breeding values that were used for simulation
@@ -124,7 +126,9 @@ data_file = DATA_DIR * "/mobps_simulation.bed"
     end
     
     # Transpose matrix
-    plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
+    wtime = @elapsed plink_transposed = miraculix.compressed_operations.transpose_genotype_matrix(plink, n_snps, n_indiv)
+    @debug "Time for transposing: $wtime s."
+
     GC.gc()
 end
 

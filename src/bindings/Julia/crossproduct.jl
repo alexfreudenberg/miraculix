@@ -23,9 +23,23 @@ using Libdl
 using LinearAlgebra
 
 """
-    crossproduct(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int)
+    snp_crossprod(plink::Matrix{UInt8}, snps::Int, indiv::Int; is_snpmajor::Bool, is_plink_format::Bool = false)
 
-TBW
+Computes the crossproduct of the SNP matrix with itself using a C library interface.
+
+# Arguments
+- `plink::Matrix{UInt8}`: The SNP matrix in compressed 2bit format.
+- `snps::Int`: The number of SNPs in the SNP matrix.
+- `indiv::Int`: The number of individuals in the SNP matrix.
+- `is_snpmajor::Bool`: Indicates if the SNP matrix is in SNP-major format.
+- `is_plink_format::Bool = false`: Specifies if the SNP matrix is in PLINK binary format. Defaults to `false`.
+
+# Returns
+- The SNP matrix crossproduct as a Float64 matrix of dimensions snps times snps if is_snpmajor is true and indiv times indiv else.
+
+# Errors
+- Throws an error if the dimensions of the SNP matrix are incorrect or if the library handle for the miraculix library is not initialized.
+
 """
 function snp_crossprod(plink::Matrix{UInt8}, snps::Int, indiv::Int; is_snpmajor::Bool, is_plink_format::Bool = false)
     if is_snpmajor
@@ -37,7 +51,7 @@ function snp_crossprod(plink::Matrix{UInt8}, snps::Int, indiv::Int; is_snpmajor:
     check_dimensions(plink, ncol, nrow)
 
     check_library_handle()
-    compute_sym = dlsym(LIBRARY_HANDLE[], :crossprod_mmagpu)
+    compute_sym = dlsym(LIBRARY_HANDLE[], :snp_multiply_gpu)
 
     M = zeros(Float64, (ncol, ncol))
 
@@ -49,9 +63,25 @@ function snp_crossprod(plink::Matrix{UInt8}, snps::Int, indiv::Int; is_snpmajor:
     return M
 end # function
 
+"""
+    grm(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int; is_plink_format::Bool = false, do_scale::Bool = true, allele_freq::Vector{Float64} = Vector{Float64}())
 
+Calculates the genomic relationship matrix (GRM) using the SNP crossproduct function.
+
+# Arguments
+- `plink_transposed::Matrix{UInt8}`: The SNP matrix in individual-major format.
+- `snps::Int`: The number of SNPs in the SNP matrix.
+- `indiv::Int`: The number of individuals in the SNP matrix.
+- `is_plink_format::Bool = false`: Specifies if the SNP matrix is in PLINK binary format. Defaults to `false`.
+- `do_scale::Bool = true`: Indicates whether to the SNP matrix is scaled by the sum of allele variances. Defaults to `true`.
+- `allele_freq::Vector{Float64} = Vector{Float64}()`: The vector of allele frequencies. Needs to be supplied if `do_scale = true`. Defaults to an empty vector.  
+
+# Returns
+- The genomic relationship matrix (GRM) as a Float64 matrix.
+
+"""
 function grm(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int; is_plink_format::Bool = false, do_scale::Bool = true, allele_freq::Vector{Float64} = Vector{Float64}())
-    if length(allele_freq) != snps
+    if do_scale && length(allele_freq) != snps
         error("Allele frequencies need to be equal to length of SNPs $snps.")
     end
 
@@ -79,6 +109,22 @@ function grm(plink_transposed::Matrix{UInt8}, snps::Int, indiv::Int; is_plink_fo
     return M
 end # function
 
+"""
+    ld(plink::Matrix{UInt8}, snps::Int, indiv::Int; is_plink_format::Bool = false, allele_freq::Vector{Float64} = Vector{Float64}())
+
+Calculates the Linkage Disequilibrium (LD) statistic R^2 based on allele counts using the SNP crossproduct function.
+
+# Arguments
+- `plink::Matrix{UInt8}`: The SNP matrix in compressed 2bit format.
+- `snps::Int`: The number of SNPs in the SNP matrix.
+- `indiv::Int`: The number of individuals in the SNP matrix.
+- `is_plink_format::Bool = false`: Specifies if the SNP matrix is in PLINK binary format. Defaults to `false`.
+- `allele_freq::Vector{Float64} = Vector{Float64}()`: The vector of allele frequencies. Defaults to an empty vector.
+
+# Returns
+- The R^2 matrix as a Float64 matrix.
+
+"""
 function ld(plink::Matrix{UInt8}, snps::Int, indiv::Int; is_plink_format::Bool = false, allele_freq::Vector{Float64} = Vector{Float64}())
     if length(allele_freq) != snps
         error("Allele frequencies need to be equal to length of SNPs $snps.")
