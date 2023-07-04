@@ -1,6 +1,6 @@
 DEBUG=false
 
-OBJECTS=dgemm_compressed_cuda.o solve_gpu.o cuda_utils.o mmagpu.o
+OBJECTS=dgemm_compressed_cuda.o solve_cuda.o cuda_utils.o snp_multiply_cuda.o
 
 CUTLASS_PATH=../cutlass/include/
 CUTLASS_UTILS=../cutlass/tools/util/include

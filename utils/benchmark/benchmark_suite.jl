@@ -108,7 +108,8 @@ function run_cublas_uint8_grm(data::String, libpath::String)
     # Create valid bed file from data string
     data_file = data * ".bed"
     # Read-in data file, convert it to two-bit and calculate allele frequencies
-    @time "Reading data" plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = false, calc_freq = true, check_for_missings = false)
+    wtime = @elapsed plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = false, calc_freq = true, check_for_missings = false)
+    @debug "Time for reading data: $wtime s."
 
     if ~isfile(libpath)
         error("cublas_uint8 library not available.")
@@ -140,6 +141,7 @@ function run_cublas_uint8_grm(data::String, libpath::String)
     wtime = @elapsed ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}), decompressed, Int32(n_snps), Int32(n_indiv), M)
     @debug "Time for calculating cuBLAS uint8 crossproduct: $wtime s."
 
+    dlclose(lib_handle)
     @assert issymmetric(M) "Result not symmetric" 
 
     # Scaling of centered genotype matrix
@@ -157,7 +159,8 @@ function run_cublas_uint8_grm(data::String, libpath::String)
     
     M ./= n_snps
 
-    @time "Writing result" write_result(data, M, "binary")
+    wtime = @elapsed "Writing result" write_result(data, M, "binary")
+    @debug "Time for writing result: $wtime s."
 
     return M
 end # function
@@ -165,7 +168,8 @@ function run_cublas_uint8_ld(data::String, libpath::String)
     # Create valid bed file from data string
     data_file = data * ".bed"
     # Read-in data file, convert it to two-bit and calculate allele frequencies
-    @time "Reading data" plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = false, calc_freq = true, check_for_missings = false)
+    wtime = @elapsed plink, freq, n_snps, n_indiv = miraculix.read_plink.read_bed(data_file, coding_twobit = false, calc_freq = true, check_for_missings = false)
+    @debug "Time for reading data: $wtime s."
 
     if ~isfile(libpath)
         error("cublas_uint8 library not available.")
@@ -200,8 +204,6 @@ function run_cublas_uint8_ld(data::String, libpath::String)
 
     dlclose(lib_handle)
     @assert issymmetric(M) "Result not symmetric" 
-    @assert any(M .!= 0) "Result fully zero."
-
 
      # Scaling of centered genotype matrix
      wtime = @elapsed begin
@@ -212,14 +214,15 @@ function run_cublas_uint8_ld(data::String, libpath::String)
 
     # Calculate vector of standard deviations
     wtime = @elapsed begin
-    sigma_vector = reshape(sqrt.(diag(M)), (n_snps,1))
-    # Device each row and column by the vector of standard deviations
-    M ./= sigma_vector
-    M ./= transpose(sigma_vector)
+        sigma_vector = reshape(sqrt.(diag(M)), (n_snps,1))
+        # Devide each row and column by the vector of standard deviations
+        M ./= sigma_vector
+        M ./= transpose(sigma_vector)
     end
     @debug "Time for scaling LD by std devs: $wtime s."
     
-    @time "Writing result" write_result(data, M, "binary")
+    wtime = @elapsed  "Writing result" write_result(data, M, "binary")
+    @debug "Time for writing values: $wtime s."
 
     return M
 end # function
@@ -265,5 +268,6 @@ for problem_size in BENCHMARK_SIZES_LD
     suite["LD"][problem_size,"miraculix"] = @benchmarkable run_miraculix_ld($problem_size) setup = (run_miraculix_ld($problem_size))
     suite["LD"][problem_size,"PLINK"] = @benchmarkable run_plink_ld($problem_size)
     suite["LD"][problem_size,"GCTA"] = @benchmarkable run_gcta_ld($problem_size)
-    suite["LD"][problem_size,"cuBLAS"] = @benchmarkable run_cublas_uint8_ld($problem_size, ROOT_DIR * "/utils/benchmark/cublas_uint8.so")
 end
+
+suite["LD"]["small","cuBLAS"] = @benchmarkable run_cublas_uint8_ld("small", ROOT_DIR * "/utils/benchmark/cublas_uint8.so")

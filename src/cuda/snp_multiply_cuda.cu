@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Include order is important!!!
+// Include order is important for CUTLASS
 // Namespace conflicts if order is changed
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -30,8 +30,8 @@ limitations under the License.
 #include <unistd.h>
 #include <omp.h>
 
+#include "snp_multiply_cuda.h"
 #include "cuda_utils.h"
-#include "mmagpuIntern.h"
 
 const int default_tile_size = 2048;
 

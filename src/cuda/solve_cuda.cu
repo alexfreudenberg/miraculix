@@ -54,7 +54,7 @@
 #include <thrust/execution_policy.h>
 
 
-#include "solve_gpu.h"
+#include "solve_cuda.h"
 #include "cuda_utils.h"
 
 
@@ -65,7 +65,7 @@
  */
 #define THREADS_PER_BLOCK 1024
 
-__global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet);
+__global__ void trace_kernel(double* d_matrix, long* d_size, double* d_logdet);
 
 int dense_solve(double *A, // Pointer to the input matrix A in row-major order
                 unsigned int input_size, // The dimension of the square matrix A
@@ -236,7 +236,7 @@ int dense_solve(double *A, // Pointer to the input matrix A in row-major order
         if (checkError(__func__, __LINE__, status) != 0)
         return (1);
 
-        logdet_kernel<<<(size - 1) / THREADS_PER_BLOCK + 1, THREADS_PER_BLOCK>>>(
+        trace_kernel<<<(size - 1) / THREADS_PER_BLOCK + 1, THREADS_PER_BLOCK>>>(
             d_matrix, d_size, d_logdet);
         cudaDeviceSynchronize();
         err = cudaGetLastError();
@@ -833,7 +833,7 @@ void sparse_solve_compute(
     cusparseDestroy(handle);
 };
 
-__global__ void logdet_kernel(double* d_matrix, long* d_size, double* d_logdet)
+__global__ void trace_kernel(double* d_matrix, long* d_size, double* d_logdet)
 {
     /* This CUDA kernel calculates the logdeterminant of a matrix by determining the trace of its cholesky decomposition
     Input:
