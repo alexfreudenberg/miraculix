@@ -101,7 +101,7 @@ function run_miraculix_ld(data::String, write_format::String = "binary")
     @time "Writing result" write_result(data, M, write_format)
 
     GC.gc()
-    return Nothing
+    return M
 end
 
 function run_cublas_uint8_grm(data::String, libpath::String)
@@ -198,8 +198,11 @@ function run_cublas_uint8_ld(data::String, libpath::String)
     wtime = @elapsed ccall(compute_sym,  Cint,  (Ptr{UInt8}, Cint, Cint, Ptr{Float64}), decompressed, Int32(n_indiv), Int32(n_snps), M)
     @debug "Time for calculating cuBLAS uint8 crossproduct: $wtime s."
 
+    dlclose(lib_handle)
     @assert issymmetric(M) "Result not symmetric" 
-    return M, decompressed
+    @assert any(M .!= 0) "Result fully zero."
+
+
      # Scaling of centered genotype matrix
      wtime = @elapsed begin
         BLAS.syr!('U', Float64(-4.0 * n_indiv), freq, M)
@@ -218,7 +221,7 @@ function run_cublas_uint8_ld(data::String, libpath::String)
     
     @time "Writing result" write_result(data, M, "binary")
 
-    return Nothing
+    return M
 end # function
 
 function run_gcta_grm(data::String)
@@ -252,15 +255,15 @@ suite = BenchmarkGroup()
 suite["GRM"] = BenchmarkGroup(["GRM", "crossproduct"])
 suite["LD"] = BenchmarkGroup(["LD", "crossproduct"])
 
-for size in BENCHMARK_SIZES_GRM
-    suite["GRM"][size,"miraculix"] = @benchmarkable run_miraculix_grm($size) setup = (run_miraculix_grm($size))
-    suite["GRM"][size,"PLINK"] = @benchmarkable run_plink_grm($size)
-    suite["GRM"][size,"GCTA"] = @benchmarkable run_gcta_grm($size)
-    suite["GRM"][size,"cuBLAS"] = @benchmarkable run_cublas_uint8_grm($size, ROOT_DIR * "/utils/benchmark/cublas_uint8.so")
+for problem_size in BENCHMARK_SIZES_GRM
+    suite["GRM"][problem_size,"miraculix"] = @benchmarkable run_miraculix_grm($problem_size) setup = (run_miraculix_grm($problem_size))
+    suite["GRM"][problem_size,"PLINK"] = @benchmarkable run_plink_grm($problem_size)
+    suite["GRM"][problem_size,"GCTA"] = @benchmarkable run_gcta_grm($problem_size)
+    suite["GRM"][problem_size,"cuBLAS"] = @benchmarkable run_cublas_uint8_grm($problem_size, ROOT_DIR * "/utils/benchmark/cublas_uint8.so")
 end
-for size in BENCHMARK_SIZES_LD
-    suite["LD"][size,"miraculix"] = @benchmarkable run_miraculix_ld($size) setup = (run_miraculix_ld($size))
-    suite["LD"][size,"PLINK"] = @benchmarkable run_plink_ld($size)
-    suite["LD"][size,"GCTA"] = @benchmarkable run_gcta_ld($size)
-    suite["LD"][size,"cuBLAS"] = @benchmarkable run_cublas_uint8_ld($size, ROOT_DIR * "/utils/benchmark/cublas_uint8.so")
+for problem_size in BENCHMARK_SIZES_LD
+    suite["LD"][problem_size,"miraculix"] = @benchmarkable run_miraculix_ld($problem_size) setup = (run_miraculix_ld($problem_size))
+    suite["LD"][problem_size,"PLINK"] = @benchmarkable run_plink_ld($problem_size)
+    suite["LD"][problem_size,"GCTA"] = @benchmarkable run_gcta_ld($problem_size)
+    suite["LD"][problem_size,"cuBLAS"] = @benchmarkable run_cublas_uint8_ld($problem_size, ROOT_DIR * "/utils/benchmark/cublas_uint8.so")
 end
