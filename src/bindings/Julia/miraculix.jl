@@ -39,6 +39,9 @@ function check_dimensions(plink::Matrix{UInt8}, snps::Int, indiv::Int)
     if (size(plink, 1) != ceil(indiv/4)) || (size(plink, 2) != snps)
         error("Matrix has wrong dimensions: Expected $snps SNPs and $indiv samples")
     end
+    if LIBRARY_HANDLE[] == Ptr{Nothing}()
+        error("No valid library handle initialized.")
+    end
 end
 
 """
@@ -100,9 +103,11 @@ It releases any resources associated with the library.
 - Throws an error if the shared library is not currently loaded or cannot be properly closed.
 """
 function close_shared_library()
-    if !isnull(LIBRARY_HANDLE[])
+    if LIBRARY_HANDLE[] != Ptr{Nothing}()
         dlclose(LIBRARY_HANDLE[])
         LIBRARY_HANDLE[] = C_NULL
+    else
+        error("No valid library handle initialized.")
     end
 end
 
