@@ -88,15 +88,15 @@ struct GPU_gemm_storage {
   uint8_t *d_plink; // Pointer to device copy of SNP matrix in plink format
   uint8_t *d_plink_transposed; // Pointer to device copy ot transposed SNP
                                // matrix in plink format
-  double *d_f;    // Pointer to device copy of vector of allele frequencies
-  double *d_unit; // Pointer to device vector of 1s
-  double *d_B;    // Pointer to device vector of B
-  double *d_C;     // Pointer to device vector of C
-  double *d_D;     // Pointer to device vector of D
-  long size_matrix; // Size of matrices B and C
-  int snps;     // Number of SNPs
-  int indiv;      // Number of individuals
-  int device;     // Device to perform the operations on
+  double *d_f;      // Pointer to device copy of vector of allele frequencies
+  double *d_unit;   // Pointer to device vector of 1s
+  double *d_B;      // Pointer to device vector of B
+  double *d_C;      // Pointer to device vector of C
+  double *d_D;      // Pointer to device vector of D
+  long size_buffer; // Size of matrices B and C
+  int snps;         // Number of SNPs
+  int indiv;        // Number of individuals
+  int device;       // Device to perform the operations on
 };
 
 // Function declarations

@@ -106,7 +106,7 @@ miraculix.load_shared_library()
 
 
 println("Check if routine returns right results")
-@testset "Consistency" begin
+@testset "Correctness" begin
     for n in Vector{Int64}([1e2,5e3, 15e3])
         for ncol in [1, 5, 20]
             for density in [0.05, 0.7]
@@ -126,7 +126,7 @@ println("Check if routine returns right results")
                 X_sp = miraculix.solve.sparse_solve(obj_ref, 'n', Y_sp, n)
                 # Free GPU memory
                 miraculix.solve.sparse_free(obj_ref)
-                @test_throws "No valid storage object" miraculix.solve.sparse_free(obj_ref)
+                @test_throws "Encountered uninitialized pointer." miraculix.solve.sparse_free(obj_ref)
             
                 # Compute the solution to M X = B
                 X = miraculix.solve.dense_solve(M, B, calc_logdet = false, oversubscribe = false)

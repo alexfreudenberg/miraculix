@@ -68,18 +68,19 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   double *d_f, *d_unit, *d_C, *d_D;
   double *d_B;
 
-  long n_cols = (indiv - 1) / 4 + 1; // number of columns of Z if individuals
-                                     // are zero-padded to be a multiple of 4
-  long n_cols_transposed =
+  long n_bytes_per_snp =
+      (indiv - 1) / 4 + 1; // number of columns of Z if individuals
+                           // are zero-padded to be a multiple of 4
+  long n_bytes_per_indiv =
       (snps - 1) / 4 +
-      1; // number of columns of Z if SNPs are zero-padded to be a multiple of 4
-  long size_matrix = 4 * ((long(max(snps, indiv)) - 1) / 4 + 1) * long(n);
+      1; // number of columns of Z^T if SNPs are zero-padded to be a multiple of 4
+  long size_buffer = 4 * ((long(max(snps, indiv)) - 1) / 4 + 1) * long(n);
   // Maximal size of the matrices B and C on the device
   // Matrices are forced to have a number of rows which is a multiple of 4 by
   // zero-padding This allows us to deal with SNP matrices with unaligned
   // dimensions which are themselves zero-padded
 
-  debug_info("Dimensions: (%d,%d), size in bytes: %ld, size_t %d", snps, indiv, n_cols * long(snps) + long(indiv) * n_cols_transposed, sizeof(size_t));
+  debug_info("Dimensions: (%d,%d), size in bytes: %ld, size_t %d", snps, indiv, n_bytes_per_snp * long(snps) + long(indiv) * n_bytes_per_indiv, sizeof(size_t));
 
   if(checkCuda() != 0){
     return 1;
@@ -91,8 +92,8 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   }
 
   // Check if enough memory is available
-  size_t required_mem = 3 * size_matrix * sizeof(double) + n_cols * long(snps) +
-                     n_cols_transposed * long(indiv);
+  size_t required_mem = 3 * size_buffer * sizeof(double) + n_bytes_per_snp * long(snps) +
+                     n_bytes_per_indiv * long(indiv);
 
   if (checkDevMemory(required_mem) != 0) {
     return 1;
@@ -101,10 +102,10 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   //
   // Allocate device memory
   //
-  err = cudaMalloc((void **)&d_plink, n_cols * long(snps));
+  err = cudaMalloc((void **)&d_plink, n_bytes_per_snp * long(snps));
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
-  err = cudaMalloc((void **)&d_plink_transposed, n_cols_transposed * long(indiv));
+  err = cudaMalloc((void **)&d_plink_transposed, n_bytes_per_indiv * long(indiv));
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
   err = cudaMalloc((void **)&d_f, sizeof(double) * snps);
@@ -113,23 +114,23 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   err = cudaMalloc((void **)&d_unit, sizeof(double) * indiv);
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
-  err = cudaMalloc((void **)&d_B, sizeof(double) * size_matrix);
+  err = cudaMalloc((void **)&d_B, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
-  err = cudaMalloc((void **)&d_C, sizeof(double) * size_matrix);
+  err = cudaMalloc((void **)&d_C, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
-  err = cudaMalloc((void **)&d_D, sizeof(double) * size_matrix);
+  err = cudaMalloc((void **)&d_D, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
 
   //
   // Copy data to device
   //
-  err = cudaMemcpy(d_plink, plink, long(n_cols) * long(snps), cudaMemcpyHostToDevice);
+  err = cudaMemcpy(d_plink, plink, long(n_bytes_per_snp) * long(snps), cudaMemcpyHostToDevice);
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
-  err = cudaMemcpy(d_plink_transposed, plink_transposed, long(n_cols_transposed) * long(indiv),
+  err = cudaMemcpy(d_plink_transposed, plink_transposed, long(n_bytes_per_indiv) * long(indiv),
                    cudaMemcpyHostToDevice);
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
@@ -156,7 +157,7 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   GPU_storage_obj->d_B                = d_B;
   GPU_storage_obj->d_C                = d_C;
   GPU_storage_obj->d_D                = d_D;
-  GPU_storage_obj->size_matrix        = size_matrix;
+  GPU_storage_obj->size_buffer        = size_buffer;
   GPU_storage_obj->snps               = snps;
   GPU_storage_obj->indiv              = indiv;
   GPU_storage_obj->device             = device;
@@ -275,7 +276,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
 
   long m           = transA ? GPU_storage_obj->snps : GPU_storage_obj->indiv;
   long k           = transA ? GPU_storage_obj->indiv : GPU_storage_obj->snps;
-  long size_matrix = GPU_storage_obj->size_matrix;
+  long size_buffer = GPU_storage_obj->size_buffer;
   long k1          = (k - 1) / 4 + 1;
 
 
@@ -297,13 +298,13 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
     return 1;
 
   // Zero-fill matrices C and B to avoid spurious results
-  err = cudaMemset(d_B, 0, sizeof(double) * size_matrix);
+  err = cudaMemset(d_B, 0, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
   err = cudaMemset(d_C, 0, sizeof(double) * err);
   if (checkError(__func__, __LINE__, cublas_status) != 0)
     return 1;
-  err = cudaMemset(d_D, 0, sizeof(double) * size_matrix);
+  err = cudaMemset(d_D, 0, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
 
