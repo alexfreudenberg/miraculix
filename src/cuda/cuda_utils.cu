@@ -162,7 +162,7 @@ int checkCuda(){
 
 int checkDevMemory(size_t required_mem){
   //
-  //  Device memory check
+  // Device memory check
   // Checks if the device has enough RAM available
 
   cudaError_t err;
@@ -196,20 +196,24 @@ int switchDevice(){
   int device_available = 0;
   char *requested_device = getenv("CUDA_DEVICE");
   bool verbose = get_print_level() >= 0;
+  cudaDeviceProp prop;
 
   if (requested_device != NULL) {
-    device = atoi(requested_device);
-    if(verbose){
-      printf("Environment variable CUDA_DEVICE is set to %s, switching to device %d.\n",
-           requested_device, device);
-    }
-  }
-  else {
-    if(verbose){
-    printf("Environment variable CUDA_DEVICE is not set, using device 0.\n");
-    }
+      device = atoi(requested_device);
+      if (verbose) {
+        printf("Environment variable CUDA_DEVICE is set to %s. ",
+               requested_device);
+      }
+  } else {
+      if (verbose) {
+        printf("Environment variable CUDA_DEVICE is not set. ");
+      }
   }
 
+  if (verbose) {
+      cudaGetDeviceProperties(&prop, device);
+      printf("Using device %s (device no %d).\n", prop.name, device);
+  }
 
   // Check if the requested device is available
   char *visible_devices =

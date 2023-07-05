@@ -21,15 +21,6 @@
 # the genotpye matrix multiplication functionality within that module to iteratively compute the solution 
 # to the equation G^-1 x through the conjugate gradient algorithm, where x is a vector and G is the genomic relationship matrix.
 
-# # Usage
-# To use this script, make sure that the Julia file containing the module is in the 
-# same directory as this script or its path is included in Julia's LOAD_PATH. Also, 
-# ensure that the data for the genomic relationship matrix G and vector x are available 
-# and correctly formatted.
-
-# The script assumes that the module contains a function for matrix multiplication, 
-# and that this function can handle the inversion of the genomic relationship matrix G.
-
 # # Output
 # The script will output the solution to the equation G^-1 x as a vector. 
 
@@ -99,11 +90,11 @@ miraculix.load_shared_library()
 miraculix.dgemm_compressed.set_options(use_gpu=use_gpu, verbose=0)
 
 # Read PLINK and allele frequency files
-genotype_data, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE)
-freq = miraculix.read_plink.read_freq(FREQ_FILE)
+genotype_data, calc_freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_FILE,coding_twobit = false, calc_freq = true)
+genotype_data_transposed = miraculix.compressed_operations.transpose_genotype_matrix(genotype_data, n_snps, n_indiv)
 
 # Initialize storage object
-obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data, n_snps, n_indiv, freq, 1)
+obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data,genotype_data_transposed,  n_snps, n_indiv, freq, 1)
 
 # Set hyper parameters
 max_iter = 1_000 # Maximum number of iterations

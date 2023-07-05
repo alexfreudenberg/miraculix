@@ -1,4 +1,3 @@
-
 CUDA=true
 COMPILER=intel
 
@@ -26,6 +25,10 @@ LDFLAGS+=-lmiraculix -lfortran
 
 # CUDA Part
 ifeq ($(CUDA), true)
+NVCC=$(CUDA_HOME)/bin/nvcc
+CXXFLAGS=-Xcompiler --std=c++14 -Xcompiler -fopenmp  -Xcompiler -fPIC -Xcompiler -g -x cu
+CXXFLAGS+=-I$(SRC_DIR)/cuda
+
 LDFLAGS+=-L${CUDA_HOME}/lib64 -lcudart -lcublas -lcusolver -lcusparse -lcusolver -ldgemm_compressed_cuda_12
 FFLAGS+=-DCUDA
 endif
@@ -40,7 +43,7 @@ LIBMIRACULIX = $(SRC_DIR)/miraculix/libmiraculix.a
 EXE = benchmark.out
 
 
-all: $(EXE)
+all: $(EXE) uint8_lib
 
 
 $(EXE): $(OBJ) $(LIBMIRACULIX) $(LIBFORTRAN)
@@ -50,6 +53,12 @@ $(EXE): $(OBJ) $(LIBMIRACULIX) $(LIBFORTRAN)
 	$(FORTRAN) $(FFLAGS) -c $<
 
 $(OBJ): $(LIBFORTRAN)
+
+uint8_lib: cublas_uint8.o $(SRC_DIR)/cuda/cuda_utils.o
+	$(NVCC) -shared -o $(<:.o=.so) $^ -lcublas
+
+%.o: %.cu 
+	$(NVCC) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	$(RM) $(OBJ) $(MODS) $(EXE) *.optrpt

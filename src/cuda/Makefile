@@ -1,5 +1,7 @@
 DEBUG=false
 
+OBJECTS=dgemm_compressed_cuda.o solve_cuda.o cuda_utils.o snp_multiply_cuda.o
+
 CUTLASS_PATH=../cutlass/include/
 CUTLASS_UTILS=../cutlass/tools/util/include
 
@@ -21,13 +23,13 @@ CXXFLAGS+=-DDEBUG
 endif
 
 .PHONY: lib lib12 shared_lib
-shared_lib: dgemm_compressed_cuda.o solve_gpu.o cuda_utils.o
+shared_lib: $(OBJECTS)
 	$(NVCC) -shared -o $(<:.o=.so) $^
 
-lib: dgemm_compressed_cuda.o solve_gpu.o cuda_utils.o
+lib: $(OBJECTS)
 	ar rcs lib$(<:.o=.a) $^ 
 
-lib12: dgemm_compressed_cuda_12.o solve_gpu_12.o cuda_utils_12.o
+lib12: $(OBJECTS)
 	ar rcs lib$(<:.o=.a) $^ 
 
 %_12.o: %.cu 
