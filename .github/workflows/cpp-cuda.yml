@@ -6,11 +6,20 @@ on:
     - '**'
 
 jobs:
-  build:
+  build_gpu:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - name: webfactory/ssh-agent
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ci_ip: ${{ secrets.CI_IP }}
+
+  build_cpu:
+    runs-on: ubuntu-latest
+    steps:
     - name: Install Intel oneAPI
+      uses: actions/checkout@v3
       run: |
         wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
         | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
