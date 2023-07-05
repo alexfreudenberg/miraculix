@@ -7,7 +7,7 @@
 module load devel/cuda/12
 core_numbers=(20 10 1)
 population_sizes=(large medium small)
-execution_modes=(CPU Org)
+execution_modes=(GPU CPU MKL)
 
 for cores in "${core_numbers[@]}"
 do

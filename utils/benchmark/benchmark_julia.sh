@@ -3,7 +3,7 @@
 ##SBATCH --exclusive
 #SBATCH --mem=160gb
 #SBATCH --mail-type=ALL
-#SBATCH --output=BENCHMARK_%x_%j.out
+#SBATCH --output=BENCHMARK_julia_%x_%j.out
 
 # Start Julia benchmark script
 # Command line needs to specify "miraculix" or "PLINK"
