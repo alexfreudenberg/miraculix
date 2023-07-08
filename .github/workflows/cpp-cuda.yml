@@ -10,3 +10,11 @@ jobs:
       - name: make
         run: |
           make -C src
+  
+  shutdown_instance:
+    name: Shutdown instance
+    runs-on: GPU
+    if: ${{ always() }}
+    steps:
+      - run: |
+          shutdown now
