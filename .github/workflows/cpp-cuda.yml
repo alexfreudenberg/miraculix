@@ -11,10 +11,8 @@ jobs:
         run: |
           make -C src
   
-  shutdown_instance:
-    name: Shutdown instance
-    runs-on: GPU
+  call_shutdown_workflow:
+    name: Start shutdown workflow
+    needs: build_gpu
     if: ${{ always() }}
-    steps:
-      - run: |
-          shutdown now
+    uses: ./.github/workflows/instance_stop.yml
