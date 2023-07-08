@@ -1,52 +1,12 @@
 name: C/C++/CUDA CI
 
 on:
-  workflow_dispatch
-  #pull_request:
-  #  branches: 
-  #  - '**'
-
+  workflow_call:
+  
 jobs:
   build_gpu:
-    runs-on: ubuntu-latest
-    steps:
-    - name: webfactory/ssh-agent
-      uses: webfactory/ssh-agent@v0.8.0
-      with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ci_ip: ${{ secrets.CI_IP }}
-
-  build_cpu:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Install Intel oneAPI
-      uses: actions/checkout@v3
-      run: |
-        wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
-        | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
-        echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-        sudo apt update
-        wget https://registrationcenter-download.intel.com/akdlm/IRC_NAS/89283df8-c667-47b0-b7e1-c4573e37bd3e/l_dpcpp-cpp-compiler_p_2023.1.0.46347_offline.sh
-        chmod +x l_dpcpp-cpp-compiler_p_2023.1.0.46347_offline.sh
-        ./l_dpcpp-cpp-compiler_p_2023.1.0.46347_offline.sh  -a -s --eula accept
-        if which icc > /dev/null; then
-          echo "icc is in the PATH"
-        else
-          echo "icc is not in the PATH"
-        fi
-        
-    - name: cuda-toolkit
-      uses: Jimver/cuda-toolkit@v0.2.10
-      with:
-        # Cuda version
-        cuda: 11.7.0 # optional, default is 12.1.0
-        # Only installs specified subpackages, must be in the form of a JSON array. For example, if you only want to install nvcc and visual studio integration: ["nvcc", "visual_studio_integration"] double quotes required! Note that if you want to use this on Linux, 'network' method MUST be used.
-        #sub-packages: '["nvcc"]' # optional, default is []
-        # Installation method, can be either 'local' or 'network'. 'local' downloads the entire installer with all packages and runs that (you can still only install certain packages with sub-packages on Windows). 'network' downloads a smaller executable which only downloads necessary packages which you can define in subPackages
-        #method: 'network' # optional, default is local
-        # (Linux and 'local' method only) override arguments for the linux .run installer. For example if you don't want samples use ["--toolkit"] double quotes required!
-        linux-local-args: '["--toolkit"]' # optional, default is ["--toolkit", "--samples"]
-        # Use GitHub cache to cache downloaded installer on GitHub servers
-        #use-github-cache: # optional, default is true
-    - name: make
-      run: export "CUDA_HOME=$CUDA_PATH/" && echo "This $CUDA_HOME" && make -C src
+    runs-on: GPU
+    steps: 
+      - name: make
+        run: |
+          make -C src
