@@ -9,23 +9,16 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
       - uses: actions/checkout@v3
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v3.7.0
-        #with:
+      - uses: actions/setup-node@v3.7.0
+        with:
           # Set always-auth in npmrc.
           #always-auth: # optional, default is false
           # Version Spec of the version to use. Examples: 12.x, 10.15.1, >=10.15.0.
-          #node-version: # optional
+          node-version: 18.x # optional
           # File containing the version Spec of the version to use.  Examples: .nvmrc, .node-version, .tool-versions.
           #node-version-file: # optional
           # Target architecture for Node to use. Examples: x86, x64. Will use system architecture by default.
@@ -41,8 +34,8 @@ jobs:
           # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
           #cache: npm # optional
           #cache-dependency-path: ./.github/workflows/npm-shrinkwrap.json 
-      - name: Install paperspace 
-        run: |
+      #- name: Install paperspace 
+      - run: |
           npm install paperspace-node
           ls docs
 
