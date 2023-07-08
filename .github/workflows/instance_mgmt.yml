@@ -39,6 +39,6 @@ jobs:
           #token: # optional, default is ${{ github.server_url == 'https://github.com' && github.token || '' }}
           # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
           cache: npm # optional
-          cache-dependency-path: .github/workflows/npm-shrinkwrap.json 
+          cache-dependency-path: ./.github/workflows/npm-shrinkwrap.json 
 
 
