@@ -6,7 +6,7 @@ on:
   workflow_call:
 
 jobs:
-  start_machine:
+  stop_machine:
     runs-on: ubuntu-latest
 
     steps:

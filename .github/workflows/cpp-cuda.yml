@@ -12,7 +12,7 @@ jobs:
           make -C src
   
   call_shutdown_workflow:
-    name: Start shutdown workflow
+    name: Stop shutdown workflow
     needs: build_gpu
     if: ${{ always() }}
     uses: ./.github/workflows/instance-stop.yml
