@@ -42,7 +42,7 @@ jobs:
           #cache-dependency-path: ./.github/workflows/npm-shrinkwrap.json 
       - name: Install paperspace 
         run: |
-          ls .github/workflows
           npm install paperspace-node
+          ls docs
 
 
