@@ -16,3 +16,4 @@ jobs:
     needs: build_gpu
     if: ${{ always() }}
     uses: ./.github/workflows/instance-stop.yml
+    secrets: inherit
