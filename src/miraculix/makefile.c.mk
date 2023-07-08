@@ -23,8 +23,8 @@ LINKER=-std=gnu++14 -L/usr/local/lib -L/usr/lib64
 
 else ifeq ($(COMPILER), intel)
 
-CC=icc
-Ccompiler=icc
+CC=icx
+Ccompiler=icx
 FORTRAN=ifort
 CFLAGS=-O2 -diag-disable=10441 $(DEBUGGING_FLAG) 
 CCFLAGS=-O2 -qopenmp -parallel -pthread -diag-disable=10441 $(DEBUGGING_FLAG)
