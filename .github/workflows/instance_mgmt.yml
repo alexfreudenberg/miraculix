@@ -24,6 +24,8 @@ jobs:
             --machineId "ps25kpnac"
             
   call_cuda_workflow:
+    needs: start_machine
     uses: ./.github/workflows/cpp-cuda.yml
-
+    
+  
 
