@@ -3,7 +3,9 @@
 name: Instance management
 
 on:
-  workflow_dispatch
+  pull_request:
+    branches: 
+    - '**'
 
 jobs:
   build:
