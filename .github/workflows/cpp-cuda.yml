@@ -15,4 +15,4 @@ jobs:
     name: Start shutdown workflow
     needs: build_gpu
     if: ${{ always() }}
-    uses: ./.github/workflows/instance_stop.yml
+    uses: ./.github/workflows/instance-stop.yml
