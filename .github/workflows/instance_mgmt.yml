@@ -40,7 +40,7 @@ jobs:
           # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
           #cache: npm # optional
           #cache-dependency-path: ./.github/workflows/npm-shrinkwrap.json 
-      - steps: Install paperspace 
+      - name: Install paperspace 
         run: |
           ls .github/workflows
           npm install paperspace-node
