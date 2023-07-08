@@ -32,10 +32,11 @@ jobs:
           # Used to pull node distributions from node-versions. Since there's a default, this is typically not supplied by the user. When running this action on github.com, the default value is sufficient. When running on GHES, you can pass a personal access token for github.com if you are experiencing rate limiting.
           #token: # optional, default is ${{ github.server_url == 'https://github.com' && github.token || '' }}
           # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
-          cache: npm # optional
-          cache-dependency-path: ./.github/workflows/npm-shrinkwrap.json 
+          #cache: npm # optional
+          #cache-dependency-path: ./.github/workflows/npm-shrinkwrap.json 
       #- name: Install paperspace 
       - run: |
+          npm install -g paperspace-node
           paperspace machines start \
             --apiKey ${{ secrets.PAPERSPACE_API_KEY }} \
             --machineId "ps25kpnac"
