@@ -146,13 +146,12 @@ indiv <- 5e4
 
 # Simulate a population based on the map_cattle2 map
 dataset <- founder.simulation(nindi = 1e2, sex.quota = 0.5, map = map_cattle2, display.progress = FALSE, verbose = FALSE)
-population <- creating.diploid(dataset = dataset, map = map_cattle2, n.additive = c(1000,1000), verbose=FALSE)
-population <- breeding.diploid(population, breeding.size = indiv, heritability = c(0.5,0.5),
-                                phenotyping = "all",
-                                display.progress = FALSE, verbose=FALSE)
-population <- breeding.diploid(population, breeding.size = 1e2, heritability = c(0.5,0.5),
-                                phenotyping = "all",
-                                display.progress = FALSE, verbose=FALSE)
+population <- creating.diploid(dataset = dataset, map = map_cattle2, n.additive = 1000, verbose=FALSE)
+population <- breeding.diploid(population, breeding.size = indiv,
+                               display.progress = FALSE, verbose=FALSE)
+population <- breeding.diploid(population, heritability = 0.5,
+                               phenotyping = "all",
+                               display.progress = FALSE, verbose=FALSE)
 
 # Extract genotypes and phenotypes
 geno <- get.geno(population, gen=2) 
