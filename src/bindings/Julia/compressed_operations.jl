@@ -21,6 +21,8 @@ module compressed_operations
 import ..LIBRARY_HANDLE, ..check_storage_object, ..check_dimensions
 export transpose_genotype_matrix
 
+import .Threads: @threads
+
 
 """
     transpose_genotype_matrix(plink::Matrix{UInt8}, snps::Int, indiv::Int)
@@ -44,16 +46,22 @@ function transpose_genotype_matrix(plink::Matrix{UInt8}, snps::Int, indiv::Int)
     check_dimensions(plink, snps, indiv)
     plink_transposed = zeros(UInt8, Int(ceil(snps/4)), indiv)
 
-    for (index, entry) in pairs(IndexCartesian(), plink)
-        id_indiv = index[1]
-        id_snp = index[2]
-        @inbounds for i in 0:3
-            new_col = Int((id_indiv-1) * 4 + i + 1)
-            new_row = Int(ceil(id_snp/4))
-            offset = (id_snp-1) % 4
-            plink_transposed[new_row, new_col] |= ((entry >> (2 * i)) & 0x03) << (2*offset)
+    @threads for snp_group in range(1, snps, step = 4)
+        for indiv_group in range(1, indiv, step = 4)
+            upper_limit = min(3, snps - snp_group)
+            for j in 0:upper_limit
+                indiv_index = Int(ceil(indiv_group / 4))
+                entry = plink[indiv_index, snp_group + j]
+                for i in 0:3
+                    new_col = indiv_group + i
+                    new_row = Int(ceil( (snp_group + j) /4))
+                    offset = j
+                    plink_transposed[new_row, new_col] |= ((entry >> (2 * i)) & 0x03) << (2*offset)
+                end
+            end
         end
     end
+
     return plink_transposed
 end
 
