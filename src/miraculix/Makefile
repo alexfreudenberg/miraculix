@@ -1,4 +1,4 @@
-CUDA=true
+CUDA=false
 COMPILER=intel
 
 #miraculix source files:
@@ -9,17 +9,17 @@ include makefile.c.mk
 ifeq ($(COMPILER), gcc)
  CC=g++
  CCOMPILER=gcc
- CFLAGS=-I/usr/local/include -O2 $(DEBUGGING_FLAG) -mtune=native -march=native
- CCFLAGS=-I/usr/local/include -O2 -fopenmp -pthread $(DEBUGGING_FLAG) -mtune=native -march=native
+ CFLAGS=-I/usr/local/include -O2 $(DEBUGGING_FLAG) -mtune=native -march=native 
+ CCFLAGS=-I/usr/local/include -O2 -fopenmp -pthread $(DEBUGGING_FLAG) -mtune=native -march=native 
  LINK_FLAGS=-llapack -lblas -lgfortran -lm -lquadmath -fopenmp
 
  LINKER=-std=gnu++14 -L/usr/local/lib -L/usr/lib64
 
 else ifeq ($(COMPILER), intel)
 
- CC=icc
- CFLAGS=-O2 -diag-disable=10441 -fPIC $(DEBUGGING_FLAG) 
- CCFLAGS=-O2 -qopenmp -parallel -pthread -diag-disable=10441 -fPIC $(DEBUGGING_FLAG)
+ CC=icx
+ CFLAGS=-O2 -fPIC $(DEBUGGING_FLAG) -fiopenmp
+ CCFLAGS=-O2 -qopenmp -pthread -fPIC $(DEBUGGING_FLAG) -fiopenmp
  LINK_FLAGS=-liomp5 -lmkl_blas95_lp64 -lmkl_lapack95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core  -lpthread -lm -ldl -lstdc++
 
  LINKER=-std=gnu++14

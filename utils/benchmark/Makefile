@@ -1,4 +1,4 @@
-CUDA=true
+CUDA=false
 COMPILER=intel
 
 ifeq ($(COMPILER), gcc)
@@ -8,10 +8,10 @@ ifeq ($(COMPILER), gcc)
  LDFLAGS=-llapack -lblas -lgfortran -lm -lquadmath -fopenmp
 
 else ifeq ($(COMPILER), intel)
- FORTRAN=ifort
+ FORTRAN=ifx
  FFLAGS=-O3 -mavx2 -mtune=native -march=native
  FFLAGS+=-I${MKLROOT}/include -I${MKLROOT}/include/intel64/lp64 -L${MKLROOT}/lib/intel64
- FFLAGS+=-fpp -qopenmp -qopt-matmul
+ FFLAGS+=-fpp -qopenmp
  LDFLAGS=-liomp5 -lmkl_blas95_lp64 -lmkl_lapack95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core  -lpthread -lm -ldl -lstdc++
 
 endif
@@ -20,7 +20,7 @@ endif
 SRC_DIR=$(PWD)/../../src
 FFLAGS+=-I$(SRC_DIR)/bindings/Fortran
 LDFLAGS+=-L$(SRC_DIR)/miraculix -L$(SRC_DIR)/bindings/Fortran -L$(SRC_DIR)/cuda
-LDFLAGS+= -Wl,-rpath=$(SRC_DIR)/miraculix -Wl,-rpath=$(SRC_DIR)/bindings/Fortran -Wl,-rpath=$(SRC_DIR)/cuda 
+LDFLAGS+=-Wl,-rpath=$(SRC_DIR)/miraculix -Wl,-rpath=$(SRC_DIR)/bindings/Fortran -Wl,-rpath=$(SRC_DIR)/cuda 
 LDFLAGS+=-lmiraculix -lfortran 
 
 # CUDA Part

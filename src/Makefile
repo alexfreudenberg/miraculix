@@ -1,4 +1,4 @@
-CUDA=true
+CUDA=false
 
 TARGETS=libmiraculix shared_lib libfortran
 
@@ -23,11 +23,11 @@ libfortran: libmiraculix $(DEPENDENCIES)
 	cd bindings/Fortran && make lib
 
 check_cuda: 
-ifndef CUDA_HOME
-$(error Environment variable CUDA_HOME not set - check your CUDA installation.)
-endif
-CUDA_FILES=bin/nvcc lib64/libcudart.so lib64/libcublas.so lib64/libcusolver.so lib64/libcusparse.so
-$(foreach file,$(CUDA_FILES),$(if $(wildcard $(CUDA_HOME)/$(file)),,$(error CUDA file $(CUDA_HOME)/$(file) does not exist)))
+	ifndef CUDA_HOME
+	$(error Environment variable CUDA_HOME not set - check your CUDA installation.)
+	endif
+	CUDA_FILES=bin/nvcc lib64/libcudart.so lib64/libcublas.so lib64/libcusolver.so lib64/libcusparse.so
+	$(foreach file,$(CUDA_FILES),$(if $(wildcard $(CUDA_HOME)/$(file)),,$(error CUDA file $(CUDA_HOME)/$(file) does not exist)))
 
 
 clean_shared_lib:

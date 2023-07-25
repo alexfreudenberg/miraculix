@@ -9,7 +9,7 @@ ifeq ($(COMPILER), gcc)
  LINKER=-std=gnu++14 -L/usr/local/lib -L/usr/lib64
 
 else ifeq ($(COMPILER), intel)
- FORTRAN=ifort
+ FORTRAN=ifx
  FFLAGS=-O3 -mavx2 -mtune=native -march=native
  FFLAGS+=-I${MKLROOT}/include -I${MKLROOT}/include/intel64/lp64 -L${MKLROOT}/lib/intel64
  FFLAGS+=-fpp -qopenmp -qopt-matmul -qopt-report=5

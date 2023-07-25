@@ -1,0 +1,32 @@
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+
+name: Start instance
+
+on:
+  pull_request:
+    branches: 
+    - '**'
+
+jobs:
+  start_machine:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3.7.0
+        with:
+          # Version Spec of the version to use. Examples: 12.x, 10.15.1, >=10.15.0.
+          node-version: 18.x # optional
+      - run: |
+          npm install -g paperspace-node
+          paperspace machines start \
+            --apiKey ${{ secrets.PAPERSPACE_API_KEY }} \
+            --machineId "ps25kpnac"
+            
+  call_cuda_workflow:
+    needs: start_machine
+    uses: ./.github/workflows/cpp-cuda.yml
+    secrets: inherit
+    
+  
+

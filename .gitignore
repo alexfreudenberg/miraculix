@@ -17,5 +17,7 @@
 *.*~
 *.pdf
 
+*.tmp
+*.opt.yaml
 *.optrpt
 *.tgz
