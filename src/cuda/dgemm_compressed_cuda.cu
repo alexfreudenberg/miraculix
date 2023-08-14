@@ -40,7 +40,7 @@
 // 
 // plink2gpu function
 // 
-int plink2gpu(char *plink, char *plink_transposed, int snps,
+int plink2gpu(char *genotype, char *genotype_transposed, int snps,
               int indiv, double *f, int n, void **GPU_obj) {
   /*
     Moves SNP matrix, its transposed and the according allele frequencies to the
@@ -48,9 +48,9 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
     to which is then returned.
 
     Parameters:
-      plink: Pointer to SNP matrix in plink format of size ceil(indiv/4) * snps
+      genotype: Pointer to SNP matrix in plink format of size ceil(indiv/4) * snps
     +3
-      plink_transpoed: Pointer to transposed SNP matrix in plink format
+      genotype_transpoed: Pointer to transposed SNP matrix in plink format
       f: Pointer to vector of allele frequencies
       snps: Pointer to number of snps
       indiv: Pointer to number of individuals
@@ -64,10 +64,11 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   // Initialize CUDA variables
   //
   cudaError_t err;
-  uint8_t *d_plink, *d_plink_transposed;
+  uint8_t *d_genotype, *d_genotype_transposed;
   double *d_f, *d_unit, *d_C, *d_D;
   double *d_B;
 
+  int n_datasets = int(genotype != NULL) + int(genotype_transposed != NULL);
   long n_bytes_per_snp =
       (indiv - 1) / 4 + 1; // number of columns of Z if individuals
                            // are zero-padded to be a multiple of 4
@@ -80,16 +81,18 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   // zero-padding This allows us to deal with SNP matrices with unaligned
   // dimensions which are themselves zero-padded
 
-  debug_info("Dimensions: (%d,%d), size in bytes: %ld, size_t %d", snps, indiv, n_bytes_per_snp * long(snps) + long(indiv) * n_bytes_per_indiv, sizeof(size_t));
+  debug_info("Dimensions: (%d,%d), size in bytes: %ld", snps, indiv, n_bytes_per_snp * long(snps) + long(indiv) * n_bytes_per_indiv);
 
+  // Check if CUDA installation is correct
   if(checkCuda() != 0){
     return 1;
   }
-
+  // Switch to correct device
   int device = switchDevice();
   if(device == -1){
     return 1;
   }
+  // Check if a genotype dataset was supplied
 
   // Check if enough memory is available
   size_t required_mem = 3 * size_buffer * sizeof(double) + n_bytes_per_snp * long(snps) +
@@ -102,10 +105,10 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   //
   // Allocate device memory
   //
-  err = cudaMalloc((void **)&d_plink, n_bytes_per_snp * long(snps));
+  err = cudaMalloc((void **)&d_genotype, n_bytes_per_snp * long(snps));
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
-  err = cudaMalloc((void **)&d_plink_transposed, n_bytes_per_indiv * long(indiv));
+  err = cudaMalloc((void **)&d_genotype_transposed, n_bytes_per_indiv * long(indiv));
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
   err = cudaMalloc((void **)&d_f, sizeof(double) * snps);
@@ -127,10 +130,10 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   //
   // Copy data to device
   //
-  err = cudaMemcpy(d_plink, plink, long(n_bytes_per_snp) * long(snps), cudaMemcpyHostToDevice);
+  err = cudaMemcpy(d_genotype, genotype, long(n_bytes_per_snp) * long(snps), cudaMemcpyHostToDevice);
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
-  err = cudaMemcpy(d_plink_transposed, plink_transposed, long(n_bytes_per_indiv) * long(indiv),
+  err = cudaMemcpy(d_genotype_transposed, genotype_transposed, long(n_bytes_per_indiv) * long(indiv),
                    cudaMemcpyHostToDevice);
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
@@ -150,8 +153,8 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   struct GPU_gemm_storage *GPU_storage_obj =
       (struct GPU_gemm_storage *)malloc(sizeof(struct GPU_gemm_storage));
 
-  GPU_storage_obj->d_plink            = d_plink;
-  GPU_storage_obj->d_plink_transposed = d_plink_transposed;
+  GPU_storage_obj->d_genotype            = d_genotype;
+  GPU_storage_obj->d_genotype_transposed = d_genotype_transposed;
   GPU_storage_obj->d_f                = d_f;
   GPU_storage_obj->d_unit             = d_unit;
   GPU_storage_obj->d_B                = d_B;
@@ -161,7 +164,6 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   GPU_storage_obj->snps               = snps;
   GPU_storage_obj->indiv              = indiv;
   GPU_storage_obj->device             = device;
-  debug_info("Pointer d_plink %d, d_plink_transposed %d", d_plink, d_plink_transposed);
 
   // Set pointer to initialized object
   *GPU_obj = (void *)GPU_storage_obj;
@@ -185,10 +187,10 @@ int freegpu(void **GPU_obj){
   
   // Free device memory and derefence storage object
   struct GPU_gemm_storage *GPU_storage_obj = (struct GPU_gemm_storage *) (*GPU_obj);
-  err = cudaFree(GPU_storage_obj->d_plink);
+  err = cudaFree(GPU_storage_obj->d_genotype);
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
-  err = cudaFree(GPU_storage_obj->d_plink_transposed);
+  err = cudaFree(GPU_storage_obj->d_genotype_transposed);
   if (checkError(__func__, __LINE__, err) != 0)
     return (1);
   err = cudaFree(GPU_storage_obj->d_f);
@@ -265,9 +267,9 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
 
   // Initialize device pointer for M
   // cutlass function assumes row major for M and PLINK bed uses SNP major, hence
-  // pointer plink is needed for transA = 't' and plink_transposed if transA =
+  // pointer genotype is needed for transA = 't' and genotype_transposed if transA =
   // 'N'
-  uint8_t  *d_M         = transA ? GPU_storage_obj->d_plink : GPU_storage_obj->d_plink_transposed;
+  uint8_t  *d_M         = transA ? GPU_storage_obj->d_genotype : GPU_storage_obj->d_genotype_transposed;
   cutlass::u4f64_t *d_B = reinterpret_cast<cutlass::u4f64_t *>(GPU_storage_obj->d_B);
   double   *d_f         = GPU_storage_obj->d_f,
            *d_unit      = GPU_storage_obj->d_unit;
