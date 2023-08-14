@@ -99,8 +99,11 @@ int plink2gpu(char *genotype, char *genotype_transposed, int snps,
   }
 
   // Check if enough memory is available
-  size_t required_mem = 3 * size_buffer * sizeof(double) + n_bytes_per_snp * long(snps) +
-                     n_bytes_per_indiv * long(indiv);
+  size_t required_mem = 3 * size_buffer * sizeof(double);
+  if (genotype != NULL)
+    required_mem += n_bytes_per_snp * long(snps);
+  if (genotype_transposed != NULL)
+    required_mem += n_bytes_per_indiv * long(indiv);
 
   if (checkDevMemory(required_mem) != 0) {
     return 1;
@@ -208,7 +211,7 @@ int freegpu(void **GPU_obj){
     if (checkError(__func__, __LINE__, err) != 0)
       return 1;
   }
-  if (GPU_storage_obj->d_genotype_transposed) {
+  if (GPU_storage_obj->d_genotype_transposed != NULL) {
     err = cudaFree(GPU_storage_obj->d_genotype_transposed);
     if (checkError(__func__, __LINE__, err) != 0)
       return 1;
@@ -416,7 +419,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   // Catch all accumulated errors from previous cuda launches
   err = cudaGetLastError();
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
 
 
   //
@@ -470,7 +473,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
                                   d_workspace,                     // vector y
                                   1);                              // incy
       if (checkError(__func__, __LINE__, cublas_status) != 0)
-        return (1);
+        return 1;
 
       debug_info("Centering: C");
 
@@ -479,7 +482,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
       cublas_status =
           cublasSetPointerMode(cublas_handle, CUBLAS_POINTER_MODE_DEVICE);
       if (checkError(__func__, __LINE__, cublas_status) != 0)
-        return (1);
+        return 1;
       for (int i = 0; i < n; i++) {
         cublas_status = cublasDaxpy(cublas_handle,         // handle
                                     m,                     // number of rows
@@ -489,7 +492,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
                                     d_D + i * m,           //  y
                                     1);                    // incy
         if (checkError(__func__, __LINE__, cublas_status) != 0)
-          return (1);
+          return 1;
       }
       break;
     }
@@ -510,7 +513,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   cudaDeviceSynchronize();
   cublas_status = cublasDestroy(cublas_handle);
   if (checkError(__func__, __LINE__, cublas_status) != 0)
-    return (1);
+    return 1;
     
   cudaFree(d_workspace);
   debug_info("Return");
