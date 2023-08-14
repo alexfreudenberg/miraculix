@@ -83,6 +83,10 @@ function GRM_vec(obj_ref::Ref{Ptr{Cvoid}}, B::Matrix{Float64}, snps::Int, indiv:
     return Gv
 end
 
+# =====================
+# Main
+# =====================
+
 # Set library path and load library
 miraculix.set_library_path(LIBRARY_PATH)
 miraculix.load_shared_library()
