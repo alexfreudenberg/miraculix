@@ -299,22 +299,22 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   // cutlass function assumes row major for M and PLINK bed uses SNP major, hence
   // pointer genotype is needed for transA = 't' and genotype_transposed if transA =
   // 'N'
-  uint8_t  *d_M         = transA ? GPU_storage_obj->d_genotype : GPU_storage_obj->d_genotype_transposed;
-  cutlass::u4f64_t *d_B = reinterpret_cast<cutlass::u4f64_t *>(GPU_storage_obj->d_B);
-  double   *d_f         = GPU_storage_obj->d_f,
-           *d_unit      = GPU_storage_obj->d_unit;
-  double   *d_C         = GPU_storage_obj->d_C;
-  double   *d_D         = GPU_storage_obj->d_D;
+  uint8_t          *d_M         = transA ? GPU_storage_obj->d_genotype : GPU_storage_obj->d_genotype_transposed;
+  cutlass::u4f64_t *d_B         = reinterpret_cast<cutlass::u4f64_t *>(GPU_storage_obj->d_B);
+  double           *d_f         = GPU_storage_obj->d_f,
+                   *d_unit      = GPU_storage_obj->d_unit;
+  double           *d_C         = GPU_storage_obj->d_C;
+  double           *d_D         = GPU_storage_obj->d_D;
+  double           *d_workspace = NULL;
 
   long m           = transA ? GPU_storage_obj->snps : GPU_storage_obj->indiv;
   long k           = transA ? GPU_storage_obj->indiv : GPU_storage_obj->snps;
   long size_buffer = GPU_storage_obj->size_buffer;
   long k1          = (k - 1) / 4 + 1;
 
-  const double alpha = 1.0,
-         alpha_n2 = -2.0,
-         beta  = 0.0;
-  double *d_workspace = NULL;
+  const  double alpha = 1.0,
+         alpha_n2     = -2.0,
+         beta         = 0.0;
 
   // Check CUDA installation
   if(checkCuda() != 0){
