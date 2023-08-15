@@ -98,7 +98,7 @@ genotype_data, calc_freq, n_snps, n_indiv = miraculix.read_plink.read_bed(DATA_F
 genotype_data_transposed = miraculix.compressed_operations.transpose_genotype_matrix(genotype_data, n_snps, n_indiv)
 
 # Initialize storage object
-obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data,genotype_data_transposed,  n_snps, n_indiv, freq, 1)
+obj_ref = miraculix.dgemm_compressed.init_compressed(genotype_data, genotype_data_transposed, n_snps, n_indiv, freq, 1)
 
 # Set hyper parameters
 max_iter = 1_000 # Maximum number of iterations
