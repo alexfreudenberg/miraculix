@@ -192,10 +192,16 @@ int switchDevice(){
   // 
 
   cudaError_t err;
-  int device = 0;
+  int  device            = 0;
   char *requested_device = getenv("CUDA_DEVICE");
-  bool verbose = get_print_level() >= 0;
+  int  device_count      = 0;
+  bool verbose           = get_print_level() >= 0;
   cudaDeviceProp prop;
+
+  if (checkCuda() != 0){
+    return 1;
+  }
+  cudaGetDeviceCount(&device_count);
 
   if (requested_device != NULL) {
       device = atoi(requested_device);
@@ -210,7 +216,7 @@ int switchDevice(){
   }
 
   // Check if the requested device is available
-  if (device >= cudaGetDeviceCount()){
+  if (device >= device_count){
     printf("Device not available.\n");
     return -1;
   }
@@ -236,10 +242,17 @@ int switchDevice(int device){
 
   cudaError_t err;
   bool verbose = get_print_level() >= 0;
+  int  device_count      = 0;
   cudaDeviceProp prop;
 
+  if (checkCuda() != 0) {
+        return 1;
+  }
+
+  cudaGetDeviceCount(&device_count);
+
   // Check if the requested device is available
-  if (device >= cudaGetDeviceCount()){
+  if (device >= device_count){
     printf("Device not available.\n");
     return -1;
   }
