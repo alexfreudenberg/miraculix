@@ -69,8 +69,8 @@ int plink2gpu(char *genotype, char *genotype_transposed, int snps,
   double  *d_f                   = NULL,
           *d_unit                = NULL,
           *d_C                   = NULL,
-          *d_D                   = NULL;
-  double  *d_B                   = NULL;
+          *d_D                   = NULL,
+          *d_B                   = NULL;
 
   int n_datasets = int(genotype != NULL) + int(genotype_transposed != NULL);
   long n_bytes_per_snp =
@@ -350,7 +350,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   err = cudaMemset(d_B, 0, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
-  err = cudaMemset(d_C, 0, sizeof(double) * err);
+  err = cudaMemset(d_C, 0, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
   err = cudaMemset(d_D, 0, sizeof(double) * size_buffer);
