@@ -54,7 +54,7 @@ include(MODULE_PATH)
 # =====================
 function multiply_ld(obj_ref::Ref{Ptr{Cvoid}}, snps::Int, indiv::Int, B::Matrix{Float64})
     # Calculate SNPs times Matrix
-    Z_vec = miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_ref, B, n_snps, n_indiv)
+    Z_vec = miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_ref, B, snps, indiv)
     # Calculate Individuals times Matrix
     ZtZ_vec = miraculix.dgemm_compressed.dgemm_compressed_main(true, obj_ref, Z_vec, snps, indiv)
     return ZtZ_vec
