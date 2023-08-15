@@ -64,9 +64,13 @@ int plink2gpu(char *genotype, char *genotype_transposed, int snps,
   // Initialize CUDA variables
   //
   cudaError_t err;
-  uint8_t *d_genotype, *d_genotype_transposed;
-  double *d_f, *d_unit, *d_C, *d_D;
-  double *d_B;
+  uint8_t *d_genotype            = NULL,
+          *d_genotype_transposed = NULL;
+  double  *d_f                   = NULL,
+          *d_unit                = NULL,
+          *d_C                   = NULL,
+          *d_D                   = NULL;
+  double  *d_B                   = NULL;
 
   int n_datasets = int(genotype != NULL) + int(genotype_transposed != NULL);
   long n_bytes_per_snp =
@@ -146,7 +150,7 @@ int plink2gpu(char *genotype, char *genotype_transposed, int snps,
     err = cudaMemcpy(d_genotype, genotype, long(n_bytes_per_snp) * long(snps),
                      cudaMemcpyHostToDevice);
     if (checkError(__func__, __LINE__, err) != 0)
-      return (1);
+      return 1;
   }
   if (genotype_transposed != NULL) {
     err = cudaMemcpy(d_genotype_transposed, genotype_transposed,
