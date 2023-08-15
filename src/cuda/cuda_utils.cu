@@ -210,10 +210,54 @@ int switchDevice(){
       }
   }
 
+  // Check if the requested device is available
+  char *visible_devices =
+      getenv("CUDA_VISIBLE_DEVICES"); // Get envirnoment variable
+  if (visible_devices == NULL) {      // Check if variable is set
+    printf("There are no visible CUDA devices. Check if there is a device "
+           "available or set the CUDA_VISIBLE_DEVICES variable\n");
+    return -1;
+  }
+
+  char *token = strtok(visible_devices, ","); // get first token
+  while (token != NULL) {
+    int val = atoi(token); // convert token to integer
+    if (val == device) {   // break if device number is found in variable
+      device_available = 1;
+      break;
+    }
+    token = strtok(NULL, ","); // get next token
+  }
+  if (device_available == 0){ 
+    printf("The requested device %d is not visible to the CUDA driver.\n",
+           device);
+    return -1;
+  }
+
   if (verbose) {
       cudaGetDeviceProperties(&prop, device);
       printf("Using device %s (device no %d).\n", prop.name, device);
   }
+
+  // Switch to device
+  err = cudaSetDevice(device);
+  if (checkError(__func__, __LINE__, err) != 0)
+    return -1;
+
+  return device;
+}
+
+int switchDevice(int device){
+  //
+  // Select GPU device
+  // The following section switches the current context to the requested device
+  // 
+
+  cudaError_t err;
+  bool verbose = get_print_level() >= 0;
+  cudaDeviceProp prop;
+  int device_available = 0;
+
 
   // Check if the requested device is available
   char *visible_devices =
@@ -239,6 +283,11 @@ int switchDevice(){
     return -1;
   }
 
+  if (verbose) {
+      cudaGetDeviceProperties(&prop, device);
+      printf("Using device %s (device no %d).\n", prop.name, device);
+  }
+  
   // Switch to device
   err = cudaSetDevice(device);
   if (checkError(__func__, __LINE__, err) != 0)

@@ -205,7 +205,11 @@ int freegpu(void **GPU_obj){
 
   // Free device memory and derefence storage object
   struct GPU_gemm_storage *GPU_storage_obj = (struct GPU_gemm_storage *) (*GPU_obj);
-  
+
+  if (switchDevice(GPU_storage_obj->device) == -1) {
+    return 1;
+  }
+
   if (GPU_storage_obj->d_genotype != NULL) {
     err = cudaFree(GPU_storage_obj->d_genotype);
     if (checkError(__func__, __LINE__, err) != 0)
@@ -314,6 +318,10 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
 
   // Check CUDA installation
   if(checkCuda() != 0){
+    return 1;
+  }
+  // Switch to device of object
+  if (switchDevice(GPU_storage_obj->device) == -1) {
     return 1;
   }
 
