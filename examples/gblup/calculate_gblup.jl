@@ -80,7 +80,7 @@ function randomized_eigen(obj_ref::Ref{Ptr{Cvoid}}, snps::Int, indiv::Int, n::In
     # For documentation of hyperparameters, see Halko et al., 2011
     QR_rf = randomized_range_finder(obj_ref, snps, indiv, n + p, q)
     ZtZ_Q = multiply_ld(obj_ref, snps, indiv, QR_rf)
-    EV = eigvecs(transpose(QR_rf) * ZtZ_Q)
+    EV = real.(eigvecs(transpose(QR_rf) * ZtZ_Q))
     U = QR_rf * EV
 
     return U
