@@ -56,7 +56,7 @@ include(MODULE_PATH)
 
 function multiply_Zt(obj_ref::Vector{Ref{Ptr{Cvoid}}}, B::Matrix{Float64}, snps::Int, indiv::Int, snps_per_tile::Int, n_col::Int)
     if snps % snps_per_tile != 0
-        error("Indiv must be a multiple of indiv_per_tile")
+        error("SNPs must be a multiple of snps_per_tile")
     end
     indices = range(1, snps, step = snps_per_tile)
     ZtB = zeros((snps, n_col))
@@ -67,13 +67,13 @@ function multiply_Zt(obj_ref::Vector{Ref{Ptr{Cvoid}}}, B::Matrix{Float64}, snps:
 end
 
 function multiply_Z(obj_ref::Vector{Ref{Ptr{Cvoid}}}, B::Matrix{Float64}, snps::Int, indiv::Int, indiv_per_tile::Int, n_col::Int)
-    if snps % snps_per_tile != 0
-        error("SNPs must be a multiple of snps_per_tile")
+    if indiv % indiv_per_tile != 0
+        error("Indiv must be a multiple of indiv_per_tile")
     end
     indices = range(1, indiv, step = indiv_per_tile)
     ZB = zeros((indiv, n_col))
     for (i, j) in enumerate(indices)
-        ZB[j : (j + snps_per_tile - 1),:] += miraculix.dgemm_compressed.dgemm_compressed_main(true, obj_ref[i], B, snps, indiv_per_tile)
+        ZB[j : (j + indiv_per_tile - 1),:] += miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_ref[i], B, snps, indiv_per_tile)
     end
     return ZB
 end
@@ -137,10 +137,12 @@ ccall(init_sym,  Cvoid,  (Ptr{UInt8}, Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint
 for i in range(0, 1)
     push!(obj_ref, Ref{Ptr{Cvoid}}(C_NULL))
     push!(obj_ref_trans, Ref{Ptr{Cvoid}}(C_NULL))
+
     ENV["CUDA_DEVICE"] = i % n_devices
     ccall(init_sym,  Cvoid,  (Ptr{UInt8}, Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint, Ptr{Ptr{Cvoid}}), pointer(plink, i * n_snps_per_tile * size(plink,1) + 1 ), C_NULL, Int32(n_snps_per_tile), Int32(n_indiv), pointer(freq,i * n_snps_per_tile + 1), Int32(n_col), obj_ref[i + 1])
+
     ENV["CUDA_DEVICE"] = (i + 1) % n_devices 
-    #ccall(init_sym,  Cvoid,  (Ptr{UInt8}, Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint, Ptr{Ptr{Cvoid}}), C_NULL, plink_transposed[:, (i * n_indiv_per_tile + 1) : n_indiv_per_tile * (i + 1)], Int32(n_snps), Int32(n_indiv_per_tile), freq, Int32(n_col), obj_ref_trans[i + 1])
+    ccall(init_sym,  Cvoid,  (Ptr{UInt8}, Ptr{UInt8}, Cint, Cint, Ptr{Float64}, Cint, Ptr{Ptr{Cvoid}}), C_NULL, pointer(plink_transposed, (i * n_indiv_per_tile * size(plink_transposed, 1) + 1)), Int32(n_snps), Int32(n_indiv_per_tile), freq, Int32(n_col), obj_ref_trans[i + 1])
 end
 
 B = ones(Float64, n_indiv, n_col) # RHS of equation system
@@ -149,8 +151,8 @@ V = multiply_Zt(obj_ref, B, n_snps, n_indiv, n_snps_per_tile, n_col)
 V_ref = miraculix.dgemm_compressed.dgemm_compressed_main(true, obj_reference, B, n_snps, n_indiv)
 @assert isapprox(V, V_ref)
 
-
-W = multiply_Z(obj_ref_trans, V, n_snps, n_indiv, n_snps_per_tile, n_col)
+W = multiply_Z(obj_ref_trans, V, n_snps, n_indiv, n_indiv_per_tile, n_col)
+W_ref = miraculix.dgemm_compressed.dgemm_compressed_main(false, obj_reference, V_ref, n_snps, n_indiv)
 
 for ref in obj_ref
     ccall(free_sym, Cvoid, (Ptr{Ptr{Cvoid}},), ref)
