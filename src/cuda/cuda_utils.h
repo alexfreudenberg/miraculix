@@ -82,6 +82,14 @@ int checkDevMemory(size_t required_mem);
  */
 int switchDevice();
 
+/**
+ * @brief Switch the current context to the device requested in the argument.
+ * 
+ * @param device The device to switch to.
+ * @return 0 if the context was successfully switched, otherwise returns an error code.
+ */
+int switchDevice(int device);
+
 
 
 int checkError(const char *func, int line, cudaError_t err);

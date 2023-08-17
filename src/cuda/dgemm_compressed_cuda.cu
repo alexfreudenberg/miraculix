@@ -40,7 +40,7 @@
 // 
 // plink2gpu function
 // 
-int plink2gpu(char *plink, char *plink_transposed, int snps,
+int plink2gpu(char *genotype, char *genotype_transposed, int snps,
               int indiv, double *f, int n, void **GPU_obj) {
   /*
     Moves SNP matrix, its transposed and the according allele frequencies to the
@@ -48,9 +48,9 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
     to which is then returned.
 
     Parameters:
-      plink: Pointer to SNP matrix in plink format of size ceil(indiv/4) * snps
+      genotype: Pointer to SNP matrix in plink format of size ceil(indiv/4) * snps
     +3
-      plink_transpoed: Pointer to transposed SNP matrix in plink format
+      genotype_transpoed: Pointer to transposed SNP matrix in plink format
       f: Pointer to vector of allele frequencies
       snps: Pointer to number of snps
       indiv: Pointer to number of individuals
@@ -64,10 +64,15 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   // Initialize CUDA variables
   //
   cudaError_t err;
-  uint8_t *d_plink, *d_plink_transposed;
-  double *d_f, *d_unit, *d_C, *d_D;
-  double *d_B;
+  uint8_t *d_genotype            = NULL,
+          *d_genotype_transposed = NULL;
+  double  *d_f                   = NULL,
+          *d_unit                = NULL,
+          *d_C                   = NULL,
+          *d_D                   = NULL,
+          *d_B                   = NULL;
 
+  int n_datasets = int(genotype != NULL) + int(genotype_transposed != NULL);
   long n_bytes_per_snp =
       (indiv - 1) / 4 + 1; // number of columns of Z if individuals
                            // are zero-padded to be a multiple of 4
@@ -80,20 +85,29 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   // zero-padding This allows us to deal with SNP matrices with unaligned
   // dimensions which are themselves zero-padded
 
-  debug_info("Dimensions: (%d,%d), size in bytes: %ld, size_t %d", snps, indiv, n_bytes_per_snp * long(snps) + long(indiv) * n_bytes_per_indiv, sizeof(size_t));
+  debug_info("Dimensions: (%d,%d), size in bytes: %ld", snps, indiv, n_bytes_per_snp * long(snps) + long(indiv) * n_bytes_per_indiv);
 
-  if(checkCuda() != 0){
+  // Check if CUDA installation is correct
+  if (checkCuda() != 0) {
     return 1;
   }
-
+  // Switch to correct device
   int device = switchDevice();
-  if(device == -1){
+  if (device == -1) {
+    return 1;
+  }
+  // Check if a genotype dataset was supplied
+  if (n_datasets == 0) {
+    checkError(__func__, __LINE__, cudaErrorInvalidHostPointer);
     return 1;
   }
 
   // Check if enough memory is available
-  size_t required_mem = 3 * size_buffer * sizeof(double) + n_bytes_per_snp * long(snps) +
-                     n_bytes_per_indiv * long(indiv);
+  size_t required_mem = 3 * size_buffer * sizeof(double);
+  if (genotype != NULL)
+    required_mem += n_bytes_per_snp * long(snps);
+  if (genotype_transposed != NULL)
+    required_mem += n_bytes_per_indiv * long(indiv);
 
   if (checkDevMemory(required_mem) != 0) {
     return 1;
@@ -102,18 +116,23 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   //
   // Allocate device memory
   //
-  err = cudaMalloc((void **)&d_plink, n_bytes_per_snp * long(snps));
-  if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
-  err = cudaMalloc((void **)&d_plink_transposed, n_bytes_per_indiv * long(indiv));
-  if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+  if (genotype != NULL) {
+    err = cudaMalloc((void **)&d_genotype, n_bytes_per_snp * long(snps));
+    if (checkError(__func__, __LINE__, err) != 0)
+      return 1;
+  }
+  if (genotype_transposed != NULL) {
+    err = cudaMalloc((void **)&d_genotype_transposed,
+                     n_bytes_per_indiv * long(indiv));
+    if (checkError(__func__, __LINE__, err) != 0)
+      return 1;
+  }
   err = cudaMalloc((void **)&d_f, sizeof(double) * snps);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   err = cudaMalloc((void **)&d_unit, sizeof(double) * indiv);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   err = cudaMalloc((void **)&d_B, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
@@ -127,41 +146,47 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
   //
   // Copy data to device
   //
-  err = cudaMemcpy(d_plink, plink, long(n_bytes_per_snp) * long(snps), cudaMemcpyHostToDevice);
-  if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
-  err = cudaMemcpy(d_plink_transposed, plink_transposed, long(n_bytes_per_indiv) * long(indiv),
-                   cudaMemcpyHostToDevice);
-  if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+  if (genotype != NULL) {
+    err = cudaMemcpy(d_genotype, genotype, long(n_bytes_per_snp) * long(snps),
+                     cudaMemcpyHostToDevice);
+    if (checkError(__func__, __LINE__, err) != 0)
+      return 1;
+  }
+  if (genotype_transposed != NULL) {
+    err = cudaMemcpy(d_genotype_transposed, genotype_transposed,
+                     long(n_bytes_per_indiv) * long(indiv),
+                     cudaMemcpyHostToDevice);
+    if (checkError(__func__, __LINE__, err) != 0)
+      return 1;
+  }
   err = cudaMemcpy(d_f, f, sizeof(double) * long(snps), cudaMemcpyHostToDevice);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
 
   // Fill d_unit with 1.0s
   thrust::device_ptr<double> d_unit_thrust(d_unit);
   thrust::fill(d_unit_thrust, d_unit_thrust + indiv, 1.0);
   err = cudaGetLastError();
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
+
   //
   // Initialize GPU_gemm_storage object
   //
   struct GPU_gemm_storage *GPU_storage_obj =
       (struct GPU_gemm_storage *)malloc(sizeof(struct GPU_gemm_storage));
 
-  GPU_storage_obj->d_plink            = d_plink;
-  GPU_storage_obj->d_plink_transposed = d_plink_transposed;
-  GPU_storage_obj->d_f                = d_f;
-  GPU_storage_obj->d_unit             = d_unit;
-  GPU_storage_obj->d_B                = d_B;
-  GPU_storage_obj->d_C                = d_C;
-  GPU_storage_obj->d_D                = d_D;
-  GPU_storage_obj->size_buffer        = size_buffer;
-  GPU_storage_obj->snps               = snps;
-  GPU_storage_obj->indiv              = indiv;
-  GPU_storage_obj->device             = device;
-  debug_info("Pointer d_plink %d, d_plink_transposed %d", d_plink, d_plink_transposed);
+  GPU_storage_obj->d_genotype            = d_genotype;
+  GPU_storage_obj->d_genotype_transposed = d_genotype_transposed;
+  GPU_storage_obj->d_f                   = d_f;
+  GPU_storage_obj->d_unit                = d_unit;
+  GPU_storage_obj->d_B                   = d_B;
+  GPU_storage_obj->d_C                   = d_C;
+  GPU_storage_obj->d_D                   = d_D;
+  GPU_storage_obj->size_buffer           = size_buffer;
+  GPU_storage_obj->snps                  = snps;
+  GPU_storage_obj->indiv                 = indiv;
+  GPU_storage_obj->device                = device;
 
   // Set pointer to initialized object
   *GPU_obj = (void *)GPU_storage_obj;
@@ -176,36 +201,44 @@ int plink2gpu(char *plink, char *plink_transposed, int snps,
 int freegpu(void **GPU_obj){
   cudaError_t err;
 
-  if(checkCuda() != 0){
+  if (checkCuda() != 0) {
     return 1;
   }
-  if(*GPU_obj == NULL){
-    return 1;
-  }  
-  
+  if (*GPU_obj == NULL)
+    return checkError(__func__, __LINE__, cudaErrorInvalidHostPointer);
+
   // Free device memory and derefence storage object
   struct GPU_gemm_storage *GPU_storage_obj = (struct GPU_gemm_storage *) (*GPU_obj);
-  err = cudaFree(GPU_storage_obj->d_plink);
-  if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
-  err = cudaFree(GPU_storage_obj->d_plink_transposed);
-  if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+
+  if (switchDevice(GPU_storage_obj->device) == -1) {
+    return 1;
+  }
+
+  if (GPU_storage_obj->d_genotype != NULL) {
+    err = cudaFree(GPU_storage_obj->d_genotype);
+    if (checkError(__func__, __LINE__, err) != 0)
+      return 1;
+  }
+  if (GPU_storage_obj->d_genotype_transposed != NULL) {
+    err = cudaFree(GPU_storage_obj->d_genotype_transposed);
+    if (checkError(__func__, __LINE__, err) != 0)
+      return 1;
+  }
   err = cudaFree(GPU_storage_obj->d_f);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   err = cudaFree(GPU_storage_obj->d_unit);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   err = cudaFree(GPU_storage_obj->d_B);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   err = cudaFree(GPU_storage_obj->d_C);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   err = cudaFree(GPU_storage_obj->d_D);
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
   free(GPU_storage_obj);
 
   GPU_obj = NULL;
@@ -261,36 +294,52 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   cublasStatus_t cublas_status;
   cublasHandle_t cublas_handle;
 
+  if (GPU_obj == NULL)
+    return checkError(__func__, __LINE__, cudaErrorInvalidHostPointer);
+
   struct GPU_gemm_storage *GPU_storage_obj = (struct GPU_gemm_storage *) GPU_obj;
 
   // Initialize device pointer for M
   // cutlass function assumes row major for M and PLINK bed uses SNP major, hence
-  // pointer plink is needed for transA = 't' and plink_transposed if transA =
+  // pointer genotype is needed for transA = 't' and genotype_transposed if transA =
   // 'N'
-  uint8_t  *d_M         = transA ? GPU_storage_obj->d_plink : GPU_storage_obj->d_plink_transposed;
-  cutlass::u4f64_t *d_B = reinterpret_cast<cutlass::u4f64_t *>(GPU_storage_obj->d_B);
-  double   *d_f         = GPU_storage_obj->d_f,
-           *d_unit      = GPU_storage_obj->d_unit;
-  double   *d_C         = GPU_storage_obj->d_C;
-  double   *d_D         = GPU_storage_obj->d_D;
+  uint8_t          *d_M         = transA ? GPU_storage_obj->d_genotype : GPU_storage_obj->d_genotype_transposed;
+  cutlass::u4f64_t *d_B         = reinterpret_cast<cutlass::u4f64_t *>(GPU_storage_obj->d_B);
+  double           *d_f         = GPU_storage_obj->d_f,
+                   *d_unit      = GPU_storage_obj->d_unit;
+  double           *d_C         = GPU_storage_obj->d_C;
+  double           *d_D         = GPU_storage_obj->d_D;
+  double           *d_workspace = NULL;
 
   long m           = transA ? GPU_storage_obj->snps : GPU_storage_obj->indiv;
   long k           = transA ? GPU_storage_obj->indiv : GPU_storage_obj->snps;
   long size_buffer = GPU_storage_obj->size_buffer;
   long k1          = (k - 1) / 4 + 1;
 
-
-  debug_info("\tEntering GPU multiplication\n");
-  debug_info("Pointer: d_M %d, Dimensions: m %ld, k %ld, k1 %ld, n %ld", d_M, m, k, k1, n);
-  const double alpha = 1.0,
-         alpha_n2 = -2.0,
-         beta  = 0.0;
-  double *d_workspace = NULL;
+  const  double alpha = 1.0,
+         alpha_n2     = -2.0,
+         beta         = 0.0;
 
   // Check CUDA installation
   if(checkCuda() != 0){
     return 1;
   }
+  // Switch to device of object
+  if (switchDevice(GPU_storage_obj->device) == -1) {
+    return 1;
+  }
+
+  // Check correctness of pointers
+  if (d_M == NULL) {
+    printf(
+        "Storage object does not hold data for transpose operation %s\n",
+        transA ? "true" : "false");
+    checkError(__func__, __LINE__, cudaErrorInvalidDevicePointer);
+    return 1;
+  }
+
+  debug_info("\tEntering GPU multiplication\n");
+  debug_info("Pointer: d_M %d, Dimensions: m %ld, k %ld, k1 %ld, n %ld", d_M, m, k, k1, n);
 
   // Create cuBLAS handle
   cublas_status = cublasCreate(&cublas_handle);
@@ -301,8 +350,8 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   err = cudaMemset(d_B, 0, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
     return 1;
-  err = cudaMemset(d_C, 0, sizeof(double) * err);
-  if (checkError(__func__, __LINE__, cublas_status) != 0)
+  err = cudaMemset(d_C, 0, sizeof(double) * size_buffer);
+  if (checkError(__func__, __LINE__, err) != 0)
     return 1;
   err = cudaMemset(d_D, 0, sizeof(double) * size_buffer);
   if (checkError(__func__, __LINE__, err) != 0)
@@ -382,7 +431,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   // Catch all accumulated errors from previous cuda launches
   err = cudaGetLastError();
   if (checkError(__func__, __LINE__, err) != 0)
-    return (1);
+    return 1;
 
 
   //
@@ -416,7 +465,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   // cuBLAS only supports op(A) x, so we calculate B^T f (B^T 1_k resp.), which
   // returns the same as the result is a vector
   // B is of dimension (snps, n) if
-  // transa = 'N' and of dimension (indiv,n) if transa = true cuBLAS assumes
+  // transa = false and of dimension (indiv,n) if transa = true cuBLAS assumes
   // column-major and d_B is stored in column-major, hence trans = CUBLAS_OP_T
   switch(centered){
     case 0: break;
@@ -436,7 +485,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
                                   d_workspace,                     // vector y
                                   1);                              // incy
       if (checkError(__func__, __LINE__, cublas_status) != 0)
-        return (1);
+        return 1;
 
       debug_info("Centering: C");
 
@@ -445,7 +494,7 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
       cublas_status =
           cublasSetPointerMode(cublas_handle, CUBLAS_POINTER_MODE_DEVICE);
       if (checkError(__func__, __LINE__, cublas_status) != 0)
-        return (1);
+        return 1;
       for (int i = 0; i < n; i++) {
         cublas_status = cublasDaxpy(cublas_handle,         // handle
                                     m,                     // number of rows
@@ -455,12 +504,13 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
                                     d_D + i * m,           //  y
                                     1);                    // incy
         if (checkError(__func__, __LINE__, cublas_status) != 0)
-          return (1);
+          return 1;
       }
       break;
     }
     default: checkError(__func__, __LINE__, cudaErrorInvalidValue); return 1;  
    }
+
   //
   // Wrap-up
   //
@@ -475,14 +525,9 @@ int dgemm_compressed_gpu(bool transA, void *GPU_obj, int n, double *B, int ldb,
   cudaDeviceSynchronize();
   cublas_status = cublasDestroy(cublas_handle);
   if (checkError(__func__, __LINE__, cublas_status) != 0)
-    return (1);
+    return 1;
     
   cudaFree(d_workspace);
-  
-  // debug_info("C: ");
-  // for(int i = 0; i < 10; i++){
-  //   debug_info("%f ", C[i]);
-  // }
   debug_info("Return");
  
   return 0;

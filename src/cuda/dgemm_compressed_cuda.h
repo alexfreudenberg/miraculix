@@ -85,8 +85,8 @@ Freudenberg.
 // to which double-precision matrices will be transferred.
 
 struct GPU_gemm_storage {
-  uint8_t *d_plink; // Pointer to device copy of SNP matrix in plink format
-  uint8_t *d_plink_transposed; // Pointer to device copy ot transposed SNP
+  uint8_t *d_genotype; // Pointer to device copy of SNP matrix in plink format
+  uint8_t *d_genotype_transposed; // Pointer to device copy ot transposed SNP
                                // matrix in plink format
   double *d_f;      // Pointer to device copy of vector of allele frequencies
   double *d_unit;   // Pointer to device vector of 1s
@@ -101,7 +101,7 @@ struct GPU_gemm_storage {
 
 // Function declarations
 
-int plink2gpu(char *plink, char *plink_transposed, int snps,
+int plink2gpu(char *genotype, char *genotype_transposed, int snps,
               int indiv, double *f, int n, void **GPU_obj);
 int dgemm_compressed_gpu(bool transa, void *GPU_obj, int n, double *B, int ldb,
                          int centered, int normalized, double *C, int ldc);
